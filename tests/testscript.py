@@ -221,6 +221,16 @@ def number_of_devices(machine):
     assert status == 0
     return int(out)
 
+def number_of_network_devices(machine):
+    status, out = ssh(machine, "lspci -n | grep 0200 | wc -l")
+    assert status == 0
+    return int(out)
+
+def number_of_storage_devices(machine):
+    status, out = ssh(machine, "lspci -n | grep 0180 | wc -l")
+    assert status == 0
+    return int(out)
+
 
 runner = unittest.TextTestRunner()
 runner.run(suite())
