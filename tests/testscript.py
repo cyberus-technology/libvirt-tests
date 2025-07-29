@@ -70,7 +70,7 @@ class LibvirtTests(unittest.TestCase):
         computeVM.fail("find /run/libvirt/ch -name *.xml | grep .")
         computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
 
-    def test_network_hotplug_transient(self):
+    def test_network_hotplug_transient_vm_restart(self):
         # Using define + start creates a "persistant" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
@@ -98,7 +98,7 @@ class LibvirtTests(unittest.TestCase):
 
         assert number_of_network_devices(controllerVM) == num_net_devices_old
 
-    def test_network_hotplug_persistent(self):
+    def test_network_hotplug_persistent_vm_restart(self):
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
@@ -126,7 +126,7 @@ class LibvirtTests(unittest.TestCase):
 
         assert number_of_network_devices(controllerVM) == num_net_devices_new
 
-    def test_network_hotplug_persistent_transient_detach(self):
+    def test_network_hotplug_persistent_transient_detach_vm_restart(self):
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
@@ -161,6 +161,52 @@ class LibvirtTests(unittest.TestCase):
 
         assert number_of_network_devices(controllerVM) == num_net_devices_new
 
+
+    def test_network_hotplug_attach_detach_transient(self):
+        # Using define + start creates a "persistant" domain rather than a transient
+        controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+
+        assert wait_for_ssh(controllerVM)
+
+        num_devices_old = number_of_network_devices(controllerVM)
+
+        controllerVM.succeed(
+            "virsh -c ch:///session attach-device cirros /etc/new_interface.xml"
+        )
+
+        num_devices_new = number_of_network_devices(controllerVM)
+
+        assert num_devices_new == num_devices_old + 1
+
+        controllerVM.succeed(
+            "virsh -c ch:///session detach-device cirros /etc/new_interface.xml"
+        )
+
+        assert number_of_network_devices(controllerVM) == num_devices_old
+
+    def test_network_hotplug_attach_detach_persistent(self):
+        # Using define + start creates a "persistant" domain rather than a transient
+        controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+
+        assert wait_for_ssh(controllerVM)
+
+        num_devices_old = number_of_network_devices(controllerVM)
+
+        controllerVM.succeed(
+            "virsh -c ch:///session attach-device --persistent cirros /etc/new_interface.xml"
+        )
+
+        num_devices_new = number_of_network_devices(controllerVM)
+
+        assert num_devices_new == num_devices_old + 1
+
+        controllerVM.succeed(
+            "virsh -c ch:///session detach-device --persistent cirros /etc/new_interface.xml"
+        )
+
+        assert number_of_network_devices(controllerVM) == num_devices_old
 
     def test_hotplug(self):
         # Using define + start creates a "persistant" domain rather than a transient
@@ -287,9 +333,11 @@ def suite():
     suite.addTest(LibvirtTests("test_libvirt_restart"))
     suite.addTest(LibvirtTests("test_live_migration"))
     suite.addTest(LibvirtTests("test_numa_topology"))
-    suite.addTest(LibvirtTests("test_network_hotplug_transient"))
-    suite.addTest(LibvirtTests("test_network_hotplug_persistent"))
-    suite.addTest(LibvirtTests("test_network_hotplug_persistent_transient_detach"))
+    suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_transient"))
+    suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_persistent"))
+    suite.addTest(LibvirtTests("test_network_hotplug_transient_vm_restart"))
+    suite.addTest(LibvirtTests("test_network_hotplug_persistent_vm_restart"))
+    suite.addTest(LibvirtTests("test_network_hotplug_persistent_transient_detach_vm_restart"))
     return suite
 
 
