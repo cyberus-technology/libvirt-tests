@@ -10,13 +10,39 @@ let
     ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${image} $out
   '';
 
-  virsh_ch_xml = ''
-      <domain type='kvm' id='21050'>
+  virsh_ch_xml = { numa ? false }:
+  ''
+    <domain type='kvm' id='21050'>
       <name>cirros</name>
       <uuid>4eb6319a-4302-4407-9a56-802fc7e6a422</uuid>
-      <memory unit='KiB'>262144</memory>
-      <currentMemory unit='KiB'>262144</currentMemory>
+      <memory unit='KiB'>2097152</memory>
+      <currentMemory unit='KiB'>2097152</currentMemory>
+      ${if numa then ''
+      <vcpu placement='static'>4</vcpu>
+      <cputune>
+        <vcpupin vcpu='0' cpuset='0-1'/>
+        <vcpupin vcpu='1' cpuset='0-1'/>
+        <vcpupin vcpu='2' cpuset='2-3'/>
+        <vcpupin vcpu='3' cpuset='2-3'/>
+        <emulatorpin cpuset='0-1'/>
+      </cputune>
+      <cpu>
+        <topology sockets='2' dies='1' cores='1' threads='2'/>
+        <numa>
+          <!-- Defines the guest NUMA topology -->
+          <cell id='0' cpus='0-1' memory='1024' unit='MiB'/>
+          <cell id='1' cpus='2-3,' memory='1024' unit='MiB'/>
+        </numa>
+      </cpu>
+      <numatune>
+        <memory mode='strict' nodeset='0'/>
+          <!-- Maps memory from guest to host NUMA topology. nodeset refers to host NUMA node, cellid to guest NUMA -->
+        <memnode cellid='0' mode='strict' nodeset='0'/>
+        <memnode cellid='1' mode='strict' nodeset='0'/>
+      </numatune>
+      '' else ''
       <vcpu placement='static'>2</vcpu>
+      '' }
       <os>
         <type arch='x86_64'>hvm</type>
         <kernel>/etc/CLOUDHV.fd</kernel>
@@ -224,7 +250,12 @@ in
         };
         "/etc/cirros-chv.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "cirros.xml" virsh_ch_xml}";
+            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml {})}";
+          };
+        };
+        "/etc/cirros-chv-numa.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml { numa = true; })}";
           };
         };
         "/etc/new_interface.xml" = {

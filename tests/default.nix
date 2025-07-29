@@ -17,7 +17,7 @@ pkgs.nixosTest {
 
       virtualisation = {
         cores = 4;
-        memorySize = 2048;
+        memorySize = 3072;
         interfaces = {
           eth1 = {
             vlan = 1;
@@ -66,7 +66,7 @@ pkgs.nixosTest {
 
       virtualisation = {
         cores = 4;
-        memorySize = 2048;
+        memorySize = 3072;
         interfaces = {
           eth1 = {
             vlan = 1;

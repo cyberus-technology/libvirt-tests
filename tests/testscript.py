@@ -162,12 +162,39 @@ class LibvirtTests(unittest.TestCase):
             time.sleep(5)
             assert wait_for_ssh(controllerVM)
 
+    def test_numa_topology(self):
+        """
+        We test that a NUMA topology and NUMA tunings are correctly passed to
+        Cloud Hypervisor and the VM.
+        """
+        controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv-numa.xml")
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Check that there are 2 NUMA nodes
+        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
+        assert status == 0
+
+        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node1")
+        assert status == 0
+
+        # Check that there are 2 CPU sockets and 2 threads per core
+        status, out = ssh(controllerVM, "lscpu | grep Socket | awk '{print $2}'")
+        assert status == 0, "cmd failed"
+        assert int(out) == 2, "Expect to find 2 sockets"
+
+        status, out = ssh(controllerVM, "lscpu | grep Thread | awk '{print $4}'")
+        assert status == 0, "cmd failed"
+        assert int(out) == 2, "Expect to find 2 threads per core"
+
 
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(LibvirtTests("test_hotplug"))
     suite.addTest(LibvirtTests("test_libvirt_restart"))
     suite.addTest(LibvirtTests("test_live_migration"))
+    suite.addTest(LibvirtTests("test_numa_topology"))
     return suite
 
 
