@@ -70,6 +70,98 @@ class LibvirtTests(unittest.TestCase):
         computeVM.fail("find /run/libvirt/ch -name *.xml | grep .")
         computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
 
+    def test_network_hotplug_transient(self):
+        # Using define + start creates a "persistant" domain rather than a transient
+        controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+
+        assert wait_for_ssh(controllerVM)
+
+        num_net_devices_old = number_of_network_devices(controllerVM)
+
+        # Add a transient network device, i.e. the device should disappear
+        # when the VM is destroyed and restarted.
+        controllerVM.succeed(
+            "virsh -c ch:///session attach-device cirros /etc/new_interface.xml"
+        )
+
+        num_net_devices_new = number_of_network_devices(controllerVM)
+
+        assert num_net_devices_new == num_net_devices_old + 1
+
+        controllerVM.succeed(
+            "virsh -c ch:///session destroy cirros"
+        )
+
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+        assert wait_for_ssh(controllerVM)
+
+        assert number_of_network_devices(controllerVM) == num_net_devices_old
+
+    def test_network_hotplug_persistent(self):
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+
+        assert wait_for_ssh(controllerVM)
+
+        num_net_devices_old = number_of_network_devices(controllerVM)
+
+        # Add a persistent network device, i.e. the device should re-appear
+        # when the VM is destroyed and restarted.
+        controllerVM.succeed(
+            "virsh -c ch:///session attach-device cirros /etc/new_interface.xml --persistent"
+        )
+
+        num_net_devices_new = number_of_network_devices(controllerVM)
+
+        assert num_net_devices_new == num_net_devices_old + 1
+
+        controllerVM.succeed(
+            "virsh -c ch:///session destroy cirros"
+        )
+
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+        assert wait_for_ssh(controllerVM)
+
+        assert number_of_network_devices(controllerVM) == num_net_devices_new
+
+    def test_network_hotplug_persistent_transient_detach(self):
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+
+        assert wait_for_ssh(controllerVM)
+
+        num_net_devices_old = number_of_network_devices(controllerVM)
+
+        # Add a persistent network device, i.e. the device should re-appear
+        # when the VM is destroyed and restarted.
+        controllerVM.succeed(
+            "virsh -c ch:///session attach-device cirros /etc/new_interface.xml --persistent"
+        )
+
+        num_net_devices_new = number_of_network_devices(controllerVM)
+
+        assert num_net_devices_new == num_net_devices_old + 1
+
+        # Transiently detach the device. It should re-appear when the VM is restarted.
+        controllerVM.succeed(
+            "virsh -c ch:///session detach-device cirros /etc/new_interface.xml"
+        )
+
+        assert number_of_network_devices(controllerVM) == num_net_devices_old
+
+        controllerVM.succeed(
+            "virsh -c ch:///session destroy cirros"
+        )
+
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+        assert wait_for_ssh(controllerVM)
+
+        assert number_of_network_devices(controllerVM) == num_net_devices_new
+
+
     def test_hotplug(self):
         # Using define + start creates a "persistant" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
@@ -195,6 +287,9 @@ def suite():
     suite.addTest(LibvirtTests("test_libvirt_restart"))
     suite.addTest(LibvirtTests("test_live_migration"))
     suite.addTest(LibvirtTests("test_numa_topology"))
+    suite.addTest(LibvirtTests("test_network_hotplug_transient"))
+    suite.addTest(LibvirtTests("test_network_hotplug_persistent"))
+    suite.addTest(LibvirtTests("test_network_hotplug_persistent_transient_detach"))
     return suite
 
 
