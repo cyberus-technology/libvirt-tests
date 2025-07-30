@@ -71,7 +71,7 @@ class LibvirtTests(unittest.TestCase):
         computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
 
     def test_network_hotplug_transient_vm_restart(self):
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
 
@@ -163,7 +163,7 @@ class LibvirtTests(unittest.TestCase):
 
 
     def test_network_hotplug_attach_detach_transient(self):
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
 
@@ -186,7 +186,7 @@ class LibvirtTests(unittest.TestCase):
         assert number_of_network_devices(controllerVM) == num_devices_old
 
     def test_network_hotplug_attach_detach_persistent(self):
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
 
@@ -209,7 +209,7 @@ class LibvirtTests(unittest.TestCase):
         assert number_of_network_devices(controllerVM) == num_devices_old
 
     def test_hotplug(self):
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
 
@@ -248,7 +248,7 @@ class LibvirtTests(unittest.TestCase):
         problems when trying to interact with them. Thus, we check the restart
         with both running and shutdown domains.
         """
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
 
