@@ -71,6 +71,11 @@ class LibvirtTests(unittest.TestCase):
         computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
 
     def test_network_hotplug_transient_vm_restart(self):
+        """
+        Test whether we can attach a network device without the --persistent
+        parameter, which means the device should disappear if the vm is destroyed
+        and later restarted.
+        """
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
@@ -99,6 +104,11 @@ class LibvirtTests(unittest.TestCase):
         assert number_of_network_devices(controllerVM) == num_net_devices_old
 
     def test_network_hotplug_persistent_vm_restart(self):
+        """
+        Test whether we can attach a network device with the --persistent
+        parameter, which means the device should reappear if the vm is destroyed
+        and later restarted.
+        """
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
@@ -127,6 +137,11 @@ class LibvirtTests(unittest.TestCase):
         assert number_of_network_devices(controllerVM) == num_net_devices_new
 
     def test_network_hotplug_persistent_transient_detach_vm_restart(self):
+        """
+        Test whether we can attach a network device with the --persistent
+        parameter, and detach it without the parameter. When we then destroy and
+        restart the VM, the device should re-appear.
+        """
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
@@ -163,6 +178,11 @@ class LibvirtTests(unittest.TestCase):
 
 
     def test_network_hotplug_attach_detach_transient(self):
+        """
+        Test whether we can attach a network device without the --persistent
+        parameter, and detach it. After detach, the device should disappear from
+        the VM.
+        """
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
@@ -186,6 +206,11 @@ class LibvirtTests(unittest.TestCase):
         assert number_of_network_devices(controllerVM) == num_devices_old
 
     def test_network_hotplug_attach_detach_persistent(self):
+        """
+        Test whether we can attach a network device with the --persistent
+        parameter, and then detach it. After detach, the device should disappear from
+        the VM.
+        """
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start cirros")
