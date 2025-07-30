@@ -7,6 +7,7 @@ let
   };
 
   image_raw = pkgs.runCommand "image_raw" { } ''
+    ${pkgs.libguestfs-with-appliance}/bin/guestfish -a ${image} --rw -i write /etc/cirros-init/config 'DATASOURCE_LIST="nocloud"'
     ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${image} $out
   '';
 
