@@ -325,6 +325,60 @@ class LibvirtTests(unittest.TestCase):
             time.sleep(5)
             assert wait_for_ssh(controllerVM)
 
+    def test_live_migration_with_hotplug(self):
+        """
+        Test that transient and persistent devices are correctly handled during live migrations.
+        The tests first starts a VM, then attaches a persistent network device. After that, the VM
+        is migrated and the new device is detached transiently. Then the VM is destroyed and restarted
+        again. The assumption is that the persistent device is still present after the VM has rebooted.
+        """
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/cirros-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed(
+            "virsh -c ch:///session attach-device cirros /etc/new_interface.xml --persistent"
+        )
+
+        num_devices_controller = number_of_network_devices(controllerVM)
+
+        assert num_devices_controller == 2
+
+        controllerVM.succeed(
+            "virsh -c ch:///session migrate --domain cirros --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        assert wait_for_ssh(computeVM)
+
+        num_devices_compute = number_of_network_devices(computeVM)
+
+        assert num_devices_controller == num_devices_compute
+
+        computeVM.succeed(
+            "virsh -c ch:///session detach-device cirros /etc/new_interface.xml"
+        )
+
+        assert number_of_network_devices(computeVM) == 1
+
+        computeVM.succeed(
+            "virsh -c ch:///session migrate --domain cirros --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
+        )
+
+        assert wait_for_ssh(controllerVM)
+        assert number_of_network_devices(controllerVM) == 1
+
+        controllerVM.succeed(
+            "virsh -c ch:///session destroy cirros"
+        )
+
+        controllerVM.succeed("virsh -c ch:///session start cirros")
+        assert wait_for_ssh(controllerVM)
+
+        assert number_of_network_devices(controllerVM) == 2
+
+
     def test_numa_topology(self):
         """
         We test that a NUMA topology and NUMA tunings are correctly passed to
@@ -357,6 +411,7 @@ def suite():
     suite.addTest(LibvirtTests("test_hotplug"))
     suite.addTest(LibvirtTests("test_libvirt_restart"))
     suite.addTest(LibvirtTests("test_live_migration"))
+    suite.addTest(LibvirtTests("test_live_migration_with_hotplug"))
     suite.addTest(LibvirtTests("test_numa_topology"))
     suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_transient"))
     suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_persistent"))
