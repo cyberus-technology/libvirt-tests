@@ -1,16 +1,16 @@
 { libvirt-src, nixos-image }:
 { pkgs, ... }:
 let
-  # image = pkgs.fetchurl {
-  #   url = "https://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img";
-  #   hash = "sha256-B+RKc+VMlNmIAoUVQDwe12IFXgG4OnZ+3zwrOH94zgA=";
-  # };
+  cirros_qcow = pkgs.fetchurl {
+    url = "https://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img";
+    hash = "sha256-B+RKc+VMlNmIAoUVQDwe12IFXgG4OnZ+3zwrOH94zgA=";
+  };
 
-  # image_raw = pkgs.runCommand "image_raw" { } ''
-  #   ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${image} $out
-  # '';
+  cirros_raw = pkgs.runCommand "cirros_raw" { } ''
+    ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${cirros_qcow} $out
+  '';
 
-  virsh_ch_xml = { numa ? false }:
+  virsh_ch_xml = { numa ? false, image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img" }:
   ''
     <domain type='kvm' id='21050'>
       <name>testvm</name>
@@ -55,7 +55,7 @@ let
       <devices>
         <emulator>cloud-hypervisor</emulator>
         <disk type='file' device='disk'>
-          <source file='/var/lib/libvirt/storage-pools/nfs-share/nixos.img'/>
+          <source file='${image}'/>
           <target dev='vda' bus='virtio'/>
         </disk>
         <interface type='ethernet'>
@@ -247,9 +247,19 @@ in
             argument = "${nixos-image}";
           };
         };
+        "/etc/cirros.img" = {
+          "L+" = {
+            argument = "${cirros_raw}";
+          };
+        };
         "/etc/domain-chv.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml {})}";
+          };
+        };
+        "/etc/domain-chv-cirros.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-cirros.xml" (virsh_ch_xml { image = "/var/lib/libvirt/storage-pools/nfs-share/cirros.img"; })}";
           };
         };
         "/etc/domain-chv-numa.xml" = {
