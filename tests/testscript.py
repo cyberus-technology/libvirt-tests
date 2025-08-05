@@ -48,7 +48,7 @@ class LibvirtTests(unittest.TestCase):
         computeVM.succeed("virsh -c ch:///session pool-start nfs-share")
 
     def setUp(self):
-        pass
+        print(f"\n\nRunning test: {self._testMethodName}\n\n")
 
     def tearDown(self):
         # Destroy and undefine all running and persistent domains
