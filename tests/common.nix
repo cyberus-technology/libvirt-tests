@@ -198,6 +198,13 @@ in
     };
   };
 
+  # The following works around the infamous
+  # `Bad owner or permissions on /nix/store/ymmaa926pv3f3wlgpw9y1aygdvqi1m7j-systemd-257.6/lib/systemd/ssh_config.d/20-systemd-ssh-proxy.conf`
+  # error. The current assumption is, that this is a nixos/nixpkgs bug handling
+  # file permissions incorrectly. But the error is only appearing on certain
+  # systems (AMD only?).
+  environment.etc."ssh/ssh_config".enable = false;
+
   security.pam.services.sshd.allowNullPassword = true;
 
   environment.systemPackages = [
