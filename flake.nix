@@ -51,6 +51,20 @@
           ];
         };
         rust-bin = (rust-overlay.lib.mkRustBin { }) pkgs;
+
+        nixos-image' =
+          (pkgs.callPackage ./images/nixos-image.nix { inherit nixpkgs; }).config.system.build.isoImage;
+
+        nixos-image =
+          pkgs.runCommand "nixos.iso"
+            {
+              nativeBuildInputs = [ pkgs.coreutils ];
+            }
+            ''
+              # The image has a non deterministic name, so we make it
+              # deterministic.
+              cp ${nixos-image'}/iso/*.iso $out
+            '';
       in
       {
         formatter = pkgs.nixfmt-rfc-style;
@@ -61,7 +75,7 @@
           # Export of the overlay'ed package
           inherit (pkgs) cloud-hypervisor;
         };
-        tests = pkgs.callPackage ./tests/default.nix { inherit libvirt-src; };
+        tests = pkgs.callPackage ./tests/default.nix { inherit libvirt-src nixos-image; };
       }
     );
 }

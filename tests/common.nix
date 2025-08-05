@@ -1,19 +1,19 @@
-{ libvirt-src }:
+{ libvirt-src, nixos-image }:
 { pkgs, ... }:
 let
-  image = pkgs.fetchurl {
-    url = "https://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img";
-    hash = "sha256-B+RKc+VMlNmIAoUVQDwe12IFXgG4OnZ+3zwrOH94zgA=";
-  };
+  # image = pkgs.fetchurl {
+  #   url = "https://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img";
+  #   hash = "sha256-B+RKc+VMlNmIAoUVQDwe12IFXgG4OnZ+3zwrOH94zgA=";
+  # };
 
-  image_raw = pkgs.runCommand "image_raw" { } ''
-    ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${image} $out
-  '';
+  # image_raw = pkgs.runCommand "image_raw" { } ''
+  #   ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${image} $out
+  # '';
 
   virsh_ch_xml = { numa ? false }:
   ''
     <domain type='kvm' id='21050'>
-      <name>cirros</name>
+      <name>testvm</name>
       <uuid>4eb6319a-4302-4407-9a56-802fc7e6a422</uuid>
       <memory unit='KiB'>2097152</memory>
       <currentMemory unit='KiB'>2097152</currentMemory>
@@ -55,7 +55,7 @@ let
       <devices>
         <emulator>cloud-hypervisor</emulator>
         <disk type='file' device='disk'>
-          <source file='/var/lib/libvirt/storage-pools/nfs-share/cirros.img'/>
+          <source file='/var/lib/libvirt/storage-pools/nfs-share/nixos.img'/>
           <target dev='vda' bus='virtio'/>
         </disk>
         <interface type='ethernet'>
@@ -117,8 +117,6 @@ in
       ];
     });
   };
-
-  virtualisation.diskSize = 4096;
 
   systemd.services.virtstoraged.path = [ pkgs.mount ];
 
@@ -189,7 +187,6 @@ in
   };
 
   services.getty.autologinUser = "root";
-
   services.openssh = {
     enable = true;
     settings = {
@@ -245,24 +242,19 @@ in
             argument = "${chv-ovmf}/FV/CLOUDHV.fd";
           };
         };
-        "/etc/cirros.img" = {
-          "C+" = {
-            argument = "${image_raw}";
+        "/etc/nixos.img" = {
+          "L+" = {
+            argument = "${nixos-image}";
           };
         };
-        "/etc/cirros.qcow2" = {
+        "/etc/domain-chv.xml" = {
           "C+" = {
-            argument = "${image}";
+            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml {})}";
           };
         };
-        "/etc/cirros-chv.xml" = {
+        "/etc/domain-chv-numa.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml {})}";
-          };
-        };
-        "/etc/cirros-chv-numa.xml" = {
-          "C+" = {
-            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml { numa = true; })}";
+            argument = "${pkgs.writeText "domain-numa.xml" (virsh_ch_xml { numa = true; })}";
           };
         };
         "/etc/new_interface.xml" = {
