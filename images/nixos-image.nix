@@ -42,7 +42,7 @@ nixpkgs.lib.nixosSystem {
         boot.initrd.kernelModules = [ "virtio_net" ];
 
         boot.loader.timeout = lib.mkForce 0;
-        networking.hostName = "nixos-qemu";
+        networking.hostName = "nixos";
 
         services.openssh = {
           enable = true;
