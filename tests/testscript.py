@@ -425,7 +425,7 @@ def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
     retries = 500
     for i in range(retries):
         print(f"Wait for ssh {i}/{retries}")
-        status, _ = ssh(machine, "echo hello")
+        status, _ = ssh(machine, "echo hello", user, password, ip="192.168.1.2")
         if status == 0:
             return True
         time.sleep(1)
