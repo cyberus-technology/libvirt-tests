@@ -1,7 +1,11 @@
 {
   pkgs,
   libvirt-src,
+  nixos-image,
 }:
+let
+  common = import ./common.nix { inherit libvirt-src nixos-image; };
+in
 pkgs.nixosTest {
   name = "Libvirt test";
 
@@ -11,7 +15,7 @@ pkgs.nixosTest {
     { ... }:
     {
       imports = [
-        (import ./common.nix { inherit libvirt-src; })
+        common
         ../modules/nfs-host.nix
       ];
 
@@ -23,6 +27,9 @@ pkgs.nixosTest {
             vlan = 1;
           };
         };
+        # controller hosts the NFS and needs more storage than the compute
+        # node.
+        diskSize = 8192;
       };
 
       networking.extraHosts = ''
@@ -56,7 +63,7 @@ pkgs.nixosTest {
     { ... }:
     {
       imports = [
-        (import ./common.nix { inherit libvirt-src; })
+        common
         ../modules/nfs-client.nix
       ];
 
@@ -72,6 +79,7 @@ pkgs.nixosTest {
             vlan = 1;
           };
         };
+        diskSize = 2048;
       };
 
       livemig.nfs.host = "192.168.100.1";
