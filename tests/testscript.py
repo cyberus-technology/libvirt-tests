@@ -78,7 +78,7 @@ class LibvirtTests(unittest.TestCase):
         parameter, which means the device should disappear if the vm is destroyed
         and later restarted.
         """
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start testvm")
 
@@ -185,7 +185,7 @@ class LibvirtTests(unittest.TestCase):
         parameter, and detach it. After detach, the device should disappear from
         the VM.
         """
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start testvm")
 
@@ -213,7 +213,7 @@ class LibvirtTests(unittest.TestCase):
         parameter, and then detach it. After detach, the device should disappear from
         the VM.
         """
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start testvm")
 
@@ -236,7 +236,7 @@ class LibvirtTests(unittest.TestCase):
         assert number_of_network_devices(controllerVM) == num_devices_old
 
     def test_hotplug(self):
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start testvm")
 
@@ -275,7 +275,7 @@ class LibvirtTests(unittest.TestCase):
         problems when trying to interact with them. Thus, we check the restart
         with both running and shutdown domains.
         """
-        # Using define + start creates a "persistant" domain rather than a transient
+        # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
         controllerVM.succeed("virsh -c ch:///session start testvm")
 
