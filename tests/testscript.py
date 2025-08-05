@@ -16,6 +16,8 @@ class LibvirtTests(unittest.TestCase):
         controllerVM.wait_for_unit("multi-user.target")
         controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
         controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
+        controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
+        controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
 
         controllerVM.succeed(
             'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
@@ -404,6 +406,16 @@ class LibvirtTests(unittest.TestCase):
         status, out = ssh(controllerVM, "lscpu | grep Thread | awk '{print $4}'")
         assert status == 0, "cmd failed"
         assert int(out) == 2, "Expect to find 2 threads per core"
+
+    def test_cirros_image(self):
+        """
+        The cirros image is often used as the most basic initial image to test
+        via openstack or libvirt. We want to make sure it boots flawlessly.
+        """
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-cirros.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM, user="cirros", password="gocubsgo")
 
 
 def suite():
