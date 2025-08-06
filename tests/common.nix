@@ -10,7 +10,7 @@ let
     ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${cirros_qcow} $out
   '';
 
-  virsh_ch_xml = { numa ? false, image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img" }:
+  virsh_ch_xml = { image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img", numa ? false, hugepages ? false, prefault ? false }:
   ''
     <domain type='kvm' id='21050'>
       <name>testvm</name>
@@ -40,8 +40,29 @@ let
         <memnode cellid='0' mode='strict' nodeset='0'/>
         <memnode cellid='1' mode='strict' nodeset='0'/>
       </numatune>
+      ${if hugepages then ''
+      <memoryBacking>
+        <hugepages>
+          <page size="2" unit="M" nodeset="0"/>
+          <page size="2" unit="M" nodeset="1"/>
+        </hugepages>
+        ${if prefault then ''
+        <allocation mode="immediate"/>
+        '' else '''' }
+      </memoryBacking>
+      '' else '''' }
       '' else ''
       <vcpu placement='static'>2</vcpu>
+      ${if hugepages then ''
+      <memoryBacking>
+        <hugepages>
+          <page size="2" unit="M"/>
+        </hugepages>
+        ${if prefault then ''
+        <allocation mode="immediate"/>
+        '' else '''' }
+      </memoryBacking>
+      '' else '''' }
       '' }
       <os>
         <type arch='x86_64'>hvm</type>
@@ -262,9 +283,29 @@ in
             argument = "${pkgs.writeText "domain-cirros.xml" (virsh_ch_xml { image = "/var/lib/libvirt/storage-pools/nfs-share/cirros.img"; })}";
           };
         };
+        "/etc/domain-chv-hugepages.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml { hugepages = true; })}";
+          };
+        };
+        "/etc/domain-chv-hugepages-prefault.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml { hugepages = true; prefault = true; })}";
+          };
+        };
         "/etc/domain-chv-numa.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "domain-numa.xml" (virsh_ch_xml { numa = true; })}";
+          };
+        };
+        "/etc/domain-chv-numa-hugepages.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml { numa = true; hugepages = true; })}";
+          };
+        };
+        "/etc/domain-chv-numa-hugepages-prefault.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml { numa = true; hugepages = true; prefault = true; })}";
           };
         };
         "/etc/new_interface.xml" = {
