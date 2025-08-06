@@ -72,6 +72,10 @@ class LibvirtTests(unittest.TestCase):
         computeVM.fail("find /run/libvirt/ch -name *.xml | grep .")
         computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
 
+        # Destroy any remaining huge page allocations.
+        controllerVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
+        computeVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
+
     def test_network_hotplug_transient_vm_restart(self):
         """
         Test whether we can attach a network device without the --persistent
@@ -417,6 +421,88 @@ class LibvirtTests(unittest.TestCase):
 
         assert wait_for_ssh(controllerVM, user="cirros", password="gocubsgo")
 
+    def test_hugepages(self):
+        """
+        Test hugepage on-demand usage for a non-NUMA VM.
+        """
+
+        nr_hugepages = 1024
+
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-hugepages.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Check that we really use hugepages from the hugepage pool
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) < nr_hugepages, "No huge pages have been used"
+
+    def test_hugepages_prefault(self):
+        """
+        Test hugepage usage with pre-faulting for a non-NUMA VM.
+        """
+
+        nr_hugepages = 1024
+
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-hugepages-prefault.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Check that all huge pages are in use
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == 0, "Invalid hugepage usage"
+
+    def test_numa_hugepages(self):
+        """
+        Test hugepage on-demand usage for a NUMA VM.
+        """
+
+        nr_hugepages = 1024
+
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-numa-hugepages.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Check that there are 2 NUMA nodes
+        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
+        assert status == 0
+
+        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node1")
+        assert status == 0
+
+        # Check that we really use hugepages from the hugepage pool
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) < nr_hugepages, "No huge pages have been used"
+
+    def test_numa_hugepages_prefault(self):
+        """
+        Test hugepage usage with pre-faulting for a NUMA VM.
+        """
+
+        nr_hugepages = 1024
+
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-numa-hugepages-prefault.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Check that there are 2 NUMA nodes
+        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
+        assert status == 0
+
+        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node1")
+        assert status == 0
+
+        # Check that all huge pages are in use
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == 0, "Invalid huge page usage"
+
 
 def suite():
     suite = unittest.TestSuite()
@@ -425,6 +511,10 @@ def suite():
     suite.addTest(LibvirtTests("test_live_migration"))
     suite.addTest(LibvirtTests("test_live_migration_with_hotplug"))
     suite.addTest(LibvirtTests("test_numa_topology"))
+    suite.addTest(LibvirtTests("test_hugepages"))
+    suite.addTest(LibvirtTests("test_hugepages_prefault"))
+    suite.addTest(LibvirtTests("test_numa_hugepages"))
+    suite.addTest(LibvirtTests("test_numa_hugepages_prefault"))
     suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_transient"))
     suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_persistent"))
     suite.addTest(LibvirtTests("test_network_hotplug_transient_vm_restart"))
