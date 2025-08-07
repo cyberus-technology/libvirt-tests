@@ -384,6 +384,41 @@ class LibvirtTests(unittest.TestCase):
 
         assert number_of_network_devices(controllerVM) == 2
 
+    def test_live_migration_with_hugepages(self):
+        """
+        Test that a VM that utilizes hugepages is still using hugepages after live migration.
+        """
+
+        nr_hugepages = 1024
+
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == nr_hugepages, "unable to allocate hugepages"
+
+        status, out = computeVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == nr_hugepages, "unable to allocate hugepages"
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-hugepages-prefault.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == 0, "not enough huge pages are in-use"
+
+        controllerVM.succeed(
+            "virsh -c ch:///session migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        assert wait_for_ssh(computeVM)
+
+        status, out = computeVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == 0, "not enough huge pages are in-use"
+
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == nr_hugepages, "not all huge pages have been freed"
 
     def test_numa_topology(self):
         """
@@ -510,6 +545,7 @@ def suite():
     suite.addTest(LibvirtTests("test_libvirt_restart"))
     suite.addTest(LibvirtTests("test_live_migration"))
     suite.addTest(LibvirtTests("test_live_migration_with_hotplug"))
+    suite.addTest(LibvirtTests("test_live_migration_with_hugepages"))
     suite.addTest(LibvirtTests("test_numa_topology"))
     suite.addTest(LibvirtTests("test_hugepages"))
     suite.addTest(LibvirtTests("test_hugepages_prefault"))
