@@ -442,7 +442,7 @@ class LibvirtTests(unittest.TestCase):
         assert status == 0, "cmd failed"
         assert int(out) == 2, "Expect to find 2 sockets"
 
-        status, out = ssh(controllerVM, "lscpu | grep Thread | awk '{print $4}'")
+        status, out = ssh(controllerVM, "lscpu | grep Thread\( | awk '{print $4}'")
         assert status == 0, "cmd failed"
         assert int(out) == 2, "Expect to find 2 threads per core"
 
