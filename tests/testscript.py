@@ -420,6 +420,30 @@ class LibvirtTests(unittest.TestCase):
         status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
         assert int(out) == nr_hugepages, "not all huge pages have been freed"
 
+    def test_live_migration_with_hugepages_failure_case(self):
+        """
+        Test that migrating a VM with hugepages to a destination without huge pages will fail gracefully.
+        """
+
+        nr_hugepages = 1024
+
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+
+        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        assert int(out) == nr_hugepages, "unable to allocate hugepages"
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-hugepages-prefault.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.fail(
+            "virsh -c ch:///session migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+        assert wait_for_ssh(controllerVM)
+
+        computeVM.fail("virsh -c ch:///session list | grep testvm")
+
     def test_numa_topology(self):
         """
         We test that a NUMA topology and NUMA tunings are correctly passed to
@@ -546,6 +570,7 @@ def suite():
     suite.addTest(LibvirtTests("test_live_migration"))
     suite.addTest(LibvirtTests("test_live_migration_with_hotplug"))
     suite.addTest(LibvirtTests("test_live_migration_with_hugepages"))
+    suite.addTest(LibvirtTests("test_live_migration_with_hugepages_failure_case"))
     suite.addTest(LibvirtTests("test_numa_topology"))
     suite.addTest(LibvirtTests("test_hugepages"))
     suite.addTest(LibvirtTests("test_hugepages_prefault"))
