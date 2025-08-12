@@ -12,6 +12,7 @@
       flake = false;
     };
     cloud-hypervisor-src = {
+      # url = "git+file::<path/to/cloud-hypervisor>";
       url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
       flake = false;
     };
