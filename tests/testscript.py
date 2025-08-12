@@ -294,6 +294,77 @@ class LibvirtTests(unittest.TestCase):
         controllerVM.succeed("systemctl restart virtchd")
         controllerVM.succeed("virsh -c ch:///session list | grep 'running'")
 
+    def test_live_migration_with_hotplug_and_virtchd_restart(self):
+        """
+        Test that we can restart the libvirt daemon (virtchd) in between live-migrations
+        and hotplugging.
+        """
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+        controllerVM.succeed("qemu-img create -f raw /nfs-root/disk.img 100M")
+        controllerVM.succeed("chmod 0666 /nfs-root/disk.img")
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed(
+            "virsh -c ch:///session attach-device testvm /etc/new_interface.xml"
+        )
+
+        num_devices_controller = number_of_network_devices(controllerVM)
+        assert num_devices_controller == 2
+
+        num_disk_controller = number_of_storage_devices(controllerVM)
+        assert num_disk_controller == 1
+
+        controllerVM.succeed(
+            "virsh -c ch:///session migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        assert wait_for_ssh(computeVM)
+
+        num_devices_compute = number_of_network_devices(computeVM)
+        assert num_devices_compute == 2
+
+        controllerVM.succeed("systemctl restart virtchd")
+        computeVM.succeed("systemctl restart virtchd")
+
+        computeVM.succeed("virsh -c ch:///session list | grep testvm")
+        controllerVM.fail("virsh -c ch:///session list | grep testvm")
+
+        computeVM.succeed(
+            "virsh -c ch:///session detach-device testvm /etc/new_interface.xml"
+        )
+
+        computeVM.succeed(
+            "virsh -c ch:///session attach-disk --domain testvm --target vdb --persistent --source /var/lib/libvirt/storage-pools/nfs-share/disk.img"
+        )
+
+        num_devices_compute = number_of_network_devices(computeVM)
+        assert num_devices_compute == 1
+
+        num_disk_compute = number_of_storage_devices(computeVM)
+        assert num_disk_compute == 2
+
+        computeVM.succeed(
+            "virsh -c ch:///session migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
+        )
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("systemctl restart virtchd")
+        computeVM.succeed("systemctl restart virtchd")
+
+        computeVM.fail("virsh -c ch:///session list | grep testvm")
+        controllerVM.succeed("virsh -c ch:///session list | grep testvm")
+
+        controllerVM.succeed(
+            "virsh -c ch:///session detach-disk --domain testvm --target vdb"
+        )
+
+        num_disk_compute = number_of_storage_devices(controllerVM)
+        assert num_disk_compute == 1
+
     def test_live_migration(self):
         """
         Test the live migration via virsh between 2 hosts. We want to use the
@@ -571,6 +642,7 @@ def suite():
     suite.addTest(LibvirtTests("test_live_migration_with_hotplug"))
     suite.addTest(LibvirtTests("test_live_migration_with_hugepages"))
     suite.addTest(LibvirtTests("test_live_migration_with_hugepages_failure_case"))
+    suite.addTest(LibvirtTests("test_live_migration_with_hotplug_and_virtchd_restart"))
     suite.addTest(LibvirtTests("test_numa_topology"))
     suite.addTest(LibvirtTests("test_hugepages"))
     suite.addTest(LibvirtTests("test_hugepages_prefault"))
