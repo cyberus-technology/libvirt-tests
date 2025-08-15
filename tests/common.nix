@@ -10,7 +10,7 @@ let
     ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${cirros_qcow} $out
   '';
 
-  virsh_ch_xml = { image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img", numa ? false, hugepages ? false, prefault ? false }:
+  virsh_ch_xml = { image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img", numa ? false, hugepages ? false, prefault ? false, serial ? "pty" }:
   ''
     <domain type='kvm' id='21050'>
       <name>testvm</name>
@@ -85,10 +85,17 @@ let
           <model type='virtio'/>
           <driver queues='1'/>
         </interface>
+        ${if serial == "pty" then ''
         <serial type='pty'>
           <source path='/dev/pts/2'/>
           <target port='0'/>
         </serial>
+        '' else if serial == "file" then ''
+        <serial type='file'>
+          <source path='/tmp/vm_serial.log'/>
+          <target port='0'/>
+        </serial>
+        '' else ""}
       </devices>
     </domain>
   '';
@@ -276,6 +283,11 @@ in
         "/etc/domain-chv.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml {})}";
+          };
+        };
+        "/etc/domain-chv-serial-file.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml { serial = "file"; })}";
           };
         };
         "/etc/domain-chv-cirros.xml" = {
