@@ -76,6 +76,10 @@ class LibvirtTests(unittest.TestCase):
         controllerVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
         computeVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
 
+        # Remove any remaining vm logs.
+        controllerVM.succeed("rm -f /tmp/*.log")
+        computeVM.succeed("rm -f /tmp/*.log")
+
     def test_network_hotplug_transient_vm_restart(self):
         """
         Test whether we can attach a network device without the --persistent
@@ -633,6 +637,21 @@ class LibvirtTests(unittest.TestCase):
         status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
         assert int(out) == 0, "Invalid huge page usage"
 
+    def test_serial_file_output(self):
+        """
+        Test that the serial to file configuration works.
+        """
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv-serial-file.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        status, out = controllerVM.execute("cat /tmp/vm_serial.log | wc -l")
+        assert int(out) > 50
+
+        status, out = controllerVM.execute("cat /tmp/vm_serial.log | grep 'Welcome to NixOS'")
+
 
 def suite():
     suite = unittest.TestSuite()
@@ -653,6 +672,7 @@ def suite():
     suite.addTest(LibvirtTests("test_network_hotplug_transient_vm_restart"))
     suite.addTest(LibvirtTests("test_network_hotplug_persistent_vm_restart"))
     suite.addTest(LibvirtTests("test_network_hotplug_persistent_transient_detach_vm_restart"))
+    suite.addTest(LibvirtTests("test_serial_file_output"))
     return suite
 
 
