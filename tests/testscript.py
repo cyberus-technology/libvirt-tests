@@ -652,6 +652,40 @@ class LibvirtTests(unittest.TestCase):
 
         status, out = controllerVM.execute("cat /tmp/vm_serial.log | grep 'Welcome to NixOS'")
 
+    def test_managedsave(self):
+        """
+        Test that the managedsave call results in a state file. Further, we
+        ensure the transient xml definition of the domain is deleted correctly
+        after the managedsave call, because this was an issue before.
+        It is also tested if the restore call is able to restore the domain successfully.
+        """
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Place some temporary file that would not survive a reboot in order to
+        # check that we are indeed restored from the saved state.
+        ssh(controllerVM, "touch /tmp/foo")
+
+        controllerVM.succeed("virsh -c ch:///session managedsave testvm")
+
+        controllerVM.succeed("ls /var/lib/libvirt/ch/save/testvm.save/state.json")
+        controllerVM.succeed("ls /var/lib/libvirt/ch/save/testvm.save/config.json")
+        controllerVM.succeed("ls /var/lib/libvirt/ch/save/testvm.save/memory-ranges")
+        controllerVM.succeed("ls /var/lib/libvirt/ch/save/testvm.save/libvirt-save.xml")
+
+        controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
+
+        controllerVM.succeed("virsh -c ch:///session restore /var/lib/libvirt/ch/save/testvm.save/")
+        controllerVM.succeed("virsh -c ch:///session managedsave-remove testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        status, _ = ssh(controllerVM, "ls /tmp/foo")
+        assert status == 0
+
 
 def suite():
     suite = unittest.TestSuite()
@@ -673,6 +707,7 @@ def suite():
     suite.addTest(LibvirtTests("test_network_hotplug_persistent_vm_restart"))
     suite.addTest(LibvirtTests("test_network_hotplug_persistent_transient_detach_vm_restart"))
     suite.addTest(LibvirtTests("test_serial_file_output"))
+    suite.addTest(LibvirtTests("test_managedsave"))
     return suite
 
 
