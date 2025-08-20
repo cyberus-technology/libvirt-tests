@@ -684,6 +684,45 @@ class LibvirtTests(unittest.TestCase):
         status, _ = ssh(controllerVM, "ls /tmp/foo")
         assert status == 0
 
+    def test_shutdown(self):
+        """
+        Test that transient XMLs are cleaned up correctly when using different
+        methods to shutdown the VM:
+            * VM shuts down from the inside via "shutdown" command
+            * virsh shutdown
+            * virsh destroy
+        """
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Do some extra magic to not end in a hanging SSH session if the
+        # shutdown happens too fast.
+        ssh(controllerVM, "\"nohup sh -c 'sleep 5 && shutdown now' >/dev/null 2>&1 &\"")
+
+        def is_shutoff():
+            return controllerVM.execute("virsh -c ch:///session domstate testvm | grep \"shut off\"")[0] == 0
+
+        assert wait_until_succeed(is_shutoff)
+
+        controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
+
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("virsh -c ch:///session shutdown testvm")
+        assert wait_until_succeed(is_shutoff)
+        controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
+
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("virsh -c ch:///session destroy testvm")
+        assert wait_until_succeed(is_shutoff)
+        controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
+
 
 def suite():
     suite = unittest.TestSuite()
@@ -706,8 +745,16 @@ def suite():
     suite.addTest(LibvirtTests("test_network_hotplug_persistent_transient_detach_vm_restart"))
     suite.addTest(LibvirtTests("test_serial_file_output"))
     suite.addTest(LibvirtTests("test_managedsave"))
+    suite.addTest(LibvirtTests("test_shutdown"))
     return suite
 
+def wait_until_succeed(func):
+    retries = 100
+    for i in range(retries):
+        if func():
+            return True
+        time.sleep(1)
+    return False
 
 def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
     retries = 100
