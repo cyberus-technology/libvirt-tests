@@ -398,12 +398,10 @@ class LibvirtTests(unittest.TestCase):
             controllerVM.succeed(
                 "virsh -c ch:///session migrate --domain testvm --desturi ch+tcp://192.168.100.2/session --persistent --live --p2p"
             )
-            time.sleep(5)
             assert wait_for_ssh(computeVM)
             computeVM.succeed(
                 "virsh -c ch:///session migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
             )
-            time.sleep(5)
             assert wait_for_ssh(controllerVM)
 
     def test_live_migration_with_hotplug(self):
