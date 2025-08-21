@@ -792,4 +792,5 @@ def number_of_storage_devices(machine):
 
 
 runner = unittest.TextTestRunner()
-runner.run(suite())
+if not runner.run(suite()).wasSuccessful():
+    raise Exception("Test Run unsuccessful")
