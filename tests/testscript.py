@@ -14,6 +14,7 @@ class LibvirtTests(unittest.TestCase):
     def setUpClass(cls):
         start_all()
         controllerVM.wait_for_unit("multi-user.target")
+        computeVM.wait_for_unit("multi-user.target")
         controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
         controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
         controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
