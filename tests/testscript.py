@@ -1,3 +1,4 @@
+import libvirt # type: ignore
 import time
 import unittest
 
@@ -725,6 +726,78 @@ class LibvirtTests(unittest.TestCase):
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
 
+    def test_libvirt_event_stop_failed(self):
+        """
+        Test that a Stopped Failed event is emitted in case the Cloud
+        Hypervisor process crashes.
+        """
+        def eventToString(event):
+            eventStrings = ("Defined",
+                            "Undefined",
+                            "Started",
+                            "Suspended",
+                            "Resumed",
+                            "Stopped",
+                            "Shutdown")
+            return eventStrings[event]
+
+        def detailToString(event, detail):
+            eventStrings = (
+                ( "Added", "Updated" ),
+                ( "Removed" ),
+                ( "Booted", "Migrated", "Restored", "Snapshot", "Wakeup" ),
+                ( "Paused", "Migrated", "IOError", "Watchdog", "Restored", "Snapshot" ),
+                ( "Unpaused", "Migrated", "Snapshot" ),
+                ( "Shutdown", "Destroyed", "Crashed", "Migrated", "Saved", "Failed", "Snapshot"),
+                ( "Finished" )
+                )
+            return eventStrings[event][detail]
+
+        stop_failed_event = False
+
+        def eventCallback (conn, dom, event, detail, opaque):
+            eventStr = eventToString(event)
+            detailStr = detailToString(event, detail)
+            print("EVENT: Domain %s(%s) %s %s" % (dom.name(), dom.ID(),
+                                                  eventStr,
+                                                  detailStr))
+            if eventStr == "Stopped" and detailStr == "Failed":
+                nonlocal stop_failed_event
+                stop_failed_event = True
+
+
+        libvirt.virEventRegisterDefaultImpl()
+
+        # The testscript runs in the Host context while we want to connect to
+        # the libvirt in the controllerVM
+        vc = libvirt.openReadOnly("ch+tcp://localhost:2223/session")
+
+        vc.domainEventRegister(eventCallback, None)
+
+        controllerVM.succeed("virsh -c ch:///session define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh -c ch:///session start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Simulate crash of the VMM process
+        controllerVM.succeed("kill -9 $(pidof cloud-hypervisor)")
+
+        for _ in range(10):
+            # Run one iteration of the event loop
+            libvirt.virEventRunDefaultImpl()
+            time.sleep(0.1)
+
+        assert stop_failed_event
+        vc.close()
+
+        # In case we would not detect the crash, Libvirt would still show the
+        # domain as running.
+        controllerVM.succeed("virsh -c ch:///session list --all | grep \"shut off\"")
+
+        # Check that this case of shutting down a domain also leads to the
+        # cleanup of the transient XML correctly.
+        controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(LibvirtTests("test_hotplug"))
@@ -747,6 +820,7 @@ def suite():
     suite.addTest(LibvirtTests("test_serial_file_output"))
     suite.addTest(LibvirtTests("test_managedsave"))
     suite.addTest(LibvirtTests("test_shutdown"))
+    suite.addTest(LibvirtTests("test_libvirt_event_stop_failed"))
     return suite
 
 def wait_until_succeed(func):
