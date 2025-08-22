@@ -9,7 +9,7 @@ in
 pkgs.nixosTest {
   name = "Libvirt test";
 
-  extraPythonPackages = p: [ p.pytest ];
+  extraPythonPackages = p: with p; [ pytest libvirt ];
 
   nodes.controllerVM =
     { ... }:
