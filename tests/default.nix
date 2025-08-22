@@ -30,6 +30,12 @@ pkgs.nixosTest {
         # controller hosts the NFS and needs more storage than the compute
         # node.
         diskSize = 8192;
+        forwardPorts = [
+          # Make the VM reachable from the Host or the test script via port 2222
+          { from = "host"; host.port = 2222; guest.port = 22; }
+          # Make Libvirt's TCP socket reachable from Host or the test script
+          { from = "host"; host.port = 2223; guest.port = 16509; }
+        ];
       };
 
       networking.extraHosts = ''
@@ -80,6 +86,10 @@ pkgs.nixosTest {
           };
         };
         diskSize = 2048;
+        # Make the VM reachable from the Host or the test script via port 3333
+        forwardPorts = [
+          { from = "host"; host.port = 3333; guest.port = 22; }
+        ];
       };
 
       livemig.nfs.host = "192.168.100.1";
