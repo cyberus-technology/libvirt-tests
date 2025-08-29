@@ -230,6 +230,10 @@ in
   # systems (AMD only?).
   environment.etc."ssh/ssh_config".enable = false;
 
+  environment.variables = {
+    LIBVIRT_DEFAULT_URI = "ch:///session";
+  };
+
   security.pam.services.sshd.allowNullPassword = true;
 
   environment.systemPackages = [
