@@ -95,6 +95,13 @@ let
           <source path='/tmp/vm_serial.log'/>
           <target port='0'/>
         </serial>
+        '' else if serial == "tcp" then ''
+        <serial type='tcp'>
+          <source mode="bind" host="127.0.0.1" service="2222" tls="no"/>
+          <protocol type="raw"/>
+          <target port='0'/>
+          <log file="/var/log/libvirt/ch/testvm.log" append="off"/>
+        </serial>
         '' else ""}
       </devices>
     </domain>
@@ -296,6 +303,11 @@ in
         "/etc/domain-chv.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml {})}";
+          };
+        };
+        "/etc/domain-chv-serial-tcp.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml { serial = "tcp"; })}";
           };
         };
         "/etc/domain-chv-serial-file.xml" = {
