@@ -22,6 +22,10 @@ These tests provide a convenient environment for:
     test_script()
     ```
 
+It might happen that the integration test runs out of resources when the user's
+tmp directory space is too small. You can try to mitigate this by setting
+`XDG_RUNTIME_DIR=/tmp/libvirt` before invoking the test script.
+
 ## Using a Custom Libvirt or Cloud Hypervisor
 
 To test against a specific version or local build:

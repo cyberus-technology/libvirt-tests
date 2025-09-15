@@ -9,6 +9,7 @@
     libvirt-src = {
       # url = "git+file:<path/to/libvirt>?submodules=1";
       url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
+      # url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt?ref=managedsave-fix&submodules=1";
       flake = false;
     };
     cloud-hypervisor-src = {
