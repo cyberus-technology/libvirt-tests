@@ -3,11 +3,11 @@
     "cloud-hypervisor-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1751300897,
-        "narHash": "sha256-DMTVGiNfVJH8YS+XdVd0ji1hO+zIzXrMxpKbvSdJHBY=",
+        "lastModified": 1758029276,
+        "narHash": "sha256-LH6mn2QZQuwUTmtD/+DIL4OE/QJOKKlCANEoawMyzRw=",
         "owner": "cyberus-technology",
         "repo": "cloud-hypervisor",
-        "rev": "3b8b3a51f944fd0bbf58e8a76d8f8a83c046db04",
+        "rev": "c8e5a54021b2798c610e509622eb983a5ff5b23c",
         "type": "github"
       },
       "original": {
