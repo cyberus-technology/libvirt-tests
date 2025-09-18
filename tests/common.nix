@@ -153,6 +153,15 @@ in
   systemd.sockets.virtproxyd-tcp.wantedBy = [ "sockets.target" ];
   systemd.sockets.virtstoraged.wantedBy = [ "sockets.target" ];
 
+  systemd.services.virtchd = {
+      serviceConfig = {
+          Restart = "always";
+          RestartSec = 1;
+      };
+      startLimitIntervalSec = 0;
+      startLimitBurst = 0;
+  };
+
   systemd.network = {
     enable = true;
     wait-online.enable = false;
