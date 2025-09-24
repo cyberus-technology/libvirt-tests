@@ -8,6 +8,8 @@ from typing import Any, Optional, List, Dict, Union, TYPE_CHECKING
 class Machine:
     """Stub for NixOS test machine object."""
 
+    name: str
+
     def start(self) -> None:
         """Start the virtual machine."""
         pass
