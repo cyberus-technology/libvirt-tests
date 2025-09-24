@@ -10,7 +10,46 @@ if "start_all" not in globals():
     from nixos_test_stubs import start_all, computeVM, controllerVM  # type: ignore
 
 
-class LibvirtTests(unittest.TestCase):
+class PrintLogsOnErrorTestCase(unittest.TestCase):
+    """
+    Custom TestCase class that prints interesting logs in error case.
+    """
+    def run(self, result=None):
+        if result is None:
+            result = self.defaultTestResult()
+
+        original_addError = result.addError
+        original_addFailure = result.addFailure
+
+        def custom_addError(test, err):
+            self.print_logs(f"Error in {test._testMethodName}")
+            original_addError(test, err)
+
+        def custom_addFailure(test, err):
+            self.print_logs(f"Failure in {test._testMethodName}")
+            original_addFailure(test, err)
+
+        result.addError = custom_addError
+        result.addFailure = custom_addFailure
+
+        return super().run(result)
+
+    def print_machine_log(self, machine, path):
+        status, out = machine.execute(f"cat {path}")
+        if status != 0:
+            print(f"Could not retrieve logs: {machine.name}:{path}")
+            return
+        print(f"\nLog {machine.name}:{path}:\n{out}\n")
+
+    def print_logs(self, message):
+        print(f"{message}")
+
+        for machine in [ controllerVM, computeVM ]:
+            self.print_machine_log(machine, "/var/log/libvirt/ch/testvm.log")
+            self.print_machine_log(machine, "/var/log/libvirt/libvirtd.log")
+
+
+class LibvirtTests(PrintLogsOnErrorTestCase):
     @classmethod
     def setUpClass(cls):
         start_all()
