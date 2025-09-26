@@ -118,8 +118,10 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         computeVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
 
         # Remove any remaining vm logs.
-        controllerVM.succeed("rm -f /tmp/*.log")
-        computeVM.succeed("rm -f /tmp/*.log")
+        for path in [ "/tmp/*.log",
+                      "/var/log/libvirt/ch/*.log" ]:
+            controllerVM.succeed(f"rm -f {path}")
+            computeVM.succeed(f"rm -f {path}")
 
     def test_network_hotplug_transient_vm_restart(self):
         """
