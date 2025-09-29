@@ -265,24 +265,24 @@ in
 
   security.pam.services.sshd.allowNullPassword = true;
 
-  environment.systemPackages = [
-    pkgs.cloud-hypervisor
-    pkgs.qemu_kvm
-    pkgs.bridge-utils
-    pkgs.screen
-    pkgs.jq
-    pkgs.sshpass
-    pkgs.mount
-    pkgs.gdb
-    pkgs.screen
-    pkgs.tunctl
-    pkgs.lsof
-    pkgs.python3
-    pkgs.numatop
-    pkgs.numactl
-    pkgs.htop
-    pkgs.socat
-    pkgs.expect
+  environment.systemPackages = with pkgs; [
+    bridge-utils
+    cloud-hypervisor
+    expect
+    gdb
+    htop
+    jq
+    lsof
+    mount
+    numactl
+    numatop
+    python3
+    qemu_kvm
+    screen
+    screen
+    socat
+    sshpass
+    tunctl
   ];
 
   systemd.tmpfiles.settings =
