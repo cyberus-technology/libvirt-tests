@@ -839,6 +839,32 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # cleanup of the transient XML correctly.
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
+    def test_serial_tcp(self):
+        """
+        Test that the TCP serial mode of Cloud Hypervisor works when defined
+        via Libvirt. Further, the test checks that simultaneous logging to file
+        works.
+        """
+        controllerVM.succeed("virsh define /etc/domain-chv-serial-tcp.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Check that port 2222 is used by cloud hypervisor
+        controllerVM.succeed("ss --numeric --processes --listening --tcp src :2222 | grep cloud-hyperviso")
+
+        # Check that we log to file in addition to the TCP socket
+        def prompt():
+            status, _ = controllerVM.execute("cat /var/log/libvirt/ch/testvm.log | grep -q 'Welcome to NixOS'")
+            return status == 0
+
+        assert wait_until_succeed(prompt)
+
+        # The expect script tests interactivity of the serial connection by
+        # executing 'pwd' and checking a proper response output
+        controllerVM.succeed("expect /etc/socat.expect")
+
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(LibvirtTests("test_hotplug"))
@@ -862,6 +888,7 @@ def suite():
     suite.addTest(LibvirtTests("test_managedsave"))
     suite.addTest(LibvirtTests("test_shutdown"))
     suite.addTest(LibvirtTests("test_libvirt_event_stop_failed"))
+    suite.addTest(LibvirtTests("test_serial_tcp"))
     return suite
 
 def wait_until_succeed(func):
