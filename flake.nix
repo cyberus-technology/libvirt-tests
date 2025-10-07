@@ -17,6 +17,10 @@
       url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
       flake = false;
     };
+    edk2-src = {
+      url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
+      flake = false;
+    };
     # Nix tooling to build cloud-hypervisor.
     crane.url = "github:ipetkov/crane/master";
     # Get proper Rust toolchain, independent of pkgs.rustc.
@@ -32,6 +36,7 @@
       libvirt-src,
       flake-utils,
       cloud-hypervisor-src,
+      edk2-src,
       crane,
       rust-overlay,
       ...
@@ -53,6 +58,11 @@
           ];
         };
         rust-bin = (rust-overlay.lib.mkRustBin { }) pkgs;
+
+        chv-ovmf = pkgs.OVMF-cloud-hypervisor.overrideAttrs (old: {
+          version = "cbs";
+          src = edk2-src;
+        });
 
         nixos-image' =
           (pkgs.callPackage ./images/nixos-image.nix { inherit nixpkgs; }).config.system.build.isoImage;
@@ -76,8 +86,9 @@
         packages = {
           # Export of the overlay'ed package
           inherit (pkgs) cloud-hypervisor;
+          inherit chv-ovmf;
         };
-        tests = pkgs.callPackage ./tests/default.nix { inherit libvirt-src nixos-image; };
+        tests = pkgs.callPackage ./tests/default.nix { inherit libvirt-src nixos-image chv-ovmf; };
       }
     );
 }
