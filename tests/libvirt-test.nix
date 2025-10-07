@@ -2,10 +2,11 @@
   pkgs,
   libvirt-src,
   nixos-image,
+  chv-ovmf,
   testScriptFile,
 }:
 let
-  common = import ./common.nix { inherit libvirt-src nixos-image; };
+  common = import ./common.nix { inherit libvirt-src nixos-image chv-ovmf; };
 in
 pkgs.nixosTest {
   name = "Libvirt test";

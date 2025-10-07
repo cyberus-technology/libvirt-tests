@@ -1,4 +1,4 @@
-{ libvirt-src, nixos-image }:
+{ libvirt-src, nixos-image, chv-ovmf }:
 { pkgs, ... }:
 let
   cirros_qcow = pkgs.fetchurl {
@@ -291,7 +291,6 @@ in
         url = "https://github.com/cloud-hypervisor/rust-hypervisor-firmware/releases/download/0.5.0/hypervisor-fw";
         hash = "sha256-Sgoel3No9rFdIZiiFr3t+aNQv15a4H4p5pU3PsFq2Vg=";
       };
-      chv-ovmf = pkgs.OVMF-cloud-hypervisor.fd;
     in
     {
       "10-chv" = {
@@ -302,7 +301,7 @@ in
         };
         "/etc/CLOUDHV.fd" = {
           "C+" = {
-            argument = "${chv-ovmf}/FV/CLOUDHV.fd";
+            argument = "${chv-ovmf.fd}/FV/CLOUDHV.fd";
           };
         };
         "/etc/nixos.img" = {
