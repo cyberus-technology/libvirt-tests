@@ -52,6 +52,9 @@ let
       </memoryBacking>
       '' else '''' }
       '' else ''
+      <cpu mode='custom' match='exact' check='full'>
+        <model fallback='forbid'>dev-laptop</model>
+      </cpu>
       <vcpu placement='static'>2</vcpu>
       ${if hugepages then ''
       <memoryBacking>

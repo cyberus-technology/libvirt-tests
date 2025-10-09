@@ -864,6 +864,17 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # executing 'pwd' and checking a proper response output
         controllerVM.succeed("expect /etc/socat.expect")
 
+    def test_set_cpu_model(self):
+        """
+        Test that the TCP serial mode of Cloud Hypervisor works when defined
+        via Libvirt. Further, the test checks that simultaneous logging to file
+        works.
+        """
+        controllerVM.succeed("virsh define /etc/domain-chv-serial-tcp.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        breakpoint()
+
 
 def suite():
     suite = unittest.TestSuite()
@@ -889,6 +900,7 @@ def suite():
     suite.addTest(LibvirtTests("test_shutdown"))
     suite.addTest(LibvirtTests("test_libvirt_event_stop_failed"))
     suite.addTest(LibvirtTests("test_serial_tcp"))
+    suite.addTest(LibvirtTests("test_set_cpu_model"))
     return suite
 
 def wait_until_succeed(func):
