@@ -865,6 +865,63 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         controllerVM.succeed("expect /etc/socat.expect")
 
 
+    def test_live_migration_virsh_non_blocking(self):
+        """
+        We check if reading virsh commands can be executed even there is a live
+        migration ongoing. Further, it is checked that modifying virsh commands
+        block in the same case.
+
+        Note:
+        This test does some coarse timing checks to detect if commands are
+        blocking or not. If this turns out to be flaky, we should not hesitate
+        to deactivate the test.
+        The duration of the migration is very dependent on the system the test
+        runs on. We assume that our invocation of 'stress' creates enough load
+        to stretch the migration duration to >10 seconds to be able to check if
+        commands are blocking or non-blocking as expected.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Stress the CH VM in order to make the migration take longer
+        status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
+        assert status == 0
+
+        # Do migration in a screen session and detach
+        controllerVM.succeed(
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        # Wait a moment to let the migration start
+        time.sleep(2)
+
+        # Check that 'virsh list' can be done without blocking
+        self.assertLess(measure_ms(lambda: controllerVM.succeed("virsh list | grep -q testvm")),
+                        1000,
+                        msg="Expect virsh list to execute fast")
+
+        # Check that modifying commands like 'virsh shutdown' block until the
+        # migration has finished or the timeout hits.
+        self.assertGreater(measure_ms(lambda: controllerVM.execute("virsh shutdown testvm")),
+                           3000,
+                           msg="Expect virsh shutdown execution to take longer")
+
+        # Turn off the stress process to let the migration finish faster
+        ssh(controllerVM, "pkill screen")
+
+        # Wait for migration in the screen session to finish
+        def migration_finished():
+            status, _ = controllerVM.execute("screen -ls | grep migrate")
+            return status != 0
+
+        self.assertTrue(wait_until_succeed(migration_finished))
+
+        computeVM.succeed("virsh list | grep testvm | grep running")
+
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(LibvirtTests("test_hotplug"))
@@ -889,7 +946,17 @@ def suite():
     suite.addTest(LibvirtTests("test_shutdown"))
     suite.addTest(LibvirtTests("test_libvirt_event_stop_failed"))
     suite.addTest(LibvirtTests("test_serial_tcp"))
+    suite.addTest(LibvirtTests("test_live_migration_virsh_non_blocking"))
     return suite
+
+def measure_ms(func):
+    """
+    Measure the execution time of a given function in ms.
+    """
+    start = time.time()
+    func()
+    return (time.time() - start) * 1000
+
 
 def wait_until_succeed(func):
     retries = 100
