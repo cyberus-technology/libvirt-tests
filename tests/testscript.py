@@ -864,6 +864,22 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # executing 'pwd' and checking a proper response output
         controllerVM.succeed("expect /etc/socat.expect")
 
+    def test_live_migration_parallel_connections(self):
+        """
+        We test that specifying --parallel and --parallel-connections at least
+        leads to a successful migration.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        )
+        assert wait_for_ssh(computeVM)
+
 
 def suite():
     suite = unittest.TestSuite()
@@ -889,6 +905,7 @@ def suite():
     suite.addTest(LibvirtTests("test_shutdown"))
     suite.addTest(LibvirtTests("test_libvirt_event_stop_failed"))
     suite.addTest(LibvirtTests("test_serial_tcp"))
+    suite.addTest(LibvirtTests("test_live_migration_parallel_connections"))
     return suite
 
 def wait_until_succeed(func):
