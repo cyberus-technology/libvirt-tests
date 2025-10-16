@@ -1024,10 +1024,128 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         controllerVM.succeed("expect /tmp/console.expect")
 
+    def test_disk_resize_raw(self):
+        """
+        Test disk resizing for RAW images during VM runtime.
+
+        Here we test that we can grow and shrink a RAW image. Further, we test
+        that both size modes (KiB and Byte) are working correctly.
+        """
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        disk_size_bytes_10M = 1024 * 1024 * 10
+        disk_size_bytes_100M = 1024 * 1024 * 100
+        disk_size_bytes_200M = 1024 * 1024 * 200
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("qemu-img create -f raw /tmp/disk.img 100M")
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img"
+        )
+        status, disk_size_guest = ssh(
+            controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
+        )
+        disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
+
+        assert status == 0
+        assert int(disk_size_guest) == disk_size_bytes_100M
+        assert int(disk_size_host) == disk_size_bytes_100M
+
+        # Use full file path instead of virtual device name here because both should work with --path
+        controllerVM.succeed(
+            f"virsh blockresize --domain testvm --path /tmp/disk.img --size {disk_size_bytes_10M // 1024}"
+        )
+
+        status, disk_size_guest = ssh(
+            controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
+        )
+        disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
+
+        assert status == 0
+        assert int(disk_size_guest) == disk_size_bytes_10M
+        assert int(disk_size_host) == disk_size_bytes_10M
+
+        # Use virtual device name as --path
+        controllerVM.succeed(
+            f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_200M // 1024}"
+        )
+
+        status, disk_size_guest = ssh(
+            controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
+        )
+        disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
+
+        assert status == 0
+        assert int(disk_size_guest) == disk_size_bytes_200M
+        assert int(disk_size_host) == disk_size_bytes_200M
+
+        # Use bytes instead of KiB
+        controllerVM.succeed(
+            f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_100M}b"
+        )
+
+        status, disk_size_guest = ssh(
+            controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
+        )
+        disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
+
+        assert status == 0
+        assert int(disk_size_guest) == disk_size_bytes_100M
+        assert int(disk_size_host) == disk_size_bytes_100M
+
+        # Changing to capacity must fail and not change the disk size because it
+        # is not supported for file-based disk images.
+        controllerVM.fail("virsh blockresize --domain testvm --path vdb --capacity")
+
+        status, disk_size_guest = ssh(
+            controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
+        )
+        disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
+
+        assert status == 0
+        assert int(disk_size_guest) == disk_size_bytes_100M
+        assert int(disk_size_host) == disk_size_bytes_100M
+
+    def test_disk_resize_qcow2(self):
+        """
+        Test disk resizing for qcow2 images during VM runtime.
+
+        We expect that resizing the image fails because CHV does
+        not have support for qcow2 resizing yet.
+        """
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        disk_size_bytes_10M = 1024 * 1024 * 10
+        disk_size_bytes_100M = 1024 * 1024 * 100
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("qemu-img create -f qcow2 /tmp/disk.img 100M")
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img"
+        )
+        status, disk_size_guest = ssh(
+            controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
+        )
+
+        assert status == 0
+        assert int(disk_size_guest) == disk_size_bytes_100M
+
+        controllerVM.fail(
+            f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_10M // 1024}"
+        )
+
 
 def suite():
     # Test cases in alphabetical order
     testcases = [
+        LibvirtTests.test_disk_resize_qcow2,
+        LibvirtTests.test_disk_resize_raw,
         LibvirtTests.test_hotplug,
         LibvirtTests.test_hugepages,
         LibvirtTests.test_hugepages_prefault,
