@@ -1140,6 +1140,33 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
             f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_10M // 1024}"
         )
 
+    def test_live_migration_parallel_connections(self):
+        """
+        We test that specifying --parallel and --parallel-connections results
+        in a successful migration. We further check the Cloud Hypervisor logs
+        to verify that multiple threads were used during migration.
+        """
+
+        parallel_connections = 4
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed(
+            f"virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections {parallel_connections}"
+        )
+        assert wait_for_ssh(computeVM)
+
+        num_threads = controllerVM.succeed(
+            'cat -v /var/log/libvirt/ch/testvm.log | grep "Spawned thread to send VM memory" | wc -l'
+        ).strip()
+
+        # CHV starts one thread less than the given parallel connections because
+        # the main thread also utilized
+        self.assertEqual(parallel_connections - 1, int(num_threads))
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1152,6 +1179,7 @@ def suite():
         LibvirtTests.test_libvirt_event_stop_failed,
         LibvirtTests.test_libvirt_restart,
         LibvirtTests.test_live_migration,
+        LibvirtTests.test_live_migration_parallel_connections,
         LibvirtTests.test_live_migration_virsh_non_blocking,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
