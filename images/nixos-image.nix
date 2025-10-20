@@ -53,8 +53,8 @@ nixpkgs.lib.nixosSystem {
           openFirewall = true;
         };
         environment.systemPackages = with pkgs; [
-            screen
-            stress
+          screen
+          stress
         ];
         # pw: root
         users.users.root.initialHashedPassword = lib.mkForce "$y$j9T$HiT/m702z/73g4Dt5RzbW0$b3SaYI1FoyT/ORV/qFR/s9zonJBKDn4p2XKyYM2wp1.";
