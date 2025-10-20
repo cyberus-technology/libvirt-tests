@@ -1,4 +1,4 @@
-import libvirt # type: ignore
+import libvirt  # type: ignore
 import time
 import unittest
 
@@ -14,6 +14,7 @@ class PrintLogsOnErrorTestCase(unittest.TestCase):
     """
     Custom TestCase class that prints interesting logs in error case.
     """
+
     def run(self, result=None):
         if result is None:
             result = self.defaultTestResult()
@@ -44,7 +45,7 @@ class PrintLogsOnErrorTestCase(unittest.TestCase):
     def print_logs(self, message):
         print(f"{message}")
 
-        for machine in [ controllerVM, computeVM ]:
+        for machine in [controllerVM, computeVM]:
             self.print_machine_log(machine, "/var/log/libvirt/ch/testvm.log")
             self.print_machine_log(machine, "/var/log/libvirt/libvirtd.log")
 
@@ -118,8 +119,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         computeVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
 
         # Remove any remaining vm logs.
-        for path in [ "/tmp/*.log",
-                      "/var/log/libvirt/ch/*.log" ]:
+        for path in ["/tmp/*.log", "/var/log/libvirt/ch/*.log"]:
             controllerVM.succeed(f"rm -f {path}")
             computeVM.succeed(f"rm -f {path}")
 
@@ -139,17 +139,13 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Add a transient network device, i.e. the device should disappear
         # when the VM is destroyed and restarted.
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml"
-        )
+        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
 
         num_net_devices_new = number_of_network_devices(controllerVM)
 
         assert num_net_devices_new == num_net_devices_old + 1
 
-        controllerVM.succeed(
-            "virsh destroy testvm"
-        )
+        controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
@@ -180,9 +176,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert num_net_devices_new == num_net_devices_old + 1
 
-        controllerVM.succeed(
-            "virsh destroy testvm"
-        )
+        controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
@@ -214,21 +208,16 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert num_net_devices_new == num_net_devices_old + 1
 
         # Transiently detach the device. It should re-appear when the VM is restarted.
-        controllerVM.succeed(
-            "virsh detach-device testvm /etc/new_interface.xml"
-        )
+        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
 
         assert number_of_network_devices(controllerVM) == num_net_devices_old
 
-        controllerVM.succeed(
-            "virsh destroy testvm"
-        )
+        controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
 
         assert number_of_network_devices(controllerVM) == num_net_devices_new
-
 
     def test_network_hotplug_attach_detach_transient(self):
         """
@@ -244,17 +233,13 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         num_devices_old = number_of_network_devices(controllerVM)
 
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml"
-        )
+        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
 
         num_devices_new = number_of_network_devices(controllerVM)
 
         assert num_devices_new == num_devices_old + 1
 
-        controllerVM.succeed(
-            "virsh detach-device testvm /etc/new_interface.xml"
-        )
+        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
 
         assert number_of_network_devices(controllerVM) == num_devices_old
 
@@ -308,12 +293,8 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert num_devices_new == num_devices_old + 2
 
-        controllerVM.succeed(
-            "virsh detach-disk --domain testvm --target vdb"
-        )
-        controllerVM.succeed(
-            "virsh detach-device testvm /etc/new_interface.xml"
-        )
+        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
 
         assert number_of_devices(controllerVM) == num_devices_old
 
@@ -354,9 +335,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml"
-        )
+        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
 
         num_devices_controller = number_of_network_devices(controllerVM)
         assert num_devices_controller == 2
@@ -379,9 +358,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         computeVM.succeed("virsh list | grep testvm")
         controllerVM.fail("virsh list | grep testvm")
 
-        computeVM.succeed(
-            "virsh detach-device testvm /etc/new_interface.xml"
-        )
+        computeVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
 
         computeVM.succeed(
             "virsh attach-disk --domain testvm --target vdb --persistent --source /var/lib/libvirt/storage-pools/nfs-share/disk.img"
@@ -405,9 +382,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         computeVM.fail("virsh list | grep testvm")
         controllerVM.succeed("virsh list | grep testvm")
 
-        controllerVM.succeed(
-            "virsh detach-disk --domain testvm --target vdb"
-        )
+        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
 
         num_disk_compute = number_of_storage_devices(controllerVM)
         assert num_disk_compute == 1
@@ -427,9 +402,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml"
-        )
+        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
         controllerVM.succeed("qemu-img create -f raw /nfs-root/disk.img 100M")
         controllerVM.succeed("chmod 0666 /nfs-root/disk.img")
         controllerVM.succeed(
@@ -478,9 +451,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert num_devices_controller == num_devices_compute
 
-        computeVM.succeed(
-            "virsh detach-device testvm /etc/new_interface.xml"
-        )
+        computeVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
 
         assert number_of_network_devices(computeVM) == 1
 
@@ -491,9 +462,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
         assert number_of_network_devices(controllerVM) == 1
 
-        controllerVM.succeed(
-            "virsh destroy testvm"
-        )
+        controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
@@ -507,13 +476,16 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
-        computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
-
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == nr_hugepages, "unable to allocate hugepages"
 
-        status, out = computeVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = computeVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == nr_hugepages, "unable to allocate hugepages"
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
@@ -521,7 +493,9 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == 0, "not enough huge pages are in-use"
 
         controllerVM.succeed(
@@ -530,10 +504,14 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert wait_for_ssh(computeVM)
 
-        status, out = computeVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = computeVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == 0, "not enough huge pages are in-use"
 
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == nr_hugepages, "not all huge pages have been freed"
 
     def test_live_migration_with_hugepages_failure_case(self):
@@ -543,9 +521,10 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
-
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == nr_hugepages, "unable to allocate hugepages"
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
@@ -603,14 +582,16 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
         assert wait_for_ssh(controllerVM)
 
         # Check that we really use hugepages from the hugepage pool
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) < nr_hugepages, "No huge pages have been used"
 
     def test_hugepages_prefault(self):
@@ -620,14 +601,16 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
         assert wait_for_ssh(controllerVM)
 
         # Check that all huge pages are in use
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == 0, "Invalid hugepage usage"
 
     def test_numa_hugepages(self):
@@ -637,7 +620,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -651,7 +634,9 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert status == 0
 
         # Check that we really use hugepages from the hugepage pool
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) < nr_hugepages, "No huge pages have been used"
 
     def test_numa_hugepages_prefault(self):
@@ -661,7 +646,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages));
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -675,7 +660,9 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert status == 0
 
         # Check that all huge pages are in use
-        status, out = controllerVM.execute("cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'")
+        status, out = controllerVM.execute(
+            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+        )
         assert int(out) == 0, "Invalid huge page usage"
 
     def test_serial_file_output(self):
@@ -691,7 +678,9 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         status, out = controllerVM.execute("cat /tmp/vm_serial.log | wc -l")
         assert int(out) > 50
 
-        status, out = controllerVM.execute("cat /tmp/vm_serial.log | grep 'Welcome to NixOS'")
+        status, out = controllerVM.execute(
+            "cat /tmp/vm_serial.log | grep 'Welcome to NixOS'"
+        )
 
     def test_managedsave(self):
         """
@@ -746,7 +735,9 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         ssh(controllerVM, "\"nohup sh -c 'sleep 5 && shutdown now' >/dev/null 2>&1 &\"")
 
         def is_shutoff():
-            return controllerVM.execute("virsh domstate testvm | grep \"shut off\"")[0] == 0
+            return (
+                controllerVM.execute('virsh domstate testvm | grep "shut off"')[0] == 0
+            )
 
         assert wait_until_succeed(is_shutoff)
 
@@ -766,46 +757,56 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_until_succeed(is_shutoff)
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
-
     def test_libvirt_event_stop_failed(self):
         """
         Test that a Stopped Failed event is emitted in case the Cloud
         Hypervisor process crashes.
         """
+
         def eventToString(event):
-            eventStrings = ("Defined",
-                            "Undefined",
-                            "Started",
-                            "Suspended",
-                            "Resumed",
-                            "Stopped",
-                            "Shutdown")
+            eventStrings = (
+                "Defined",
+                "Undefined",
+                "Started",
+                "Suspended",
+                "Resumed",
+                "Stopped",
+                "Shutdown",
+            )
             return eventStrings[event]
 
         def detailToString(event, detail):
             eventStrings = (
-                ( "Added", "Updated" ),
-                ( "Removed" ),
-                ( "Booted", "Migrated", "Restored", "Snapshot", "Wakeup" ),
-                ( "Paused", "Migrated", "IOError", "Watchdog", "Restored", "Snapshot" ),
-                ( "Unpaused", "Migrated", "Snapshot" ),
-                ( "Shutdown", "Destroyed", "Crashed", "Migrated", "Saved", "Failed", "Snapshot"),
-                ( "Finished" )
-                )
+                ("Added", "Updated"),
+                ("Removed"),
+                ("Booted", "Migrated", "Restored", "Snapshot", "Wakeup"),
+                ("Paused", "Migrated", "IOError", "Watchdog", "Restored", "Snapshot"),
+                ("Unpaused", "Migrated", "Snapshot"),
+                (
+                    "Shutdown",
+                    "Destroyed",
+                    "Crashed",
+                    "Migrated",
+                    "Saved",
+                    "Failed",
+                    "Snapshot",
+                ),
+                ("Finished"),
+            )
             return eventStrings[event][detail]
 
         stop_failed_event = False
 
-        def eventCallback (conn, dom, event, detail, opaque):
+        def eventCallback(conn, dom, event, detail, opaque):
             eventStr = eventToString(event)
             detailStr = detailToString(event, detail)
-            print("EVENT: Domain %s(%s) %s %s" % (dom.name(), dom.ID(),
-                                                  eventStr,
-                                                  detailStr))
+            print(
+                "EVENT: Domain %s(%s) %s %s"
+                % (dom.name(), dom.ID(), eventStr, detailStr)
+            )
             if eventStr == "Stopped" and detailStr == "Failed":
                 nonlocal stop_failed_event
                 stop_failed_event = True
-
 
         libvirt.virEventRegisterDefaultImpl()
 
@@ -833,7 +834,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # In case we would not detect the crash, Libvirt would still show the
         # domain as running.
-        controllerVM.succeed("virsh list --all | grep \"shut off\"")
+        controllerVM.succeed('virsh list --all | grep "shut off"')
 
         # Check that this case of shutting down a domain also leads to the
         # cleanup of the transient XML correctly.
@@ -851,11 +852,15 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
 
         # Check that port 2222 is used by cloud hypervisor
-        controllerVM.succeed("ss --numeric --processes --listening --tcp src :2222 | grep cloud-hyperviso")
+        controllerVM.succeed(
+            "ss --numeric --processes --listening --tcp src :2222 | grep cloud-hyperviso"
+        )
 
         # Check that we log to file in addition to the TCP socket
         def prompt():
-            status, _ = controllerVM.execute("cat /var/log/libvirt/ch/testvm.log | grep -q 'Welcome to NixOS'")
+            status, _ = controllerVM.execute(
+                "cat /var/log/libvirt/ch/testvm.log | grep -q 'Welcome to NixOS'"
+            )
             return status == 0
 
         assert wait_until_succeed(prompt)
@@ -863,7 +868,6 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # The expect script tests interactivity of the serial connection by
         # executing 'pwd' and checking a proper response output
         controllerVM.succeed("expect /etc/socat.expect")
-
 
     def test_live_migration_virsh_non_blocking(self):
         """
@@ -899,15 +903,19 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         time.sleep(2)
 
         # Check that 'virsh list' can be done without blocking
-        self.assertLess(measure_ms(lambda: controllerVM.succeed("virsh list | grep -q testvm")),
-                        1000,
-                        msg="Expect virsh list to execute fast")
+        self.assertLess(
+            measure_ms(lambda: controllerVM.succeed("virsh list | grep -q testvm")),
+            1000,
+            msg="Expect virsh list to execute fast",
+        )
 
         # Check that modifying commands like 'virsh shutdown' block until the
         # migration has finished or the timeout hits.
-        self.assertGreater(measure_ms(lambda: controllerVM.execute("virsh shutdown testvm")),
-                           3000,
-                           msg="Expect virsh shutdown execution to take longer")
+        self.assertGreater(
+            measure_ms(lambda: controllerVM.execute("virsh shutdown testvm")),
+            3000,
+            msg="Expect virsh shutdown execution to take longer",
+        )
 
         # Turn off the stress process to let the migration finish faster
         ssh(controllerVM, "pkill screen")
@@ -940,7 +948,9 @@ def suite():
     suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_persistent"))
     suite.addTest(LibvirtTests("test_network_hotplug_transient_vm_restart"))
     suite.addTest(LibvirtTests("test_network_hotplug_persistent_vm_restart"))
-    suite.addTest(LibvirtTests("test_network_hotplug_persistent_transient_detach_vm_restart"))
+    suite.addTest(
+        LibvirtTests("test_network_hotplug_persistent_transient_detach_vm_restart")
+    )
     suite.addTest(LibvirtTests("test_serial_file_output"))
     suite.addTest(LibvirtTests("test_managedsave"))
     suite.addTest(LibvirtTests("test_shutdown"))
@@ -948,6 +958,7 @@ def suite():
     suite.addTest(LibvirtTests("test_serial_tcp"))
     suite.addTest(LibvirtTests("test_live_migration_virsh_non_blocking"))
     return suite
+
 
 def measure_ms(func):
     """
@@ -965,6 +976,7 @@ def wait_until_succeed(func):
             return True
         time.sleep(1)
     return False
+
 
 def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
     retries = 100
@@ -989,10 +1001,12 @@ def number_of_devices(machine):
     assert status == 0
     return int(out)
 
+
 def number_of_network_devices(machine):
     status, out = ssh(machine, "lspci -n | grep 0200 | wc -l")
     assert status == 0
     return int(out)
+
 
 def number_of_storage_devices(machine):
     status, out = ssh(machine, "lspci -n | grep 0180 | wc -l")
