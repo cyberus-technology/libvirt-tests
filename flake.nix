@@ -32,12 +32,12 @@
 
   outputs =
     {
-      nixpkgs,
-      libvirt-src,
-      flake-utils,
       cloud-hypervisor-src,
-      edk2-src,
       crane,
+      edk2-src,
+      flake-utils,
+      libvirt-src,
+      nixpkgs,
       rust-overlay,
       ...
     }:
