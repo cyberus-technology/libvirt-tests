@@ -1,0 +1,12 @@
+# Configuration for https://github.com/crate-ci/typos
+
+[files]
+extend-exclude = [
+  "patches/",
+]
+
+[default.extend-words]
+hitted = "hitted"
+
+[default.extend-identifiers]
+
