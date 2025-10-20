@@ -869,6 +869,31 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # executing 'pwd' and checking a proper response output
         controllerVM.succeed("expect /etc/socat.expect")
 
+    def test_serial_tcp_live_migration(self):
+        """
+        The test checks that a basic live migration is working with TCP serial
+        configured, because we had a bug that prevented live migration in
+        combination with serial TCP in the past.
+        """
+        controllerVM.succeed("virsh define /etc/domain-chv-serial-tcp.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Check that port 2222 is used by cloud hypervisor
+        controllerVM.succeed(
+            "ss --numeric --processes --listening --tcp src :2222 | grep cloud-hyperviso"
+        )
+
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+        assert wait_for_ssh(computeVM)
+
+        computeVM.succeed(
+            "ss --numeric --processes --listening --tcp src :2222 | grep cloud-hyperviso"
+        )
+
     def test_live_migration_virsh_non_blocking(self):
         """
         We check if reading virsh commands can be executed even there is a live
@@ -956,6 +981,7 @@ def suite():
     suite.addTest(LibvirtTests("test_shutdown"))
     suite.addTest(LibvirtTests("test_libvirt_event_stop_failed"))
     suite.addTest(LibvirtTests("test_serial_tcp"))
+    suite.addTest(LibvirtTests("test_serial_tcp_live_migration"))
     suite.addTest(LibvirtTests("test_live_migration_virsh_non_blocking"))
     return suite
 
