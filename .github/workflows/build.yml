@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  merge_group:
+  pull_request:
+  push:
+
+jobs:
+  checks:
+    name: Checks, Build, Lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      # Dedicated step to separate all the
+      # "copying path '/nix/store/...' from 'https://cache.nixos.org'."
+      # messages from the actual build output.
+      - name: Prepare Nix Store
+        run: nix develop --command bash -c "nix --version"
+      # Checking Nix formatting is not a Nix flake check, as doing so would
+      # introduce an ugly recursive Nix dependency.
+      - name: Check Nix format
+        run: nix fmt -- --ci
+      - name: Check Python Formatting
+        run: nix build .#checks.x86_64-linux.pythonFormat
+      - name: Check Python Lints
+        run: nix build .#checks.x86_64-linux.pythonLint
+      - name: Check Spelling
+        run: nix build .#checks.x86_64-linux.typos
+      # Run all in case we forgot to add a fine-grained job.
+      - name: Check All
+        run: nix build .#checks.x86_64-linux.all
