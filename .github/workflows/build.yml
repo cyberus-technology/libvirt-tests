@@ -21,6 +21,8 @@ jobs:
       # introduce an ugly recursive Nix dependency.
       - name: Check Nix format
         run: nix fmt -- --ci
+      - name: Check Deadnix
+        run: nix build .#checks.x86_64-linux.deadnix
       - name: Check Python Formatting
         run: nix build .#checks.x86_64-linux.pythonFormat
       - name: Check Python Lints
