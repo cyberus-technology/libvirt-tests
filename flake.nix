@@ -32,6 +32,8 @@
 
   outputs =
     {
+      self,
+      # Keep list sorted:
       cloud-hypervisor-src,
       crane,
       edk2-src,
@@ -79,9 +81,67 @@
             '';
       in
       {
-        formatter = pkgs.nixfmt-rfc-style;
+        checks =
+          let
+            fs = pkgs.lib.fileset;
+            cleanSrc = fs.toSource {
+              root = ./.;
+              fileset = fs.gitTracked ./.;
+            };
+
+            pythonFormat =
+              pkgs.runCommand "python-format"
+                {
+                  nativeBuildInputs = with pkgs; [ ruff ];
+                }
+                ''
+                  cp -r ${cleanSrc}/. .
+                  ruff format --check ./tests
+                  mkdir $out
+                '';
+            pythonLint =
+              pkgs.runCommand "python-lint"
+                {
+                  nativeBuildInputs = with pkgs; [ ruff ];
+                }
+                ''
+                  cp -r ${cleanSrc}/. .
+                  ruff check ./tests
+                  mkdir $out
+                '';
+            typos =
+              pkgs.runCommand "spellcheck"
+                {
+                  nativeBuildInputs = [ pkgs.typos ];
+                }
+                ''
+                  cd ${cleanSrc}
+                  typos .
+                  mkdir $out
+                '';
+            all = pkgs.symlinkJoin {
+              name = "combined-checks";
+              paths = [
+                pythonFormat
+                pythonLint
+                typos
+              ];
+            };
+          in
+          {
+            inherit
+              all
+              pythonFormat
+              pythonLint
+              typos
+              ;
+            default = all;
+          };
+        formatter = pkgs.nixfmt-tree;
         devShells.default = pkgs.mkShellNoCC {
-          packages = with pkgs; [ ];
+          inputsFrom = builtins.attrValues self.checks.${pkgs.system};
+          packages = with pkgs; [
+          ];
         };
         packages = {
           # Export of the overlay'ed package
