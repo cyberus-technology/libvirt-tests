@@ -49,7 +49,7 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [
-            (final: prev: {
+            (_final: prev: {
               cloud-hypervisor = pkgs.callPackage ./chv.nix {
                 inherit cloud-hypervisor-src;
                 craneLib = crane.mkLib pkgs;
@@ -61,7 +61,7 @@
         };
         rust-bin = (rust-overlay.lib.mkRustBin { }) pkgs;
 
-        chv-ovmf = pkgs.OVMF-cloud-hypervisor.overrideAttrs (old: {
+        chv-ovmf = pkgs.OVMF-cloud-hypervisor.overrideAttrs (_old: {
           version = "cbs";
           src = edk2-src;
         });
@@ -88,7 +88,15 @@
               root = ./.;
               fileset = fs.gitTracked ./.;
             };
-
+            deadnix =
+              pkgs.runCommand "deadnix"
+                {
+                  nativeBuildInputs = [ pkgs.deadnix ];
+                }
+                ''
+                  deadnix -L ${cleanSrc} --fail
+                  mkdir $out
+                '';
             pythonFormat =
               pkgs.runCommand "python-format"
                 {
@@ -122,6 +130,7 @@
             all = pkgs.symlinkJoin {
               name = "combined-checks";
               paths = [
+                deadnix
                 pythonFormat
                 pythonLint
                 typos
@@ -131,6 +140,7 @@
           {
             inherit
               all
+              deadnix
               pythonFormat
               pythonLint
               typos
