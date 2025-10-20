@@ -96,7 +96,7 @@ class LibvirtTests(unittest.TestCase):
 
         run_loops = 500
         for i in range(run_loops):
-            print(f"Run {i+1}/{run_loops}")
+            print(f"Run {i + 1}/{run_loops}")
 
             controllerVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
@@ -108,10 +108,12 @@ class LibvirtTests(unittest.TestCase):
             )
             assert wait_for_ssh(controllerVM)
 
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(LibvirtTests("test_live_migration_long_running_with_load"))
     return suite
+
 
 def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
     retries = 100
@@ -129,6 +131,7 @@ def ssh(machine, cmd, user="root", password="root", ip="192.168.1.2"):
         f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
     )
     return status, out
+
 
 runner = unittest.TextTestRunner()
 if not runner.run(suite()).wasSuccessful():

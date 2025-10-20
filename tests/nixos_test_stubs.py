@@ -1,4 +1,3 @@
-
 """
 Stub definitions for NixOS test framework to help with linting.
 This file should be in the same directory as your test script.
@@ -104,10 +103,12 @@ class Machine:
 controllerVM: Machine = Machine()
 computeVM: Machine = Machine()
 
+
 # Additional NixOS test utilities
 def start_all() -> None:
     """Start all machines."""
     pass
+
 
 def create_machine(config: Dict[str, Any]) -> Machine:
     """Create a new machine."""
