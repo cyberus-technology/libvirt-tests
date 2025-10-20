@@ -2,7 +2,9 @@
 Stub definitions for NixOS test framework to help with linting.
 This file should be in the same directory as your test script.
 """
-from typing import Any, Optional, List, Dict, Union, TYPE_CHECKING
+
+from typing import Any, Optional, Dict
+
 
 class Machine:
     """Stub for NixOS test machine object."""
