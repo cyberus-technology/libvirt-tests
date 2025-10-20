@@ -1,4 +1,8 @@
-{ libvirt-src, nixos-image, chv-ovmf }:
+{
+  libvirt-src,
+  nixos-image,
+  chv-ovmf,
+}:
 { pkgs, ... }:
 let
   cirros_qcow = pkgs.fetchurl {
@@ -10,102 +14,143 @@ let
     ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${cirros_qcow} $out
   '';
 
-  virsh_ch_xml = { image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img", numa ? false, hugepages ? false, prefault ? false, serial ? "pty" }:
-  ''
-    <domain type='kvm' id='21050'>
-      <name>testvm</name>
-      <uuid>4eb6319a-4302-4407-9a56-802fc7e6a422</uuid>
-      <memory unit='KiB'>2097152</memory>
-      <currentMemory unit='KiB'>2097152</currentMemory>
-      ${if numa then ''
-      <vcpu placement='static'>4</vcpu>
-      <cputune>
-        <vcpupin vcpu='0' cpuset='0-1'/>
-        <vcpupin vcpu='1' cpuset='0-1'/>
-        <vcpupin vcpu='2' cpuset='2-3'/>
-        <vcpupin vcpu='3' cpuset='2-3'/>
-        <emulatorpin cpuset='0-1'/>
-      </cputune>
-      <cpu>
-        <topology sockets='2' dies='1' cores='1' threads='2'/>
-        <numa>
-          <!-- Defines the guest NUMA topology -->
-          <cell id='0' cpus='0-1' memory='1024' unit='MiB'/>
-          <cell id='1' cpus='2-3,' memory='1024' unit='MiB'/>
-        </numa>
-      </cpu>
-      <numatune>
-        <memory mode='strict' nodeset='0'/>
-          <!-- Maps memory from guest to host NUMA topology. nodeset refers to host NUMA node, cellid to guest NUMA -->
-        <memnode cellid='0' mode='strict' nodeset='0'/>
-        <memnode cellid='1' mode='strict' nodeset='0'/>
-      </numatune>
-      ${if hugepages then ''
-      <memoryBacking>
-        <hugepages>
-          <page size="2" unit="M" nodeset="0"/>
-          <page size="2" unit="M" nodeset="1"/>
-        </hugepages>
-        ${if prefault then ''
-        <allocation mode="immediate"/>
-        '' else '''' }
-      </memoryBacking>
-      '' else '''' }
-      '' else ''
-      <vcpu placement='static'>2</vcpu>
-      ${if hugepages then ''
-      <memoryBacking>
-        <hugepages>
-          <page size="2" unit="M"/>
-        </hugepages>
-        ${if prefault then ''
-        <allocation mode="immediate"/>
-        '' else '''' }
-      </memoryBacking>
-      '' else '''' }
-      '' }
-      <os>
-        <type arch='x86_64'>hvm</type>
-        <kernel>/etc/CLOUDHV.fd</kernel>
-        <boot dev='hd'/>
-      </os>
-      <clock offset='utc'/>
-      <on_poweroff>destroy</on_poweroff>
-      <on_reboot>restart</on_reboot>
-      <on_crash>destroy</on_crash>
-      <devices>
-        <emulator>cloud-hypervisor</emulator>
-        <disk type='file' device='disk'>
-          <source file='${image}'/>
-          <target dev='vda' bus='virtio'/>
-        </disk>
-        <interface type='ethernet'>
-          <mac address='52:54:00:e5:b8:ef'/>
-          <target dev='vnet0'/>
-          <model type='virtio'/>
-          <driver queues='1'/>
-        </interface>
-        ${if serial == "pty" then ''
-        <serial type='pty'>
-          <source path='/dev/pts/2'/>
-          <target port='0'/>
-        </serial>
-        '' else if serial == "file" then ''
-        <serial type='file'>
-          <source path='/tmp/vm_serial.log'/>
-          <target port='0'/>
-        </serial>
-        '' else if serial == "tcp" then ''
-        <serial type='tcp'>
-          <source mode="bind" host="127.0.0.1" service="2222" tls="no"/>
-          <protocol type="raw"/>
-          <target port='0'/>
-          <log file="/var/log/libvirt/ch/testvm.log" append="off"/>
-        </serial>
-        '' else ""}
-      </devices>
-    </domain>
-  '';
+  virsh_ch_xml =
+    {
+      image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img",
+      numa ? false,
+      hugepages ? false,
+      prefault ? false,
+      serial ? "pty",
+    }:
+    ''
+      <domain type='kvm' id='21050'>
+        <name>testvm</name>
+        <uuid>4eb6319a-4302-4407-9a56-802fc7e6a422</uuid>
+        <memory unit='KiB'>2097152</memory>
+        <currentMemory unit='KiB'>2097152</currentMemory>
+        ${
+          if numa then
+            ''
+              <vcpu placement='static'>4</vcpu>
+              <cputune>
+                <vcpupin vcpu='0' cpuset='0-1'/>
+                <vcpupin vcpu='1' cpuset='0-1'/>
+                <vcpupin vcpu='2' cpuset='2-3'/>
+                <vcpupin vcpu='3' cpuset='2-3'/>
+                <emulatorpin cpuset='0-1'/>
+              </cputune>
+              <cpu>
+                <topology sockets='2' dies='1' cores='1' threads='2'/>
+                <numa>
+                  <!-- Defines the guest NUMA topology -->
+                  <cell id='0' cpus='0-1' memory='1024' unit='MiB'/>
+                  <cell id='1' cpus='2-3,' memory='1024' unit='MiB'/>
+                </numa>
+              </cpu>
+              <numatune>
+                <memory mode='strict' nodeset='0'/>
+                  <!-- Maps memory from guest to host NUMA topology. nodeset refers to host NUMA node, cellid to guest NUMA -->
+                <memnode cellid='0' mode='strict' nodeset='0'/>
+                <memnode cellid='1' mode='strict' nodeset='0'/>
+              </numatune>
+              ${
+                if hugepages then
+                  ''
+                    <memoryBacking>
+                      <hugepages>
+                        <page size="2" unit="M" nodeset="0"/>
+                        <page size="2" unit="M" nodeset="1"/>
+                      </hugepages>
+                      ${
+                        if prefault then
+                          ''
+                            <allocation mode="immediate"/>
+                          ''
+                        else
+                          ''''
+                      }
+                    </memoryBacking>
+                  ''
+                else
+                  ''''
+              }
+            ''
+          else
+            ''
+              <vcpu placement='static'>2</vcpu>
+              ${
+                if hugepages then
+                  ''
+                    <memoryBacking>
+                      <hugepages>
+                        <page size="2" unit="M"/>
+                      </hugepages>
+                      ${
+                        if prefault then
+                          ''
+                            <allocation mode="immediate"/>
+                          ''
+                        else
+                          ''''
+                      }
+                    </memoryBacking>
+                  ''
+                else
+                  ''''
+              }
+            ''
+        }
+        <os>
+          <type arch='x86_64'>hvm</type>
+          <kernel>/etc/CLOUDHV.fd</kernel>
+          <boot dev='hd'/>
+        </os>
+        <clock offset='utc'/>
+        <on_poweroff>destroy</on_poweroff>
+        <on_reboot>restart</on_reboot>
+        <on_crash>destroy</on_crash>
+        <devices>
+          <emulator>cloud-hypervisor</emulator>
+          <disk type='file' device='disk'>
+            <source file='${image}'/>
+            <target dev='vda' bus='virtio'/>
+          </disk>
+          <interface type='ethernet'>
+            <mac address='52:54:00:e5:b8:ef'/>
+            <target dev='vnet0'/>
+            <model type='virtio'/>
+            <driver queues='1'/>
+          </interface>
+          ${
+            if serial == "pty" then
+              ''
+                <serial type='pty'>
+                  <source path='/dev/pts/2'/>
+                  <target port='0'/>
+                </serial>
+              ''
+            else if serial == "file" then
+              ''
+                <serial type='file'>
+                  <source path='/tmp/vm_serial.log'/>
+                  <target port='0'/>
+                </serial>
+              ''
+            else if serial == "tcp" then
+              ''
+                <serial type='tcp'>
+                  <source mode="bind" host="127.0.0.1" service="2222" tls="no"/>
+                  <protocol type="raw"/>
+                  <target port='0'/>
+                  <log file="/var/log/libvirt/ch/testvm.log" append="off"/>
+                </serial>
+              ''
+            else
+              ""
+          }
+        </devices>
+      </domain>
+    '';
 
   new_interface = ''
     <interface type='ethernet'>
@@ -174,12 +219,12 @@ in
   systemd.sockets.virtstoraged.wantedBy = [ "sockets.target" ];
 
   systemd.services.virtchd = {
-      serviceConfig = {
-          Restart = "always";
-          RestartSec = 1;
-      };
-      startLimitIntervalSec = 0;
-      startLimitBurst = 0;
+    serviceConfig = {
+      Restart = "always";
+      RestartSec = 1;
+    };
+    startLimitIntervalSec = 0;
+    startLimitBurst = 0;
   };
 
   systemd.network = {
@@ -316,47 +361,67 @@ in
         };
         "/etc/domain-chv.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml {})}";
+            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml { })}";
           };
         };
         "/etc/domain-chv-serial-tcp.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml { serial = "tcp"; })}";
+            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml {
+              serial = "tcp";
+            })}";
           };
         };
         "/etc/domain-chv-serial-file.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml { serial = "file"; })}";
+            argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml {
+              serial = "file";
+            })}";
           };
         };
         "/etc/domain-chv-cirros.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "domain-cirros.xml" (virsh_ch_xml { image = "/var/lib/libvirt/storage-pools/nfs-share/cirros.img"; })}";
+            argument = "${pkgs.writeText "domain-cirros.xml" (virsh_ch_xml {
+              image = "/var/lib/libvirt/storage-pools/nfs-share/cirros.img";
+            })}";
           };
         };
         "/etc/domain-chv-hugepages.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml { hugepages = true; })}";
+            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml {
+              hugepages = true;
+            })}";
           };
         };
         "/etc/domain-chv-hugepages-prefault.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml { hugepages = true; prefault = true; })}";
+            argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml {
+              hugepages = true;
+              prefault = true;
+            })}";
           };
         };
         "/etc/domain-chv-numa.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "domain-numa.xml" (virsh_ch_xml { numa = true; })}";
+            argument = "${pkgs.writeText "domain-numa.xml" (virsh_ch_xml {
+              numa = true;
+            })}";
           };
         };
         "/etc/domain-chv-numa-hugepages.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml { numa = true; hugepages = true; })}";
+            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml {
+              numa = true;
+              hugepages = true;
+            })}";
           };
         };
         "/etc/domain-chv-numa-hugepages-prefault.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml { numa = true; hugepages = true; prefault = true; })}";
+            argument = "${pkgs.writeText "cirros-numa.xml" (virsh_ch_xml {
+              numa = true;
+              hugepages = true;
+              prefault = true;
+            })}";
           };
         };
         "/etc/new_interface.xml" = {
