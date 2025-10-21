@@ -118,10 +118,18 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         controllerVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
         computeVM.succeed("echo 0 > /proc/sys/vm/nr_hugepages")
 
-        # Remove any remaining vm logs.
-        for path in ["/tmp/*.log", "/var/log/libvirt/ch/*.log"]:
-            controllerVM.succeed(f"rm -f {path}")
-            computeVM.succeed(f"rm -f {path}")
+        # Ensure we can access specific test case logs afterward.
+        commands = [
+            f"mv /var/log/libvirt/ch/testvm.log /var/log/libvirt/ch/{self._testMethodName}_vmm.log || true",
+            # libvirt bug: can't cope with new or truncated log files
+            # f"mv /var/log/libvirt/libvirtd.log /var/log/libvirt/{timestamp}_{self._testMethodName}_libvirtd.log",
+            f"mv /var/log/vm_serial.log /var/log/{self._testMethodName}_vm-serial.log || true",
+        ]
+
+        for cmd in commands:
+            print(f"cmd: {cmd}")
+            controllerVM.succeed(cmd)
+            computeVM.succeed(cmd)
 
     def test_network_hotplug_transient_vm_restart(self):
         """
