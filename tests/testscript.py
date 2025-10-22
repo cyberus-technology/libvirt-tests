@@ -893,13 +893,22 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
             "ss --numeric --processes --listening --tcp src :2222 | grep cloud-hyperviso"
         )
 
+        # We define a target domain XML that changes the port of the TCP serial
+        # configuration from 2222 to 2223.
         controllerVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "cp /etc/domain-chv-serial-tcp.xml /tmp/domain-chv-serial-tcp.xml"
+        )
+        controllerVM.succeed(
+            'sed -i \'s/service="2222"/service="2223"/g\' /tmp/domain-chv-serial-tcp.xml'
+        )
+
+        controllerVM.succeed(
+            "virsh migrate --xml /tmp/domain-chv-serial-tcp.xml --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
         )
         assert wait_for_ssh(computeVM)
 
         computeVM.succeed(
-            "ss --numeric --processes --listening --tcp src :2222 | grep cloud-hyperviso"
+            "ss --numeric --processes --listening --tcp src :2223 | grep cloud-hyperviso"
         )
 
     def test_live_migration_virsh_non_blocking(self):
