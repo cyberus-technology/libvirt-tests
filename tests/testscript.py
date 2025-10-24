@@ -1026,34 +1026,37 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
 
 def suite():
+    testcases = [
+        LibvirtTests.test_hotplug,
+        LibvirtTests.test_libvirt_restart,
+        LibvirtTests.test_live_migration,
+        LibvirtTests.test_live_migration_with_hotplug,
+        LibvirtTests.test_live_migration_with_hugepages,
+        LibvirtTests.test_live_migration_with_hugepages_failure_case,
+        LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
+        LibvirtTests.test_numa_topology,
+        LibvirtTests.test_hugepages,
+        LibvirtTests.test_hugepages_prefault,
+        LibvirtTests.test_numa_hugepages,
+        LibvirtTests.test_numa_hugepages_prefault,
+        LibvirtTests.test_network_hotplug_attach_detach_transient,
+        LibvirtTests.test_network_hotplug_attach_detach_persistent,
+        LibvirtTests.test_network_hotplug_transient_vm_restart,
+        LibvirtTests.test_network_hotplug_persistent_vm_restart,
+        LibvirtTests.test_network_hotplug_persistent_transient_detach_vm_restart,
+        LibvirtTests.test_serial_file_output,
+        LibvirtTests.test_managedsave,
+        LibvirtTests.test_shutdown,
+        LibvirtTests.test_libvirt_event_stop_failed,
+        LibvirtTests.test_serial_tcp,
+        LibvirtTests.test_serial_tcp_live_migration,
+        LibvirtTests.test_live_migration_virsh_non_blocking,
+        LibvirtTests.test_virsh_console_works_with_pty,
+    ]
+
     suite = unittest.TestSuite()
-    suite.addTest(LibvirtTests("test_hotplug"))
-    suite.addTest(LibvirtTests("test_libvirt_restart"))
-    suite.addTest(LibvirtTests("test_live_migration"))
-    suite.addTest(LibvirtTests("test_live_migration_with_hotplug"))
-    suite.addTest(LibvirtTests("test_live_migration_with_hugepages"))
-    suite.addTest(LibvirtTests("test_live_migration_with_hugepages_failure_case"))
-    suite.addTest(LibvirtTests("test_live_migration_with_hotplug_and_virtchd_restart"))
-    suite.addTest(LibvirtTests("test_numa_topology"))
-    suite.addTest(LibvirtTests("test_hugepages"))
-    suite.addTest(LibvirtTests("test_hugepages_prefault"))
-    suite.addTest(LibvirtTests("test_numa_hugepages"))
-    suite.addTest(LibvirtTests("test_numa_hugepages_prefault"))
-    suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_transient"))
-    suite.addTest(LibvirtTests("test_network_hotplug_attach_detach_persistent"))
-    suite.addTest(LibvirtTests("test_network_hotplug_transient_vm_restart"))
-    suite.addTest(LibvirtTests("test_network_hotplug_persistent_vm_restart"))
-    suite.addTest(
-        LibvirtTests("test_network_hotplug_persistent_transient_detach_vm_restart")
-    )
-    suite.addTest(LibvirtTests("test_serial_file_output"))
-    suite.addTest(LibvirtTests("test_managedsave"))
-    suite.addTest(LibvirtTests("test_shutdown"))
-    suite.addTest(LibvirtTests("test_libvirt_event_stop_failed"))
-    suite.addTest(LibvirtTests("test_serial_tcp"))
-    suite.addTest(LibvirtTests("test_serial_tcp_live_migration"))
-    suite.addTest(LibvirtTests("test_live_migration_virsh_non_blocking"))
-    suite.addTest(LibvirtTests("test_virsh_console_works_with_pty"))
+    for testcaseMethod in testcases:
+        suite.addTest(LibvirtTests(testcaseMethod.__name__))
     return suite
 
 
