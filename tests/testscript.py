@@ -126,8 +126,8 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # Various cleanup commands to be executed on all machines
         commands = commands + [
             # Destroy any remaining huge page allocations.
-            "echo 0 > /proc/sys/vm/nr_hugepages"
-            "rm -f /tmp/console.expect",
+            "echo 0 > /proc/sys/vm/nr_hugepages",
+            "rm -f /tmp/*.expect",
         ]
 
         for cmd in commands:
@@ -877,9 +877,26 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert wait_until_succeed(prompt)
 
+        controllerVM.succeed(
+            textwrap.dedent("""
+            cat > /tmp/socat.expect << EOF
+            spawn socat - TCP:localhost:2222
+            send "\\n\\n"
+            expect "$"
+            send "pwd\\n"
+            expect {
+            -exact "/home/nixos" { }
+            timeout { puts "timeout hitted!"; exit 1}
+            }
+            send \\x03
+            expect eof
+            EOF
+        """).strip()
+        )
+
         # The expect script tests interactivity of the serial connection by
         # executing 'pwd' and checking a proper response output
-        controllerVM.succeed("expect /etc/socat.expect")
+        controllerVM.succeed("expect /tmp/socat.expect")
 
     def test_serial_tcp_live_migration(self):
         """
