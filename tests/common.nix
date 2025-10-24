@@ -160,19 +160,6 @@ let
       <driver queues='1'/>
     </interface>
   '';
-
-  expectSocatScript = ''
-    spawn socat - TCP:localhost:2222
-    send "\n\n"
-    expect "$"
-    send "pwd\n"
-    expect {
-      -exact "/home/nixos" {}
-      timeout { puts "timeout hitted!"; exit 1}
-    }
-    send \x03
-    expect eof
-  '';
 in
 {
   virtualisation.libvirtd = {
@@ -427,11 +414,6 @@ in
         "/etc/new_interface.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "new_interface.xml" new_interface}";
-          };
-        };
-        "/etc/socat.expect" = {
-          "C+" = {
-            argument = "${pkgs.writeText "socat.expect" expectSocatScript}";
           };
         };
         "/var/log/libvirt/" = {
