@@ -1,4 +1,5 @@
 import libvirt  # type: ignore
+import textwrap
 import time
 import unittest
 
@@ -124,6 +125,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
             # libvirt bug: can't cope with new or truncated log files
             # f"mv /var/log/libvirt/libvirtd.log /var/log/libvirt/{timestamp}_{self._testMethodName}_libvirtd.log",
             f"mv /var/log/vm_serial.log /var/log/{self._testMethodName}_vm-serial.log || true",
+            "rm -f /tmp/console.expect",
         ]
 
         for cmd in commands:
@@ -971,6 +973,38 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         computeVM.succeed("virsh list | grep testvm | grep running")
 
+    def test_virsh_console_works_with_pty(self):
+        """
+        The test checks that a 'virsh console' command results in an
+        interactive console session were we are able to interact with the VM.
+        This is done with a PTY configured as a serial backend.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        controllerVM.succeed(
+            textwrap.dedent("""
+            cat > /tmp/console.expect << EOF
+            spawn virsh console testvm
+            send "\\n\\n"
+            sleep 1
+            expect "$"
+            send "pwd\\n"
+            expect {
+                -exact "/home/nixos" { }
+                timeout { puts "timeout hitted!"; exit 1}
+            }
+            send \\x1d
+            expect eof
+            EOF
+        """).strip()
+        )
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("expect /tmp/console.expect")
+
 
 def suite():
     suite = unittest.TestSuite()
@@ -1000,6 +1034,7 @@ def suite():
     suite.addTest(LibvirtTests("test_serial_tcp"))
     suite.addTest(LibvirtTests("test_serial_tcp_live_migration"))
     suite.addTest(LibvirtTests("test_live_migration_virsh_non_blocking"))
+    suite.addTest(LibvirtTests("test_virsh_console_works_with_pty"))
     return suite
 
 
