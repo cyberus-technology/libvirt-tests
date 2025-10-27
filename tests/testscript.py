@@ -432,6 +432,27 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
             )
             assert wait_for_ssh(controllerVM)
 
+    def test_live_migration_no_p2p(self):
+        """
+        Test the live migration via virsh between 2 hosts without using peer-to-peer
+        connection (--p2p is not set).
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Explicitly use IP in desturi as this was already a problem in the past
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://192.168.100.2/session --persistent --live"
+        )
+        assert wait_for_ssh(computeVM)
+        computeVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live"
+        )
+        assert wait_for_ssh(controllerVM)
+
     def test_live_migration_with_hotplug(self):
         """
         Test that transient and persistent devices are correctly handled during live migrations.
@@ -1030,6 +1051,7 @@ def suite():
     suite.addTest(LibvirtTests("test_hotplug"))
     suite.addTest(LibvirtTests("test_libvirt_restart"))
     suite.addTest(LibvirtTests("test_live_migration"))
+    suite.addTest(LibvirtTests("test_live_migration_no_p2p"))
     suite.addTest(LibvirtTests("test_live_migration_with_hotplug"))
     suite.addTest(LibvirtTests("test_live_migration_with_hugepages"))
     suite.addTest(LibvirtTests("test_live_migration_with_hugepages_failure_case"))
