@@ -151,6 +151,7 @@
         devShells.default = pkgs.mkShellNoCC {
           inputsFrom = builtins.attrValues self.checks.${pkgs.system};
           packages = with pkgs; [
+            gitlint
           ];
         };
         packages = {

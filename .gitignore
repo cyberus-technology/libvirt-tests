@@ -1,3 +1,6 @@
 .direnv
 .nixos-test-history
 /result*
+
+# gitlint
+__pycache__
