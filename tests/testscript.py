@@ -116,11 +116,13 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
 
         # Ensure we can access specific test case logs afterward.
+        # We copy them instead of moving, so that in case of an error we can
+        # still print the generic name.
         commands = [
-            f"mv /var/log/libvirt/ch/testvm.log /var/log/libvirt/ch/{self._testMethodName}_vmm.log || true",
+            f"cp /var/log/libvirt/ch/testvm.log /var/log/libvirt/ch/{self._testMethodName}_vmm.log || true",
             # libvirt bug: can't cope with new or truncated log files
             # f"mv /var/log/libvirt/libvirtd.log /var/log/libvirt/{timestamp}_{self._testMethodName}_libvirtd.log",
-            f"mv /var/log/vm_serial.log /var/log/{self._testMethodName}_vm-serial.log || true",
+            f"cp /var/log/vm_serial.log /var/log/{self._testMethodName}_vm-serial.log || true",
         ]
 
         # Various cleanup commands to be executed on all machines
