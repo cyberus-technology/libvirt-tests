@@ -2,6 +2,7 @@
   description = "NixOS tests for libvirt development";
 
   inputs = {
+    dried-nix-flakes.url = "github:cyberus-technology/dried-nix-flakes";
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.05";
 
     # A local path can be used for developing or testing local changes. Make
@@ -31,34 +32,51 @@
   };
 
   outputs =
-    {
-      self,
-      # Keep list sorted:
-      cloud-hypervisor-src,
-      crane,
-      edk2-src,
-      flake-utils,
-      libvirt-src,
-      nixpkgs,
-      rust-overlay,
-      ...
-    }:
-    flake-utils.lib.eachSystem [ "x86_64-linux" ] (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [
-            (_final: prev: {
-              cloud-hypervisor = pkgs.callPackage ./chv.nix {
-                inherit cloud-hypervisor-src;
-                craneLib = crane.mkLib pkgs;
-                rustToolchain = rust-bin.stable.latest.default;
-                cloud-hypervisor-meta = prev.cloud-hypervisor.meta;
-              };
-            })
+    inputs:
+    let
+      dnf = (inputs.dried-nix-flakes.for inputs).override {
+        # Expose only platforms that the most restrictive set of packages supports.
+        systems =
+          let
+            # The `x86_64-linux` attribute is used arbitrarily to access lib and the derivation's attributes.
+            pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+            inherit (pkgs) lib;
+            intersectAll =
+              lists: builtins.foldl' lib.intersectLists (builtins.head lists) (builtins.tail lists);
+          in
+          intersectAll [
+            pkgs.cloud-hypervisor.meta.platforms
+            pkgs.OVMF-cloud-hypervisor.meta.platforms
           ];
-        };
+      };
+      inherit (dnf)
+        exportOutputs
+        ;
+    in
+    exportOutputs (
+      {
+        self,
+        # Keep list sorted:
+        cloud-hypervisor-src,
+        crane,
+        edk2-src,
+        libvirt-src,
+        nixpkgs,
+        rust-overlay,
+        ...
+      }:
+      let
+        pkgs = nixpkgs.legacyPackages.appendOverlays [
+          (_final: prev: {
+            cloud-hypervisor = pkgs.callPackage ./chv.nix {
+              inherit cloud-hypervisor-src;
+              craneLib = crane.mkLib pkgs;
+              rustToolchain = rust-bin.stable.latest.default;
+              cloud-hypervisor-meta = prev.cloud-hypervisor.meta;
+            };
+          })
+        ];
+
         rust-bin = (rust-overlay.lib.mkRustBin { }) pkgs;
 
         chv-ovmf = pkgs.OVMF-cloud-hypervisor.overrideAttrs (_old: {
@@ -149,7 +167,7 @@
           };
         formatter = pkgs.nixfmt-tree;
         devShells.default = pkgs.mkShellNoCC {
-          inputsFrom = builtins.attrValues self.checks.${pkgs.system};
+          inputsFrom = builtins.attrValues self.checks;
           packages = with pkgs; [
             gitlint
           ];
