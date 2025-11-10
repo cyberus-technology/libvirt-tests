@@ -99,12 +99,12 @@ class LibvirtTests(unittest.TestCase):
             print(f"Run {i + 1}/{run_loops}")
 
             controllerVM.succeed(
-                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
             )
             assert wait_for_ssh(computeVM)
 
             computeVM.succeed(
-                "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
+                "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
             )
             assert wait_for_ssh(controllerVM)
 
