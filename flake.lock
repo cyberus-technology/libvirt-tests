@@ -3,16 +3,16 @@
     "cloud-hypervisor-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1761217214,
-        "narHash": "sha256-daWnaHgALunSZNZENs5Rg6H8YL1si8u0loCTytldSyI=",
+        "lastModified": 1762791932,
+        "narHash": "sha256-DMo2ylmaTMhen73HEv4OZmv7e/u5MHBM9qDh7P76cLw=",
         "owner": "cyberus-technology",
         "repo": "cloud-hypervisor",
-        "rev": "169a071c9999bbd94ae968d324c27b168c71457e",
+        "rev": "035da3aaae0f701dabd89ef5a10f83a48cf9c0e7",
         "type": "github"
       },
       "original": {
         "owner": "cyberus-technology",
-        "ref": "gardenlinux",
+        "ref": "cyberus-fork-cpu-profiles-cpuid",
         "repo": "cloud-hypervisor",
         "type": "github"
       }
@@ -70,20 +70,20 @@
     "libvirt-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1761221828,
-        "narHash": "sha256-Y10aOZrFtIxULA2ujZgi2Fgn3zZw7X2aWMmaPXpl83Y=",
-        "ref": "gardenlinux",
-        "rev": "79e353ab214505b104ed631e396b7152581167ed",
-        "revCount": 52367,
+        "lastModified": 1762865227,
+        "narHash": "sha256-3gnqBrEfuk/na4PdHyRri0rN7JBcdhr9nehCZbKKMSk=",
+        "ref": "cpu-profiles",
+        "rev": "815b376c9c8423853839fc000eb64371dc6d6330",
+        "revCount": 52370,
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/cyberus-technology/libvirt"
+        "url": "https://github.com/hertrste/libvirt"
       },
       "original": {
-        "ref": "gardenlinux",
+        "ref": "cpu-profiles",
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/cyberus-technology/libvirt"
+        "url": "https://github.com/hertrste/libvirt"
       }
     },
     "nixpkgs": {
