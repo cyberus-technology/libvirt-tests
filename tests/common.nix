@@ -20,6 +20,7 @@ let
       numa ? false,
       hugepages ? false,
       prefault ? false,
+      cpuModel ? "",
       serial ? "pty",
     }:
     ''
@@ -77,6 +78,16 @@ let
             ''
           else
             ''
+              ${
+                if cpuModel == "" then
+                  ""
+                else
+                  ''
+                    <cpu mode='custom' match='exact' check='full'>
+                      <model fallback='forbid'>${cpuModel}</model>
+                    </cpu>
+                  ''
+              }
               <vcpu placement='static'>2</vcpu>
               ${
                 if hugepages then
@@ -408,6 +419,13 @@ in
               numa = true;
               hugepages = true;
               prefault = true;
+            })}";
+          };
+        };
+        "/etc/domain-chv-cpu-sapphire-rapid.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros-sapphire-rapid.xml" (virsh_ch_xml {
+              cpuModel = "sapphire-rapids";
             })}";
           };
         };
