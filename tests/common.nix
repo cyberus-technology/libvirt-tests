@@ -24,6 +24,7 @@ let
       numa ? false,
       hugepages ? false,
       prefault ? false,
+      cpuModel ? "",
       serial ? "pty",
       # Whether all device will be assigned a static BDF through the XML or only some
       all_static_bdf ? false,
@@ -85,6 +86,16 @@ let
             ''
           else
             ''
+              ${
+                if cpuModel == "" then
+                  ""
+                else
+                  ''
+                    <cpu mode='custom' match='exact' check='full'>
+                      <model fallback='forbid'>${cpuModel}</model>
+                    </cpu>
+                  ''
+              }
               <vcpu placement='static'>2</vcpu>
               ${
                 if hugepages then
@@ -582,6 +593,13 @@ in
             argument = "${pkgs.writeText "domain-chv-static-bdf-with-function.xml" (virsh_ch_xml {
               all_static_bdf = true;
               use_bdf_function = true;
+            })}";
+          };
+        };
+        "/etc/domain-chv-cpu-sapphire-rapid.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros-sapphire-rapid.xml" (virsh_ch_xml {
+              cpuModel = "sapphire-rapids";
             })}";
           };
         };
