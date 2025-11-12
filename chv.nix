@@ -46,7 +46,9 @@ let
   cargoArtifacts = craneLib'.buildDepsOnly (
     commonArgs
     // {
-      pname = "cloud-hypervisor-deps";
+      # "suffix '-deps' will be appended
+      pname = "cloud-hypervisor";
+      doCheck = false;
     }
   );
 
