@@ -176,6 +176,16 @@ in
         ../patches/libvirt/0001-meson-patch-in-an-install-prefix-for-building-on-nix.patch
         ../patches/libvirt/0002-substitute-zfs-and-zpool-commands.patch
       ];
+
+      # Use the optimized debug build
+      mesonBuildType = "debugoptimized";
+
+      # IMPORTANT: donStrip is required because otherwise, nix will strip all
+      # debug info from the binaries in its fixupPhase. Having the debug info
+      # is crucial for getting source code info from the sanitizers, as well as
+      # when using GDB.
+      dontStrip = true;
+
       # Reduce files needed to compile. We cut the build-time in half.
       mesonFlags = old.mesonFlags ++ [
         # Disabling tests: 1500 -> 1200
