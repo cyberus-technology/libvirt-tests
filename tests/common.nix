@@ -164,6 +164,11 @@ let
   '';
 in
 {
+  systemd.services.virtchd = {
+    environment.ASAN_OPTIONS = "detect_leaks=1:fast_unwind_on_malloc=0:halt_on_error=1:symbolize=1";
+    environment.LSAN_OPTIONS = "report_objects=1";
+  };
+
   virtualisation.libvirtd = {
     enable = true;
     sshProxy = false;
@@ -206,6 +211,8 @@ in
         "-Ddriver_vbox=disabled"
         "-Ddriver_vmware=disabled"
         "-Ddriver_vz=disabled"
+        "-Db_sanitize=leak"
+        "-Db_sanitize=address,undefined"
       ];
     });
   };
