@@ -491,12 +491,12 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == nr_hugepages, "unable to allocate hugepages"
 
         status, out = computeVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == nr_hugepages, "unable to allocate hugepages"
 
@@ -506,7 +506,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
 
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == 0, "not enough huge pages are in-use"
 
@@ -517,12 +517,12 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_for_ssh(computeVM)
 
         status, out = computeVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == 0, "not enough huge pages are in-use"
 
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == nr_hugepages, "not all huge pages have been freed"
 
@@ -535,7 +535,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == nr_hugepages, "unable to allocate hugepages"
 
@@ -602,7 +602,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Check that we really use hugepages from the hugepage pool
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) < nr_hugepages, "No huge pages have been used"
 
@@ -621,7 +621,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Check that all huge pages are in use
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == 0, "Invalid hugepage usage"
 
@@ -647,7 +647,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Check that we really use hugepages from the hugepage pool
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) < nr_hugepages, "No huge pages have been used"
 
@@ -673,7 +673,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Check that all huge pages are in use
         status, out = controllerVM.execute(
-            "cat /proc/meminfo | grep HugePages_Free | awk '{print $2}'"
+            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
         assert int(out) == 0, "Invalid huge page usage"
 
@@ -690,9 +690,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         status, out = controllerVM.execute("cat /tmp/vm_serial.log | wc -l")
         assert int(out) > 50
 
-        status, out = controllerVM.execute(
-            "cat /tmp/vm_serial.log | grep 'Welcome to NixOS'"
-        )
+        status, out = controllerVM.execute("grep 'Welcome to NixOS' /tmp/vm_serial.log")
 
     def test_managedsave(self):
         """
@@ -871,7 +869,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # Check that we log to file in addition to the TCP socket
         def prompt():
             status, _ = controllerVM.execute(
-                "cat /var/log/libvirt/ch/testvm.log | grep -q 'Welcome to NixOS'"
+                "grep -q 'Welcome to NixOS' /var/log/libvirt/ch/testvm.log"
             )
             return status == 0
 
@@ -1160,7 +1158,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_for_ssh(computeVM)
 
         num_threads = controllerVM.succeed(
-            'cat -v /var/log/libvirt/ch/testvm.log | grep "Spawned thread to send VM memory" | wc -l'
+            'grep -c "Spawned thread to send VM memory" /var/log/libvirt/ch/testvm.log'
         ).strip()
 
         # CHV starts one thread less than the given parallel connections because
