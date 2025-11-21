@@ -16,7 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v31
-      - uses: DeterminateSystems/magic-nix-cache-action@main
       # Dedicated step to separate all the
       # "copying path '/nix/store/...' from 'https://cache.nixos.org'."
       # messages from the actual build output.
