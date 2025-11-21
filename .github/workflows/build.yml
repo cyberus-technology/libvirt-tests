@@ -22,13 +22,17 @@ jobs:
       - name: Check Nix format
         run: nix fmt -- --ci
       - name: Check Deadnix
-        run: nix build .#checks.x86_64-linux.deadnix
+        run: nix build -L .#checks.x86_64-linux.deadnix
       - name: Check Python Formatting
-        run: nix build .#checks.x86_64-linux.pythonFormat
+        run: nix build -L .#checks.x86_64-linux.pythonFormat
       - name: Check Python Lints
-        run: nix build .#checks.x86_64-linux.pythonLint
+        run: nix build -L .#checks.x86_64-linux.pythonLint
       - name: Check Spelling
-        run: nix build .#checks.x86_64-linux.typos
+        run: nix build -L .#checks.x86_64-linux.typos
       # Run all in case we forgot to add a fine-grained job.
       - name: Check All
-        run: nix build .#checks.x86_64-linux.all
+        run: nix build -L .#checks.x86_64-linux.all
+      - name: Build Default Test Suite
+        run: nix build -L .#tests.x86_64-linux.default.driver
+      - name: Build Long-Running Test Suite
+        run: nix build -L .#tests.x86_64-linux.long_migration_with_load.driver
