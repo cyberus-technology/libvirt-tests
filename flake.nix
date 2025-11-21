@@ -14,7 +14,7 @@
       flake = false;
     };
     cloud-hypervisor-src = {
-      # url = "git+file::<path/to/cloud-hypervisor>";
+      # url = "git+file:<path/to/cloud-hypervisor>";
       url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
       flake = false;
     };
@@ -27,6 +27,10 @@
     # Get proper Rust toolchain, independent of pkgs.rustc.
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    fcntl-tool = {
+      url = "github:phip1611/fcntl-tool";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -60,6 +64,7 @@
         cloud-hypervisor-src,
         crane,
         edk2-src,
+        fcntl-tool,
         libvirt-src,
         nixpkgs,
         rust-overlay,
@@ -68,6 +73,7 @@
       let
         pkgs = nixpkgs.legacyPackages.appendOverlays [
           (_final: prev: {
+            fcntl-tool = fcntl-tool.packages.default;
             cloud-hypervisor = pkgs.callPackage ./chv.nix {
               inherit cloud-hypervisor-src;
               craneLib = crane.mkLib pkgs;
