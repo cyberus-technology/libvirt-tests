@@ -300,6 +300,7 @@ in
   environment.systemPackages = with pkgs; [
     bridge-utils
     cloud-hypervisor
+    fcntl-tool
     expect
     gdb
     htop

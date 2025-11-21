@@ -1107,6 +1107,34 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert int(disk_size_guest) == disk_size_bytes_100M
         assert int(disk_size_host) == disk_size_bytes_100M
 
+    def test_disk_is_locked(self):
+        """
+        Test that Cloud Hypervisor indeed locks images using advisory OFD locks.
+        """
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("qemu-img create -f raw /tmp/disk.img 100M")
+
+        controllerVM.succeed("fcntl-tool test-lock /tmp/disk.img | grep Unlocked")
+
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --source /tmp/disk.img --mode readonly"
+        )
+        # Check for shared read lock
+        controllerVM.succeed("fcntl-tool test-lock /tmp/disk.img | grep SharedRead")
+        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --source /tmp/disk.img"
+        )
+        # Check for exclusive write lock
+        controllerVM.succeed("fcntl-tool test-lock /tmp/disk.img | grep ExclusiveWrite")
+        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+
     def test_disk_resize_qcow2(self):
         """
         Test disk resizing for qcow2 images during VM runtime.
@@ -1169,6 +1197,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 def suite():
     # Test cases in alphabetical order
     testcases = [
+        LibvirtTests.test_disk_is_locked,
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,
         LibvirtTests.test_hotplug,

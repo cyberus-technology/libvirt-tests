@@ -3,18 +3,17 @@
     "cloud-hypervisor-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1763036600,
-        "narHash": "sha256-dDiyHGhx0AEHtowH8fiItyxmHR7010VdC9L5r/OwRgU=",
-        "owner": "cyberus-technology",
-        "repo": "cloud-hypervisor",
-        "rev": "d435a5408a10c7ca4ea0012b81745a23a690b626",
-        "type": "github"
+        "lastModified": 1763731453,
+        "narHash": "sha256-jdJJGsuu5gE60HU58X+hibhrx/4dhUht6jonWjq93KY=",
+        "ref": "refs/heads/upstream-disk-lock-byte-ranges",
+        "rev": "d6ef786c2474a93a1f5b360c5c8c8af972701481",
+        "revCount": 9070,
+        "type": "git",
+        "url": "file:/home/pschuster/dev/cloud-hypervisor"
       },
       "original": {
-        "owner": "cyberus-technology",
-        "ref": "gardenlinux",
-        "repo": "cloud-hypervisor",
-        "type": "github"
+        "type": "git",
+        "url": "file:/home/pschuster/dev/cloud-hypervisor"
       }
     },
     "crane": {
@@ -67,6 +66,26 @@
         "url": "https://github.com/cyberus-technology/edk2"
       }
     },
+    "fcntl-tool": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1763732559,
+        "narHash": "sha256-a/RgkYjRM772JT1SzcrlGVK9g6W3803qNa1IlalNNuA=",
+        "owner": "phip1611",
+        "repo": "fcntl-tool",
+        "rev": "76054e86e713e154395162560bf8c6d34a2a5dc3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "phip1611",
+        "repo": "fcntl-tool",
+        "type": "github"
+      }
+    },
     "libvirt-src": {
       "flake": false,
       "locked": {
@@ -108,6 +127,7 @@
         "crane": "crane",
         "dried-nix-flakes": "dried-nix-flakes",
         "edk2-src": "edk2-src",
+        "fcntl-tool": "fcntl-tool",
         "libvirt-src": "libvirt-src",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
