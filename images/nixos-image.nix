@@ -1,3 +1,5 @@
+# Builds a small NixOS-based bootable image.
+
 {
   nixpkgs,
 }:
