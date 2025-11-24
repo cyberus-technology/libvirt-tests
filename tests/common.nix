@@ -1,3 +1,5 @@
+# Returns a NixOS module.
+
 {
   libvirt-src,
   nixos-image,

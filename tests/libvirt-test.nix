@@ -1,3 +1,7 @@
+# Sets up a NixOS integration test with two VMs running NixOS.
+#
+# This will run our test suite.
+
 {
   pkgs,
   libvirt-src,
