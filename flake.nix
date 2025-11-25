@@ -181,6 +181,7 @@
         packages = {
           # Export of the overlay'ed package
           inherit (pkgs) cloud-hypervisor;
+          inherit nixos-image;
           chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
             cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
           '';
