@@ -51,6 +51,7 @@ nixpkgs.lib.nixosSystem {
 
         boot.loader.timeout = lib.mkForce 0;
         networking.hostName = "nixos";
+        networking.firewall.enable = false;
 
         services.openssh = {
           enable = true;
