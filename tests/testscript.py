@@ -1307,10 +1307,23 @@ def wait_until_succeed(func):
 
 
 def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
+    """
+    Waits for SSH to become available to connect into the Cloud Hypervisor VM
+    hosted on the corresponding machine.
+
+    Effectively we use it to wait until the Cloud Hypervisor VM's network is up
+    and available.
+
+    :param machine: VM host
+    :param user: user for SSH login
+    :param password: password for SSH login
+    :param ip: SSH host to log into
+    :return: True if the VM became available in a reasonable amount of time
+    """
     retries = 100
     for i in range(retries):
         print(f"Wait for ssh {i}/{retries}")
-        status, _ = ssh(machine, "echo hello", user, password, ip="192.168.1.2")
+        status, _ = ssh(machine, "echo hello", user, password, ip)
         if status == 0:
             return True
         time.sleep(1)
@@ -1318,6 +1331,18 @@ def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
 
 
 def ssh(machine, cmd, user="root", password="root", ip="192.168.1.2"):
+    """
+    Runs the specified command in the Cloud Hypervisor VM via SSH.
+
+    The specified machine is used as SSH jump host.
+
+    :param machine: Machine to run SSH on
+    :param cmd: The command to execute via SSH
+    :param user: user for SSH login
+    :param password: password for SSH login
+    :param ip: SSH host to log into
+    :return: status and output
+    """
     status, out = machine.execute(
         f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
     )
