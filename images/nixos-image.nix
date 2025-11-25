@@ -77,7 +77,35 @@ nixpkgs.lib.nixosSystem {
             PasswordAuthentication = true;
           };
           openFirewall = true;
+          hostKeys = [
+            {
+              path = "/etc/ssh/ssh_host_ed25519_key";
+              type = "ed25519";
+            }
+          ];
         };
+
+        # We use a dummy key for the test VM to shortcut the boot time.
+        systemd.services.sshd-keygen.enable = false;
+        environment.etc = {
+          "ssh/ssh_host_ed25519_key" = {
+            mode = "0600";
+            source = pkgs.writers.writeText "ssh_host_ed25519_key" ''
+              -----BEGIN OPENSSH PRIVATE KEY-----
+              b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+              QyNTUxOQAAACCl2D0beTfBGUE+IyEvjfs8bOqoTpwm1PzYWwvUCbFP+AAAAKChrvISoa7y
+              EgAAAAtzc2gtZWQyNTUxOQAAACCl2D0beTfBGUE+IyEvjfs8bOqoTpwm1PzYWwvUCbFP+A
+              AAAEAcuVo5dChbKfChFIx0bb6WCxZ7l0vSC2F9kgQl0NoCJqXYPRt5N8EZQT4jIS+N+zxs
+              6qhOnCbU/NhbC9QJsU/4AAAAG3BzY2h1c3RlckBwaGlwcy1mcmFtZXdvcmsxMwEC
+              -----END OPENSSH PRIVATE KEY-----
+            '';
+          };
+          "ssh/ssh_host_ed25519_key.pub" = {
+            mode = "0644";
+            source = pkgs.writers.writeText "ssh_host_ed25519_key.pub" "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKXYPRt5N8EZQT4jIS+N+zxs6qhOnCbU/NhbC9QJsU/4 test@testvm";
+          };
+        };
+
         environment.systemPackages = with pkgs; [
           screen
           stress
