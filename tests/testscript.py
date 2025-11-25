@@ -1193,6 +1193,59 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # the main thread also utilized
         self.assertEqual(parallel_connections - 1, int(num_threads))
 
+    def test_vcpu_pinning_with_migration(self):
+        """
+        This tests checks that the configured vcpu affinity is still in
+        use after a live migration.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
+        controllerVM.succeed("virsh start testvm")
+        assert wait_for_ssh(controllerVM)
+
+        chv_pid_controller = controllerVM.succeed("pidof cloud-hypervisor").rstrip()
+
+        tid_vcpu0_controller = controllerVM.succeed(
+            f"ps -Lo tid,comm --pid {chv_pid_controller} | grep vcpu0 | awk '{{print $1}}'"
+        ).rstrip()
+        tid_vcpu2_controller = controllerVM.succeed(
+            f"ps -Lo tid,comm --pid {chv_pid_controller} | grep vcpu2 | awk '{{print $1}}'"
+        ).rstrip()
+
+        taskset_vcpu0_controller = controllerVM.succeed(
+            f"taskset -p {tid_vcpu0_controller} | awk '{{print $6}}'"
+        ).rstrip()
+        taskset_vcpu2_controller = controllerVM.succeed(
+            f"taskset -p {tid_vcpu2_controller} | awk '{{print $6}}'"
+        ).rstrip()
+
+        assert int(taskset_vcpu0_controller, 16) == 0x3
+        assert int(taskset_vcpu2_controller, 16) == 0xC
+
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+        assert wait_for_ssh(computeVM)
+
+        chv_pid_compute = computeVM.succeed("pidof cloud-hypervisor").rstrip()
+
+        tid_vcpu0_compute = computeVM.succeed(
+            f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu0 | awk '{{print $1}}'"
+        ).rstrip()
+        tid_vcpu2_compute = computeVM.succeed(
+            f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu2 | awk '{{print $1}}'"
+        ).rstrip()
+
+        taskset_vcpu0_compute = computeVM.succeed(
+            f"taskset -p {tid_vcpu0_compute} | awk '{{print $6}}'"
+        ).rstrip()
+        taskset_vcpu2_compute = computeVM.succeed(
+            f"taskset -p {tid_vcpu2_compute} | awk '{{print $6}}'"
+        ).rstrip()
+
+        assert int(taskset_vcpu0_controller, 16) == int(taskset_vcpu0_compute, 16)
+        assert int(taskset_vcpu2_controller, 16) == int(taskset_vcpu2_compute, 16)
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1225,6 +1278,7 @@ def suite():
         LibvirtTests.test_serial_tcp,
         LibvirtTests.test_serial_tcp_live_migration,
         LibvirtTests.test_shutdown,
+        LibvirtTests.test_vcpu_pinning_with_migration,
         LibvirtTests.test_virsh_console_works_with_pty,
     ]
 
