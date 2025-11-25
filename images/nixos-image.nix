@@ -3,6 +3,10 @@
 {
   nixpkgs,
 }:
+
+let
+  mac = "52:54:00:e5:b8:ef";
+in
 nixpkgs.lib.nixosSystem {
   system = "x86_64-linux";
   modules = [
@@ -52,6 +56,19 @@ nixpkgs.lib.nixosSystem {
         boot.loader.timeout = lib.mkForce 0;
         networking.hostName = "nixos";
         networking.firewall.enable = false;
+        networking.useDHCP = false;
+        networking.useNetworkd = true;
+        networking.interfaces.eth1337.useDHCP = false;
+        networking.interfaces.eth1337.ipv4.addresses = [
+          {
+            address = "192.168.1.2";
+            prefixLength = 24;
+          }
+        ];
+
+        systemd.network.wait-online.ignoredInterfaces = [
+          "eth1337"
+        ];
 
         services.openssh = {
           enable = true;
@@ -65,6 +82,14 @@ nixpkgs.lib.nixosSystem {
           screen
           stress
         ];
+
+        services.udev.extraRules = ''
+          # Stable NIC name for known test VM MAC
+          ACTION=="add", SUBSYSTEM=="net", \
+            ATTR{address}=="${mac}", \
+            NAME="eth1337"
+        '';
+
         # pw: root
         users.users.root.initialHashedPassword = lib.mkForce "$y$j9T$HiT/m702z/73g4Dt5RzbW0$b3SaYI1FoyT/ORV/qFR/s9zonJBKDn4p2XKyYM2wp1.";
       }

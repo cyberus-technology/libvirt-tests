@@ -239,25 +239,6 @@ in
           DHCPServer = "yes";
         };
 
-        dhcpServerStaticLeases = [
-          {
-            Address = "192.168.1.2";
-            MACAddress = "52:54:00:e5:b8:ef";
-          }
-          {
-            Address = "192.168.1.3";
-            MACAddress = "52:54:00:e5:b8:ee";
-          }
-        ];
-
-        # DHCP server settings
-        dhcpServerConfig = {
-          PoolOffset = 2;
-          PoolSize = 10;
-          EmitDNS = false;
-          EmitRouter = false;
-        };
-
         # Static IP configuration for the bridge itself
         address = [
           "192.168.1.1/24"
