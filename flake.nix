@@ -181,7 +181,9 @@
         packages = {
           # Export of the overlay'ed package
           inherit (pkgs) cloud-hypervisor;
-          inherit chv-ovmf;
+          chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
+            cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
+          '';
         };
         tests = pkgs.callPackage ./tests/default.nix { inherit libvirt-src nixos-image chv-ovmf; };
       }
