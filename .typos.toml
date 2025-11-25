@@ -2,6 +2,7 @@
 
 [files]
 extend-exclude = [
+  "images/nixos-image.nix",
   "patches/",
 ]
 
