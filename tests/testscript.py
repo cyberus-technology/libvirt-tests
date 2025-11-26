@@ -1326,7 +1326,7 @@ def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
         status, _ = ssh(machine, "echo hello", user, password, ip)
         if status == 0:
             return True
-        time.sleep(1)
+        time.sleep(0.1)
     return False
 
 
