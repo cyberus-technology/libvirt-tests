@@ -356,7 +356,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert num_disk_controller == 1
 
         controllerVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         assert wait_for_ssh(computeVM)
@@ -383,7 +383,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert num_disk_compute == 2
 
         computeVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
+            "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         assert wait_for_ssh(controllerVM)
@@ -454,7 +454,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert num_devices_controller == 2
 
         controllerVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         assert wait_for_ssh(computeVM)
@@ -468,7 +468,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert number_of_network_devices(computeVM) == 1
 
         computeVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
+            "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         assert wait_for_ssh(controllerVM)
@@ -511,7 +511,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert int(out) == 0, "not enough huge pages are in-use"
 
         controllerVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         assert wait_for_ssh(computeVM)
@@ -545,6 +545,8 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
 
         controllerVM.fail(
+            # "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+            # Currently broken when multiple threads are used and something goes wrong.
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
         )
         assert wait_for_ssh(controllerVM)
@@ -922,7 +924,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         )
 
         controllerVM.succeed(
-            "virsh migrate --xml /tmp/domain-chv-serial-tcp.xml --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "virsh migrate --xml /tmp/domain-chv-serial-tcp.xml --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
         assert wait_for_ssh(computeVM)
 
@@ -957,7 +959,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Do migration in a screen session and detach
         controllerVM.succeed(
-            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         # Wait a moment to let the migration start
@@ -965,7 +967,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Check that 'virsh list' can be done without blocking
         self.assertLess(
-            measure_ms(lambda: controllerVM.succeed("virsh list | grep -q testvm")),
+            measure_ms(lambda: controllerVM.succeed("grep -q testvm < <(virsh list)")),
             1000,
             msg="Expect virsh list to execute fast",
         )
@@ -1223,7 +1225,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert int(taskset_vcpu2_controller, 16) == 0xC
 
         controllerVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
         assert wait_for_ssh(computeVM)
 
