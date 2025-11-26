@@ -115,12 +115,16 @@ nixpkgs.lib.nixosSystem {
             }
           ];
         };
+
+        services.logrotate.enable = false;
+        services.timesyncd.enable = false;
         services.udev.extraRules = ''
           # Stable NIC name for known test VM MAC
           ACTION=="add", SUBSYSTEM=="net", \
             ATTR{address}=="${mac}", \
             NAME="eth1337"
         '';
+        services.udisks2.enable = false;
 
         system.stateVersion = "25.05";
         system.switch.enable = false;
