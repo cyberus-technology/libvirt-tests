@@ -1298,11 +1298,11 @@ def measure_ms(func):
 
 
 def wait_until_succeed(func):
-    retries = 100
+    retries = 200
     for i in range(retries):
         if func():
             return True
-        time.sleep(1)
+        time.sleep(0.1)
     return False
 
 
