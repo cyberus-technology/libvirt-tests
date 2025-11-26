@@ -51,6 +51,7 @@ nixpkgs.lib.nixosSystem {
           nixos.enable = false;
         };
 
+        environment.defaultPackages = [ ];
         environment.etc = {
           "ssh/ssh_host_ed25519_key" = {
             mode = "0600";
@@ -117,6 +118,7 @@ nixpkgs.lib.nixosSystem {
         };
 
         services.logrotate.enable = false;
+        services.resolved.enable = false;
         services.timesyncd.enable = false;
         services.udev.extraRules = ''
           # Stable NIC name for known test VM MAC
@@ -132,6 +134,8 @@ nixpkgs.lib.nixosSystem {
         systemd.network.wait-online.ignoredInterfaces = [
           "eth1337"
         ];
+        systemd.services.mount-pstore.enable = false;
+        systemd.services.resolvconf.enable = false;
         # We use a dummy key for the test VM to shortcut the boot time.
         systemd.services.sshd-keygen.enable = false;
 
