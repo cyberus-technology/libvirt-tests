@@ -31,6 +31,7 @@ nixpkgs.lib.nixosSystem {
           "virtio_pci"
         ];
         boot.initrd.kernelModules = [ "virtio_net" ];
+        boot.initrd.systemd.enable = false;
         # 6.17 has a broken virtio-net driver. As this image runs in a CHV VM
         # with a virtio-net device for communication with the outer world, we
         # stick to a LTS kernel for now.
@@ -41,6 +42,14 @@ nixpkgs.lib.nixosSystem {
           "earlyprintk=ttyS0"
         ];
         boot.loader.timeout = lib.mkForce 0;
+
+        documentation = {
+          enable = false;
+          doc.enable = false;
+          info.enable = false;
+          man.enable = false;
+          nixos.enable = false;
+        };
 
         environment.etc = {
           "ssh/ssh_host_ed25519_key" = {
@@ -60,6 +69,7 @@ nixpkgs.lib.nixosSystem {
             source = pkgs.writers.writeText "ssh_host_ed25519_key.pub" "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKXYPRt5N8EZQT4jIS+N+zxs6qhOnCbU/NhbC9QJsU/4 test@testvm";
           };
         };
+        environment.stub-ld.enable = false;
         environment.systemPackages = with pkgs; [
           screen
           stress
@@ -86,6 +96,11 @@ nixpkgs.lib.nixosSystem {
 
         nix.enable = false;
 
+        programs = {
+          command-not-found.enable = false;
+          fish.generateCompletions = false;
+        };
+
         services.openssh = {
           enable = true;
           settings = {
@@ -108,6 +123,7 @@ nixpkgs.lib.nixosSystem {
         '';
 
         system.stateVersion = "25.05";
+        system.switch.enable = false;
 
         systemd.network.wait-online.ignoredInterfaces = [
           "eth1337"
@@ -116,6 +132,7 @@ nixpkgs.lib.nixosSystem {
         systemd.services.sshd-keygen.enable = false;
 
         # pw: root
+        users.mutableUsers = false;
         users.users.root.initialHashedPassword = lib.mkForce "$y$j9T$HiT/m702z/73g4Dt5RzbW0$b3SaYI1FoyT/ORV/qFR/s9zonJBKDn4p2XKyYM2wp1.";
       }
     )
