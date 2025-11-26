@@ -896,7 +896,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # executing 'pwd' and checking a proper response output
         controllerVM.succeed("expect /tmp/socat.expect")
 
-    def test_serial_tcp_live_migration(self):
+    def test_live_migration_with_serial_tcp(self):
         """
         The test checks that a basic live migration is working with TCP serial
         configured, because we had a bug that prevented live migration in
@@ -1193,7 +1193,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # the main thread also utilized
         self.assertEqual(parallel_connections - 1, int(num_threads))
 
-    def test_vcpu_pinning_with_migration(self):
+    def test_live_migration_with_vcpu_pinning(self):
         """
         This tests checks that the configured vcpu affinity is still in
         use after a live migration.
@@ -1265,6 +1265,8 @@ def suite():
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
         LibvirtTests.test_live_migration_with_hugepages,
         LibvirtTests.test_live_migration_with_hugepages_failure_case,
+        LibvirtTests.test_live_migration_with_serial_tcp,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
         LibvirtTests.test_managedsave,
         LibvirtTests.test_network_hotplug_attach_detach_persistent,
         LibvirtTests.test_network_hotplug_attach_detach_transient,
@@ -1276,9 +1278,7 @@ def suite():
         LibvirtTests.test_numa_topology,
         LibvirtTests.test_serial_file_output,
         LibvirtTests.test_serial_tcp,
-        LibvirtTests.test_serial_tcp_live_migration,
         LibvirtTests.test_shutdown,
-        LibvirtTests.test_vcpu_pinning_with_migration,
         LibvirtTests.test_virsh_console_works_with_pty,
     ]
 
