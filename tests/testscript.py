@@ -14,6 +14,11 @@ if "start_all" not in globals():
     from nixos_test_stubs import start_all, computeVM, controllerVM  # type: ignore
 
 
+VIRTIO_NETWORK_DEVICE = "1af4:1041"
+VIRTIO_BLOCK_DEVICE = "1af4:1042"
+VIRTIO_ENTROPY_SOURCE = "1af4:1044"
+
+
 class SaveLogsOnErrorTestCase(unittest.TestCase):
     """
     Custom TestCase class that saves interesting logs in error case.
@@ -1600,10 +1605,151 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
             check_certificates(computeVM)
 
+    def test_bdf_implicit_assignment(self):
+        """
+        Test if all BDFs are correctly assigned in a scenario where some
+        are fixed in the XML and some are assigned by libvirt.
+
+        The domain XML we use here leaves a slot ID 0x03 free, but
+        allocates IDs 0x01, 0x02 and 0x04. 0x01 and 0x02 are dynamically
+        assigned by libvirt and not given in the domain XML. As 0x04 is
+        the first free ID, we expect this to be selected for the first
+        device we add to show that libvirt uses gaps. We add another
+        disk to show that all succeeding BDFs would be allocated
+        dynamically. Moreover, we show that all BDF assignments
+        survive live migration.
+        """
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        assert wait_for_ssh(controllerVM)
+
+        controllerVM.succeed(
+            "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml"
+        )
+        # Add a disks that receive the first free BDFs
+        controllerVM.succeed(
+            "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
+        )
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        )
+        controllerVM.succeed(
+            "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdc.img 5M"
+        )
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdc --source /var/lib/libvirt/storage-pools/nfs-share/vdc.img"
+        )
+        devices = pci_devices_by_bdf(controllerVM)
+        # Implicitly added fixed to 0x01
+        assert devices["00:01.0"] == VIRTIO_ENTROPY_SOURCE
+        # Added by XML; dynamic BDF
+        assert devices["00:02.0"] == VIRTIO_NETWORK_DEVICE
+        # Add through XML
+        assert devices["00:03.0"] == VIRTIO_BLOCK_DEVICE
+        # Defined fixed BDF in XML; Hotplugged
+        assert devices["00:04.0"] == VIRTIO_NETWORK_DEVICE
+        # Hotplugged by this test (vdb)
+        assert devices["00:05.0"] == VIRTIO_BLOCK_DEVICE
+        # Hotplugged by this test (vdc)
+        assert devices["00:06.0"] == VIRTIO_BLOCK_DEVICE
+
+        # Check that we can reuse the same non-statically allocated BDF
+        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+        assert pci_devices_by_bdf(controllerVM).get("00:05.0") is None
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        )
+        assert pci_devices_by_bdf(controllerVM).get("00:05.0") == VIRTIO_BLOCK_DEVICE
+
+        # We free slot 4 and 5 ...
+        controllerVM.succeed(
+            "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml"
+        )
+        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+        assert pci_devices_by_bdf(controllerVM).get("00:04.0") is None
+        assert pci_devices_by_bdf(controllerVM).get("00:05.0") is None
+        # ...and expect the same disk that was formerly attached non-statically to slot 5 now to pop up in slot 4
+        # through implicit BDF allocation.
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        )
+        assert pci_devices_by_bdf(controllerVM).get("00:04.0") == VIRTIO_BLOCK_DEVICE
+
+        # Check that BDFs stay the same after migration
+        devices_before_livemig = pci_devices_by_bdf(controllerVM)
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --live --p2p"
+        )
+        assert wait_for_ssh(computeVM)
+        devices_after_livemig = pci_devices_by_bdf(computeVM)
+        assert devices_before_livemig == devices_after_livemig
+
+    def test_bdf_explicit_assignment(self):
+        """
+        Test if all BDFs are correctly assigned when binding them
+        explicitly to BDFs.
+
+        This test also shows that we can freely define the BDF that is
+        given to the RNG device. Moreover, we show that all BDF
+        assignments survive live migration, that allocating the same
+        BDF twice fails and that we can reuse BDFs if the respective
+        device was detached.
+
+        Developer Note: This test resets the NixOS image.
+        """
+        controllerVM.succeed("virsh define /etc/domain-chv-static-bdf.xml")
+        # Reset the image to purge any information about boot devices when terminating
+        with CommandGuard(reset_system_image, controllerVM) as _:
+            controllerVM.succeed("virsh start testvm")
+            assert wait_for_ssh(controllerVM)
+            controllerVM.succeed(
+                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml"
+            )
+            controllerVM.succeed(
+                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.17.0 "
+            )
+
+            devices = pci_devices_by_bdf(controllerVM)
+            assert devices["00:01.0"] == VIRTIO_BLOCK_DEVICE
+            assert devices["00:02.0"] == VIRTIO_NETWORK_DEVICE
+            assert devices.get("00:03.0") is None
+            assert devices["00:04.0"] == VIRTIO_NETWORK_DEVICE
+            assert devices["00:05.0"] == VIRTIO_ENTROPY_SOURCE
+            assert devices.get("00:06.0") is None
+            assert devices["00:17.0"] == VIRTIO_BLOCK_DEVICE
+
+            # Check that BDF is freed and can be reallocated when de-/attaching a (entirely different) device
+            controllerVM.succeed(
+                "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml"
+            )
+            controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+            assert pci_devices_by_bdf(controllerVM).get("00:04.0") is None
+            assert pci_devices_by_bdf(controllerVM).get("00:17.0") is None
+            controllerVM.succeed(
+                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.04.0"
+            )
+            devices_before_livemig = pci_devices_by_bdf(controllerVM)
+            assert devices_before_livemig.get("00:04.0") == VIRTIO_BLOCK_DEVICE
+
+            # Adding to the same bdf twice fails
+            controllerVM.fail(
+                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml"
+            )
+
+            # Check that BDFs stay the same after migration
+            controllerVM.succeed(
+                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --live --p2p"
+            )
+            assert wait_for_ssh(computeVM)
+            devices_after_livemig = pci_devices_by_bdf(computeVM)
+            assert devices_before_livemig == devices_after_livemig
+
 
 def suite():
     # Test cases in alphabetical order
     testcases = [
+        LibvirtTests.test_bdf_explicit_assignment,
+        LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_disk_is_locked,
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,
