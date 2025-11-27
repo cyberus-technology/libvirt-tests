@@ -62,18 +62,6 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
         controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
 
-        controllerVM.succeed(
-            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
-        )
-        controllerVM.succeed(
-            "virt-admin -c virtchd:///system daemon-timeout --timeout 0"
-        )
-
-        computeVM.succeed(
-            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
-        )
-        computeVM.succeed("virt-admin -c virtchd:///system daemon-timeout --timeout 0")
-
         controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
         computeVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
 
@@ -91,6 +79,20 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         computeVM.succeed("virsh pool-start nfs-share")
 
     def setUp(self):
+        # A restart of the libvirt daemon resets the logging configuration, so
+        # apply it freshly for every test
+        controllerVM.succeed(
+            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
+        )
+        controllerVM.succeed(
+            "virt-admin -c virtchd:///system daemon-timeout --timeout 0"
+        )
+
+        computeVM.succeed(
+            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
+        )
+        computeVM.succeed("virt-admin -c virtchd:///system daemon-timeout --timeout 0")
+
         print(f"\n\nRunning test: {self._testMethodName}\n\n")
 
     def tearDown(self):
