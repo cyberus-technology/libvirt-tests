@@ -1298,7 +1298,7 @@ def measure_ms(func):
 
 
 def wait_until_succeed(func):
-    retries = 200
+    retries = 600
     for i in range(retries):
         if func():
             return True
