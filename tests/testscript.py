@@ -1748,6 +1748,29 @@ def reset_system_image(machine):
     )
 
 
+def pci_devices_by_bdf(machine):
+    """
+    Creates a dict of all PCI devices addressable by their BDF in the VM.
+
+    BDFs are keys, while the combination of vendor and device IDs form the
+    associated value.
+
+    :param machine: Host machine of the nested VM
+    :return: BDF mapped to devices, example: {'00:00.0': '8086:0d57'}
+    :rtype: dict[str, str]
+    """
+    status, lines = ssh(
+        machine,
+        "lspci -n | awk '/^[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9]/{bdf=$1}{class=$3} {print bdf \",\" class}'",
+    )
+    assert status == 0
+    out = {}
+    for line in lines.splitlines():
+        bdf, device_class = line.split(",")
+        out[bdf] = device_class
+    return out
+
+
 runner = unittest.TextTestRunner()
 if not runner.run(suite()).wasSuccessful():
     raise Exception("Test Run unsuccessful")
