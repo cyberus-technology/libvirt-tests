@@ -11,6 +11,16 @@
 }:
 let
   common = import ./common.nix { inherit libvirt-src nixos-image chv-ovmf; };
+
+  tls =
+    let
+      c = pkgs.callPackage ./certificates.nix { };
+    in
+    {
+      ca = c.tlsCA;
+      controller = c.mkHostCert "controllerVM" "192.168.100.1";
+      compute = c.mkHostCert "computeVM" "192.168.100.2";
+    };
 in
 pkgs.testers.nixosTest {
   name = "Libvirt test suite for Cloud Hypervisor";
@@ -70,6 +80,12 @@ pkgs.testers.nixosTest {
           };
         };
       };
+
+      systemd.tmpfiles.settings."11-certs" = {
+        "/var/lib/libvirt/ch/pki/ca-cert.pem"."C+".argument = "${tls.ca}/ca-cert.pem";
+        "/var/lib/libvirt/ch/pki/server-cert.pem"."C+".argument = "${tls.controller}/server-cert.pem";
+        "/var/lib/libvirt/ch/pki/server-key.pem"."C+".argument = "${tls.controller}/server-key.pem";
+      };
     };
 
   nodes.computeVM =
@@ -117,6 +133,12 @@ pkgs.testers.nixosTest {
             };
           };
         };
+      };
+
+      systemd.tmpfiles.settings."11-certs" = {
+        "/var/lib/libvirt/ch/pki/ca-cert.pem"."C+".argument = "${tls.ca}/ca-cert.pem";
+        "/var/lib/libvirt/ch/pki/server-cert.pem"."C+".argument = "${tls.compute}/server-cert.pem";
+        "/var/lib/libvirt/ch/pki/server-key.pem"."C+".argument = "${tls.compute}/server-key.pem";
       };
     };
 
