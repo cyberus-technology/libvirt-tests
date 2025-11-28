@@ -1246,6 +1246,31 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert int(taskset_vcpu0_controller, 16) == int(taskset_vcpu0_compute, 16)
         assert int(taskset_vcpu2_controller, 16) == int(taskset_vcpu2_compute, 16)
 
+    def test_live_migration_tls(self):
+        """
+        Test the TLS encrypted live migration via virsh between 2 hosts. With
+        the right certificates, using IP addresses and DNS names should work,
+        thus we test all combinations.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        parallel_string = "--parallel --parallel-connections 4"
+        for parallel in [parallel_string, ""]:
+            for dst_str, dst, src in [
+                ("192.168.100.2", computeVM, controllerVM),
+                ("192.168.100.1", controllerVM, computeVM),
+                ("computeVM", computeVM, controllerVM),
+                ("controllerVM", controllerVM, computeVM),
+            ]:
+                src.succeed(
+                    f"virsh migrate --domain testvm --desturi ch+tcp://{dst_str}/session --persistent --live --p2p --tls {parallel}"
+                )
+                assert wait_for_ssh(dst)
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1267,6 +1292,7 @@ def suite():
         LibvirtTests.test_live_migration_with_hugepages_failure_case,
         LibvirtTests.test_live_migration_with_serial_tcp,
         LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_tls,
         LibvirtTests.test_managedsave,
         LibvirtTests.test_network_hotplug_attach_detach_persistent,
         LibvirtTests.test_network_hotplug_attach_detach_transient,
