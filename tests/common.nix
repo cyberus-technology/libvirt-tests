@@ -164,6 +164,10 @@ let
   '';
 in
 {
+  # Silence the monolithic libvirtd, which otherwise starts before the virtchd
+  # and is then shutdown as soon as virtchd starts. Disabling prevents a lot of
+  # distracting log messages of libvirtd in the startup phase.
+  systemd.services.libvirtd.enable = false;
   systemd.services.virtchd = {
     environment.ASAN_OPTIONS = "detect_leaks=1:fast_unwind_on_malloc=0:halt_on_error=1:symbolize=1";
     environment.LSAN_OPTIONS = "report_objects=1";
