@@ -62,18 +62,6 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
         controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
 
-        controllerVM.succeed(
-            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
-        )
-        controllerVM.succeed(
-            "virt-admin -c virtchd:///system daemon-timeout --timeout 0"
-        )
-
-        computeVM.succeed(
-            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
-        )
-        computeVM.succeed("virt-admin -c virtchd:///system daemon-timeout --timeout 0")
-
         controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
         computeVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
 
@@ -91,9 +79,43 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         computeVM.succeed("virsh pool-start nfs-share")
 
     def setUp(self):
+        # A restart of the libvirt daemon resets the logging configuration, so apply it fresh for every test
+        controllerVM.succeed(
+            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
+        )
+        controllerVM.succeed(
+            "virt-admin -c virtchd:///system daemon-timeout --timeout 0"
+        )
+
+        computeVM.succeed(
+            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
+        )
+        computeVM.succeed("virt-admin -c virtchd:///system daemon-timeout --timeout 0")
+
         print(f"\n\nRunning test: {self._testMethodName}\n\n")
 
+        # In order to be able to differentiate the journal log for different
+        # tests, we print a message with the test name as a marker
+        controllerVM.succeed(
+            f'echo "Running test: {self._testMethodName}" | systemd-cat -t testscript -p info'
+        )
+        computeVM.succeed(
+            f'echo "Running test: {self._testMethodName}" | systemd-cat -t testscript -p info'
+        )
+
     def tearDown(self):
+        # Trigger output of the sanitizers. At least the leak sanitizer output
+        # is only triggered if the program under inspection terminates.
+        controllerVM.execute("systemctl restart virtchd")
+        computeVM.execute("systemctl restart virtchd")
+
+        # Make sure there are no reports of the sanitizers. We retrieve the
+        # journal for only the recent test run, by looking for the test run
+        # marker. We then check for any ERROR messages of the sanitizers.
+        jrnCmd = f"journalctl _SYSTEMD_UNIT=virtchd.service + SYSLOG_IDENTIFIER=testscript | sed -n '/Running test: {self._testMethodName}/,$p' | grep ERROR"
+        statusController, outController = controllerVM.execute(jrnCmd)
+        statusCompute, outCompute = computeVM.execute(jrnCmd)
+
         # Destroy and undefine all running and persistent domains
         controllerVM.execute(
             'virsh list --name | while read domain; do [[ -n "$domain" ]] && virsh destroy "$domain"; done'
@@ -134,6 +156,13 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
             print(f"cmd: {cmd}")
             controllerVM.succeed(cmd)
             computeVM.succeed(cmd)
+
+        self.assertNotEqual(
+            statusController, 0, msg=f"Sanitizer detected an issue: {outController}"
+        )
+        self.assertNotEqual(
+            statusCompute, 0, msg=f"Sanitizer detected an issue: {outCompute}"
+        )
 
     def test_network_hotplug_transient_vm_restart(self):
         """
