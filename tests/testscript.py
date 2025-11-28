@@ -1358,6 +1358,32 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
+    def test_live_migration_tls(self):
+        """
+        Test the TLS encrypted live migration via virsh between 2 hosts. With
+        the right certificates, using IP addresses and DNS names should work,
+        thus we test all combinations.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        parallel_connections = 4
+        parallel_string = f"--parallel --parallel-connections {parallel_connections}"
+        for parallel in [True, False]:
+            for dst_host, dst, src in [
+                ("192.168.100.2", computeVM, controllerVM),
+                ("192.168.100.1", controllerVM, computeVM),
+                ("computeVM", computeVM, controllerVM),
+                ("controllerVM", controllerVM, computeVM),
+            ]:
+                src.succeed(
+                    f"virsh migrate --domain testvm --desturi ch+tcp://{dst_host}/session --persistent --live --p2p --tls {parallel_string if parallel else ''}"
+                )
+                assert wait_for_ssh(dst)
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1374,6 +1400,7 @@ def suite():
         LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_parallel_connections,
+        LibvirtTests.test_live_migration_tls,
         LibvirtTests.test_live_migration_virsh_non_blocking,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
