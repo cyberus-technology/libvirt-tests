@@ -217,6 +217,11 @@ in
         "-Ddriver_vz=disabled"
         "-Db_sanitize=leak"
         "-Db_sanitize=address,undefined"
+        # Enabling the sanitizers has led to warnings about inlining macro
+        # generated cleanup methods of the glib which spam the build log.
+        # Ignoring and suppressing the warnings seems like the only option.
+        # "warning: inlining failed in call to 'glib_autoptr_cleanup_virNetlinkMsg': call is unlikely and code size would grow [-Winline]"
+        "-Dc_args=-Wno-inline"
       ];
     });
   };
