@@ -1,5 +1,8 @@
 name: Commit Lint
-on: [ pull_request ]
+on:
+  merge_group:
+  pull_request:
+  push:
 jobs:
   gitlint:
     name: Check commit messages
