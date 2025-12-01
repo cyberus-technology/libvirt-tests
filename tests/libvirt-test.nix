@@ -12,8 +12,8 @@
 let
   common = import ./common.nix { inherit libvirt-src nixos-image chv-ovmf; };
 in
-pkgs.nixosTest {
-  name = "Libvirt test";
+pkgs.testers.nixosTest {
+  name = "Libvirt test suite for Cloud Hypervisor";
 
   extraPythonPackages =
     p: with p; [

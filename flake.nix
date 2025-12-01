@@ -3,7 +3,7 @@
 
   inputs = {
     dried-nix-flakes.url = "github:cyberus-technology/dried-nix-flakes";
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.05";
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.11";
 
     # A local path can be used for developing or testing local changes. Make
     # sure the submodules in a local libvirt checkout are populated.
