@@ -22,5 +22,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade gitlint
       - name: Lint git commit messages
-        run: |
-          gitlint --commits origin/$GITHUB_BASE_REF..
+        # GITHUB_BASE_REF not available in merge queue. It is sufficient to run
+        # this check on the PR itself before the merge queue starts.
+        if: github.event_name == 'pull_request'
+        run: gitlint --commits origin/$GITHUB_BASE_REF..
