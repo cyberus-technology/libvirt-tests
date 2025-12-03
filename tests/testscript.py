@@ -1893,6 +1893,33 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # should still ensure that no new devices magically appeared.
         wait_for_guest_pci_device_enumeration(controllerVM, num_before_expected_failure)
 
+    def test_list_cpu_models(self):
+        """
+        This tests checks that the cpu-models API call is implemented and
+        returns at least a skylake and a sapphire-rapids model.
+        Further, we check that the domain capabilities API call returns the
+        expected CPU profile as usable.
+        Both is required to be able to use the specific CPU profile.
+        While the 'virsh cpu-models' call only lists the CPU profiles the VMM
+        supports, the 'virsh domcapabilities' call takes into account the hosts
+        architecture. Thus, the latter reports what CPU profile actually can be
+        used in the current environment.
+        """
+        expected_cpu_models = [
+            "skylake",
+            "sapphire-rapids",
+        ]
+
+        cpu_models_out = controllerVM.succeed("virsh cpu-models x86_64")
+        domcapabilities_out = controllerVM.succeed("virsh domcapabilities")
+
+        for model in expected_cpu_models:
+            self.assertIn(model, cpu_models_out)
+            self.assertIn(
+                f"<model usable='yes' vendor='Intel' canonical='{model}'>{model}</model>",
+                domcapabilities_out,
+            )
+
 
 def suite():
     # Test cases sorted by their need of hugepages and in alphabetical order.
@@ -1925,6 +1952,7 @@ def suite():
         LibvirtTests.test_hotplug,
         LibvirtTests.test_libvirt_event_stop_failed,
         LibvirtTests.test_libvirt_restart,
+        LibvirtTests.test_list_cpu_models,
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
