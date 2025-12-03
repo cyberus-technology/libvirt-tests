@@ -326,6 +326,8 @@ in
     socat
     sshpass
     tunctl
+    tcpdump
+    tshark
   ];
 
   systemd.tmpfiles.settings =
