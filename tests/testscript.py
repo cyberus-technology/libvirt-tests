@@ -1278,6 +1278,44 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert int(taskset_vcpu0_controller, 16) == int(taskset_vcpu0_compute, 16)
         assert int(taskset_vcpu2_controller, 16) == int(taskset_vcpu2_compute, 16)
 
+    def test_live_migration_kill_chv_on_sender_side(self):
+        """
+        Test that libvirt survives a CHV crash of the sender side during
+        a live migration. We expect that libvirt does the correct cleanup
+        and no VM is present on both sides.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Stress the CH VM in order to make the migration take longer
+        status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
+        assert status == 0
+
+        # Do migration in a screen session and detach
+        controllerVM.succeed(
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        # Wait a moment to let the migration start
+        time.sleep(5)
+
+        # Kill the cloud-hypervisor on the sender side
+        controllerVM.succeed("kill -9 $(pidof cloud-hypervisor)")
+
+        # Ensure the VM is really gone and we have no zombie VMs
+        def check_virsh_list(vm):
+            status, _ = vm.execute("virsh list | grep testvm > /dev/null")
+            return status
+
+        status = wait_until_fail(lambda: check_virsh_list(controllerVM))
+        assert status
+
+        status = wait_until_fail(lambda: check_virsh_list(computeVM))
+        assert status
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1291,6 +1329,7 @@ def suite():
         LibvirtTests.test_libvirt_event_stop_failed,
         LibvirtTests.test_libvirt_restart,
         LibvirtTests.test_live_migration,
+        LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_parallel_connections,
         LibvirtTests.test_live_migration_virsh_non_blocking,
         LibvirtTests.test_live_migration_with_hotplug,
@@ -1333,6 +1372,15 @@ def wait_until_succeed(func):
     retries = 600
     for i in range(retries):
         if func():
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def wait_until_fail(func):
+    retries = 600
+    for i in range(retries):
+        if not func():
             return True
         time.sleep(0.1)
     return False
