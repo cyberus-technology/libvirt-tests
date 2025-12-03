@@ -1363,6 +1363,9 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         Test the TLS encrypted live migration via virsh between 2 hosts. With
         the right certificates, using IP addresses and DNS names should work,
         thus we test all combinations.
+        To be extra sure we also check whether a TLS connection is established
+        by checking for TLS handshakes. We should see a TLS handshake per
+        connection used for the live migration.
         """
 
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
@@ -1379,9 +1382,69 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
                 ("computeVM", computeVM, controllerVM),
                 ("controllerVM", controllerVM, computeVM),
             ]:
+                # To check for established TLS connections, we count the number
+                # of successful TLS handshakes.
+                #
+                # TLS handshakes consist of a ClientHello and a ServerHello.
+                # We can capture the network traffic using tcpdump and then
+                # analyze it using tshark. Because the capture can get really
+                # big, we want to apply a filter that only captures TLS packets.
+                #
+                # Unfortunately, ClientHello packets can be really big, because
+                # the ClientHello has some fields that contain lists of variable
+                # size (see RFC8446). Thus, when capturing only packets that
+                # look like TLS with tcpdump, the ClientHello packet may be
+                # split into two packets, the second packet is not captured and
+                # tshark does not see the ClientHello ... (although when you
+                # look at the packet with wireshark, it looks awfully like a
+                # TLS packet)
+                #
+                # But we know for sure that a ServerHello packet is only sent by
+                # the TLS server after receiving a ClientHello. Thus, we count
+                # the ServerHello packets, and to be extra sure we extract the
+                # TCP stream using tshark and make sure that there is a
+                # ServerHello for every TCP stream.
+
+                # (tcp[12] & 0xf0) >> 2 gives the TCP header size, the TLS
+                # header comes after that
+                tls_filter = "(tcp[((tcp[12] & 0xf0) >> 2)] = 0x16)"  # filters for TLS handshake packets
+
+                port = 49152  # first port of the libvirt default port range for live migrations
+                port_filter = f"tcp port {port}"
+
+                # To make sure tcpdump is ready to capture, we wait until it
+                # reports "listening on eth1"
+                dst.succeed(
+                    f"systemd-run --unit tcpdump-mig -- bash -lc 'tcpdump -i eth1 -w /tmp/tls.pcap \"{port_filter} and {tls_filter}\" 2> /tmp/tls.log'"
+                )
+                dst.wait_until_succeeds("grep -q 'listening on eth1' /tmp/tls.log")
+
                 src.succeed(
                     f"virsh migrate --domain testvm --desturi ch+tcp://{dst_host}/session --persistent --live --p2p --tls {parallel_string if parallel else ''}"
                 )
+
+                dst.succeed("systemctl stop tcpdump-mig")
+
+                # tls.handshake.type == 2 filters for ServerHello. This invocation
+                # gives us a string like "0\n1\n2\n3\n" and we immediately split it
+                # into a list.
+                server_hello = (
+                    dst.succeed(
+                        'tshark -r /tmp/tls.pcap -Y "tls.handshake.type == 2" -T fields -e tcp.stream'
+                    )
+                    .strip()
+                    .split("\n")
+                )
+
+                expected = parallel_connections if parallel else 1
+                server_hellos = len(server_hello)  # count ServerHellos
+                tcp_streams = len(
+                    set(server_hello)
+                )  # creating a set will discard duplicates.
+
+                assert server_hellos == expected
+                assert tcp_streams == expected
+
                 assert wait_for_ssh(dst)
 
 
