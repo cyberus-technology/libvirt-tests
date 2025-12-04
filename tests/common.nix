@@ -173,6 +173,7 @@ in
     environment.LSAN_OPTIONS = "report_objects=1";
   };
 
+  boot.kernelPackages = pkgs.linuxPackages_6_17;
   virtualisation.libvirtd = {
     enable = true;
     sshProxy = false;
