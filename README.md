@@ -44,3 +44,23 @@ To test against a specific version or local build, you should update your
 `flake.nix` to refer to the new input, for example:
 
 `libvirt-src.url = "git+file:/home/pschuster/dev/libvirt?submodules=1";`
+
+
+### SSH into the VMs
+
+To access the QEMU VMs, you can run
+
+- `ssh -o StrictHostKeyChecking=no root@localhost -p 2222` for the
+  ***controllerVM***, and
+- `ssh -o StrictHostKeyChecking=no root@localhost -p 3333` for the
+  ***computeVM***.
+
+Inside one of those VMs, you can use
+
+`ssh -o StrictHostKeyChecking=no root@192.168.1.2`
+
+with password `root` to access the Cloud Hypervisor VM (***testvm***).
+
+To directly access the Cloud Hypervisor VM, you can run
+
+`ssh -o StrictHostKeyChecking=no -J root@localhost:2222 root@192.168.1.2`.
