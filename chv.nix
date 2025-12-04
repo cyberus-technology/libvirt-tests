@@ -19,16 +19,14 @@ let
 
     src = craneLib'.cleanCargoSource cloud-hypervisor-src;
 
-    patches =
-      let
-        patchSrc = ./patches/cloud-hypervisor;
-      in
-      (lib.pipe patchSrc [
-        builtins.readDir
-        builtins.attrNames
-        # To fully-qualified path.
-        (map (f: "${patchSrc}/${f}"))
-      ]);
+    # Pragmatic release profile with debug-ability and faster
+    # compilation times in mind.
+    env = {
+      CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS = "true";
+      CARGO_PROFILE_RELEASE_OPT_LEVEL = 2;
+      CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
+      CARGO_PROFILE_RELEASE_LTO = "no";
+    };
 
     nativeBuildInputs = [
       pkg-config
