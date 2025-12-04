@@ -2,6 +2,7 @@ import libvirt  # type: ignore
 import textwrap
 import time
 import unittest
+import weakref
 
 # Following is required to allow proper linting of the python code in IDEs.
 # Because certain functions like start_all() and certain objects like computeVM
@@ -49,6 +50,32 @@ class PrintLogsOnErrorTestCase(unittest.TestCase):
         for machine in [controllerVM, computeVM]:
             self.print_machine_log(machine, "/var/log/libvirt/ch/testvm.log")
             self.print_machine_log(machine, "/var/log/libvirt/libvirtd.log")
+
+
+class CommandGuard:
+    """
+    Guard that executes a command after being garbage collected.
+
+    Some test might need to run addition cleanup when exiting/failing.
+    This guard ensures that these cleanup function are run
+    """
+
+    def __init__(self, command, machine):
+        """
+        Initializes the guard with a command to work on a given machine.
+
+        :param command: Function that runs a command on the given machine
+        :type command: Callable (Machine)
+        :param machine: Virtual machine to send the command from
+        :type machine: Machine
+        """
+        self._finilizer = weakref.finalize(self, command, machine)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._finilizer()
 
 
 class LibvirtTests(PrintLogsOnErrorTestCase):
@@ -1576,6 +1603,20 @@ def number_of_storage_devices(machine):
     status, out = ssh(machine, "lspci -n | grep 0180 | wc -l")
     assert status == 0
     return int(out)
+
+
+def reset_system_image(machine):
+    """
+    Replaces the (possibly modified) system image with its original
+    image.
+
+    This helps avoid situations where a VM hangs during boot after the
+    underlying disk’s BDF was changed, since OVMF may store NVRAM
+    entries that reference specific BDF values.
+    """
+    machine.succeed(
+        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
+    )
 
 
 runner = unittest.TextTestRunner()
