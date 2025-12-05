@@ -35,8 +35,13 @@ jobs:
         run: nix build -L .#checks.x86_64-linux.typos
       # Run all in case we forgot to add a fine-grained job.
       - name: Check All
-        run: nix build -L .#checks.x86_64-linux.all
-      - name: Build Default Test Suite
-        run: nix build -L .#tests.x86_64-linux.default.driver
-      - name: Build Long-Running Test Suite
-        run: nix build -L .#tests.x86_64-linux.long_migration_with_load.driver
+        run: |
+          nix build -L .#checks.x86_64-linux.all
+          # Run all other flake-wide checks
+          # TODO add once we have quicker CI runners
+          # This
+          # nix flake check
+      - name: Eval Default Test Suite
+        run: nix eval -L .#tests.x86_64-linux.default.driver
+      - name: Eval Long-Running Test Suite
+        run: nix eval -L .#tests.x86_64-linux.long_migration_with_load.driver
