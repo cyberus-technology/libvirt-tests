@@ -1308,7 +1308,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         # Ensure the VM is really gone and we have no zombie VMs
         def check_virsh_list(vm):
             status, _ = vm.execute("virsh list | grep testvm > /dev/null")
-            return status
+            return status == 0
 
         status = wait_until_fail(lambda: check_virsh_list(controllerVM))
         assert status
