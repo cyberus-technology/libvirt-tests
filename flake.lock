@@ -74,11 +74,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1763732559,
-        "narHash": "sha256-a/RgkYjRM772JT1SzcrlGVK9g6W3803qNa1IlalNNuA=",
+        "lastModified": 1764620651,
+        "narHash": "sha256-OOoCw8Bo36VGDkSPqYYxY8JSJarI1FTmwK0G47K6KKQ=",
         "owner": "phip1611",
         "repo": "fcntl-tool",
-        "rev": "76054e86e713e154395162560bf8c6d34a2a5dc3",
+        "rev": "ca5d70e4096eb1ea7d32fac93bd2fd4b9c617345",
         "type": "github"
       },
       "original": {
@@ -108,8 +108,6 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1764522689,
-        "narHash": "sha256-SqUuBFjhl/kpDiVaKLQBoD8TLD+/cTUzzgVFoaHrkqY=",
         "lastModified": 1764831616,
         "narHash": "sha256-OtzF5wBvO0jgW1WW1rQU9cMGx7zuvkF7CAVJ1ypzkxA=",
         "owner": "nixos",
