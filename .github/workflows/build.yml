@@ -41,7 +41,10 @@ jobs:
           # TODO add once we have quicker CI runners
           # This
           # nix flake check
-      - name: Eval Default Test Suite
-        run: nix eval -L .#tests.x86_64-linux.default.driver
-      - name: Eval Long-Running Test Suite
-        run: nix eval -L .#tests.x86_64-linux.long_migration_with_load.driver
+      # Even `nix eval` is too slow in the GitHub CI. As long as we don't have
+      # a Nix binary cache (+ Nix git cache), we must live without this
+      # probably.
+      #- name: Eval Default Test Suite
+      #  run: nix eval -L .#tests.x86_64-linux.default.driver
+      #- name: Eval Long-Running Test Suite
+      #  run: nix eval -L .#tests.x86_64-linux.long_migration_with_load.driver
