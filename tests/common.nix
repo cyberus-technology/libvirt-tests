@@ -25,6 +25,8 @@ let
       hugepages ? false,
       prefault ? false,
       serial ? "pty",
+      # Whether all device will be assigned a static BDF through the XML or only some
+      all_static_bdf ? false,
     }:
     ''
       <domain type='kvm' id='21050'>
@@ -115,15 +117,38 @@ let
         <on_crash>destroy</on_crash>
         <devices>
           <emulator>cloud-hypervisor</emulator>
+          ${
+            # Add the implicitly created RNG device explicitly
+            if all_static_bdf then
+              ''
+                <rng model='virtio'>
+                  <backend model='random'>/dev/urandom</backend>
+                  <alias name='explicit-rng-device'/>
+                  <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
+                </rng>
+              ''
+            else
+              ""
+          }
           <disk type='file' device='disk'>
             <source file='${image}'/>
             <target dev='vda' bus='virtio'/>
+            ${
+              # Assign a fixed BDF that would normally be acquired by the implicit RNG device
+              if all_static_bdf then
+                ''
+                  <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
+                ''
+              else
+                ""
+            }
           </disk>
           <interface type='ethernet'>
             <mac address='52:54:00:e5:b8:01'/>
             <target dev='vnet0'/>
             <model type='virtio'/>
             <driver queues='1'/>
+            <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
           </interface>
           ${
             if serial == "pty" then
@@ -157,14 +182,26 @@ let
     '';
 
   # Please keep in sync with documentation in networks.md!
-  new_interface = ''
-    <interface type='ethernet'>
-      <mac address='52:54:00:e5:b8:02'/>
-      <target dev='vnet1'/>
-      <model type='virtio'/>
-      <driver queues='1'/>
-    </interface>
-  '';
+  new_interface =
+    {
+      explicit_bdf ? false,
+    }:
+    ''
+      <interface type='ethernet'>
+        <mac address='52:54:00:e5:b8:02'/>
+        <target dev='vnet1'/>
+        <model type='virtio'/>
+        <driver queues='1'/>
+        ${
+          if explicit_bdf then
+            ''
+              <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
+            ''
+          else
+            ""
+        }
+      </interface>
+    '';
 
   # Please keep in sync with documentation in networks.md!
   new_interface_type_network = ''
@@ -526,9 +563,23 @@ in
             })}";
           };
         };
+        "/etc/domain-chv-static-bdf.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-chv-static-bdf.xml" (virsh_ch_xml {
+              all_static_bdf = true;
+            })}";
+          };
+        };
         "/etc/new_interface.xml" = {
           "C+" = {
-            argument = "${pkgs.writeText "new_interface.xml" new_interface}";
+            argument = "${pkgs.writeText "new_interface.xml" (new_interface { })}";
+          };
+        };
+        "/etc/new_interface_explicit_bdf.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "new_interface_explicit_bdf.xml" (new_interface {
+              explicit_bdf = true;
+            })}";
           };
         };
         "/etc/new_interface_type_network.xml" = {
