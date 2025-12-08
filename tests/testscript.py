@@ -575,9 +575,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
 
         controllerVM.fail(
-            # "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
-            # Currently broken when multiple threads are used and something goes wrong.
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
         assert wait_for_ssh(controllerVM)
 
@@ -1296,7 +1294,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Do migration in a screen session and detach
         controllerVM.succeed(
-            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         # Wait a moment to let the migration start
@@ -1334,7 +1332,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
         # Do migration in a screen session and detach
         controllerVM.succeed(
-            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         # Wait a moment to let the migration start
