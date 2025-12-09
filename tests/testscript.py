@@ -1624,6 +1624,50 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
             devices_after_livemig = pci_devices_by_bdf(computeVM)
             assert devices_before_livemig == devices_after_livemig
 
+    def test_implicit_bdfs_same_after_restart(self):
+        """
+        Test that a BDFs stay consistent after restart when hotplugging
+        a transient and then a persistent device.
+
+        The persistent config needs to adopt the assigned BDF correctly
+        to recreate the same device at the same address after restart.
+        """
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        # Add a persistent network device, i.e. the device should re-appear
+        # when the VM is destroyed and restarted.
+        controllerVM.succeed(
+            "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
+        )
+        # Attach to BDF 0:04.0, transient
+        controllerVM.succeed(
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        )
+        # Attach to BDF 0:05.0, persistent
+        controllerVM.succeed(
+            "virsh attach-device testvm /etc/new_interface.xml --persistent "
+        )
+        # The net device was attached persistently, so we expect the device to be there after a restart, but not the
+        # disk. We indeed expect it to be not there anymore and leave a hole in the assigned BDFs
+        devices_before = pci_devices_by_bdf(controllerVM)
+        del devices_before["00:04.0"]
+
+        # Transiently detach the devices. Net should re-appear when the VM is restarted.
+        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
+        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+
+        controllerVM.succeed("virsh destroy testvm")
+
+        controllerVM.succeed("virsh start testvm")
+        assert wait_for_ssh(controllerVM)
+
+        devices_after = pci_devices_by_bdf(controllerVM)
+        assert devices_after == devices_before
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1636,6 +1680,7 @@ def suite():
         LibvirtTests.test_hotplug,
         LibvirtTests.test_hugepages,
         LibvirtTests.test_hugepages_prefault,
+        LibvirtTests.test_implicit_bdfs_same_after_restart,
         LibvirtTests.test_libvirt_event_stop_failed,
         LibvirtTests.test_libvirt_restart,
         LibvirtTests.test_live_migration,
