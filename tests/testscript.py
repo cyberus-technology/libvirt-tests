@@ -1445,6 +1445,32 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
                 assert wait_for_ssh(dst)
 
+    def test_live_migration_with_guest_reboot(self):
+        """
+        Test that a guest induced reboot during live migration keeps the VM
+        running. The exact semantics need to be sorted out, but at least
+        CHV and libvirt should handle this situation gracefully.
+        XXX: the exact semantics of this scenario are TBD
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
+        assert status == 0
+
+        status, _ = ssh(controllerVM, "screen -dmS nohup sh -c 'sleep 10 && reboot'")
+        assert status == 0
+
+        controllerVM.fail(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        computeVM.fail("virsh list | grep testvm")
+        controllerVM.succeed("virsh list | grep testvm")
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1463,6 +1489,7 @@ def suite():
         LibvirtTests.test_live_migration_parallel_connections,
         LibvirtTests.test_live_migration_tls,
         LibvirtTests.test_live_migration_virsh_non_blocking,
+        LibvirtTests.test_live_migration_with_guest_reboot,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
         LibvirtTests.test_live_migration_with_hugepages,
