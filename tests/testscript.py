@@ -2,6 +2,7 @@ import libvirt  # type: ignore
 import textwrap
 import time
 import unittest
+import weakref
 
 # Following is required to allow proper linting of the python code in IDEs.
 # Because certain functions like start_all() and certain objects like computeVM
@@ -49,6 +50,32 @@ class PrintLogsOnErrorTestCase(unittest.TestCase):
         for machine in [controllerVM, computeVM]:
             self.print_machine_log(machine, "/var/log/libvirt/ch/testvm.log")
             self.print_machine_log(machine, "/var/log/libvirt/libvirtd.log")
+
+
+class CommandGuard:
+    """
+    Guard that executes a command after being garbage collected.
+
+    Some test might need to run addition cleanup when exiting/failing.
+    This guard ensures that these cleanup function are run
+    """
+
+    def __init__(self, command, machine):
+        """
+        Initializes the guard with a command to work on a given machine.
+
+        :param command: Function that runs a command on the given machine
+        :type command: Callable (Machine)
+        :param machine: Virtual machine to send the command from
+        :type machine: Machine
+        """
+        self._finilizer = weakref.finalize(self, command, machine)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._finilizer()
 
 
 class LibvirtTests(PrintLogsOnErrorTestCase):
@@ -1445,6 +1472,34 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
 
                 assert wait_for_ssh(dst)
 
+    def test_live_migration_tls_without_certificates(self):
+        """
+        Test that live migration fails when TLS is requested but no
+        certificates have been deployed. The assumption is that the
+        migration fails, and the VM is still running on the sender side.
+        Both sides should also have a non-blocking virsh.
+        """
+
+        with (
+            CommandGuard(reset_system_image, controllerVM) as _,
+            CommandGuard(reset_system_image, computeVM) as _,
+        ):
+            controllerVM.succeed("virsh define /etc/domain-chv.xml")
+            controllerVM.succeed("virsh start testvm")
+
+            assert wait_for_ssh(controllerVM)
+
+            controllerVM.succeed("rm -rf /var/lib/libvirt/ch/pki")
+            computeVM.succeed("rm -rf /var/lib/libvirt/ch/pki")
+
+            controllerVM.fail(
+                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
+            )
+            assert wait_for_ssh(controllerVM)
+
+            controllerVM.succeed("virsh list | grep 'testvm'")
+            computeVM.fail("virsh list | grep 'testvm'")
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1462,6 +1517,7 @@ def suite():
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_parallel_connections,
         LibvirtTests.test_live_migration_tls,
+        LibvirtTests.test_live_migration_tls_without_certificates,
         LibvirtTests.test_live_migration_virsh_non_blocking,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
@@ -1576,6 +1632,20 @@ def number_of_storage_devices(machine):
     status, out = ssh(machine, "lspci -n | grep 0180 | wc -l")
     assert status == 0
     return int(out)
+
+
+def reset_system_image(machine):
+    """
+    Replaces the (possibly modified) system image with its original
+    image.
+
+    This helps avoid situations where a VM hangs during boot after the
+    underlying disk’s BDF was changed, since OVMF may store NVRAM
+    entries that reference specific BDF values.
+    """
+    machine.succeed(
+        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
+    )
 
 
 runner = unittest.TextTestRunner()
