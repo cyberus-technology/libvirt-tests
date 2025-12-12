@@ -1720,6 +1720,29 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         )
         assert number_of_devices(controllerVM) == num_before_expected_failure
 
+    def test_bdf_valid_device_id_with_function_id(self):
+        """
+        Test that a BDFs containing a function ID leads to errors.
+        """
+        # We don't support multi function devices currently
+        controllerVM.fail("virsh define /etc/domain-chv-static-bdf-with-function.xml")
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        num_before_expected_failure = number_of_devices(controllerVM)
+        # Add a persistent disk.
+        controllerVM.succeed(
+            "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
+        )
+        # Attach to BDF 0:04.0
+        controllerVM.wait_until_fails(
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent --address pci:0.0.1f.5"
+        )
+        assert number_of_devices(controllerVM) == num_before_expected_failure
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1728,6 +1751,7 @@ def suite():
         LibvirtTests.test_bdf_explicit_assignment,
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_bdf_invalid_device_id,
+        LibvirtTests.test_bdf_valid_device_id_with_function_id,
         LibvirtTests.test_disk_is_locked,
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,
