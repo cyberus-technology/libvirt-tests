@@ -27,6 +27,8 @@ let
       serial ? "pty",
       # Whether all device will be assigned a static BDF through the XML or only some
       all_static_bdf ? false,
+      # Whether we add a function ID to specific BDFs or not
+      use_bdf_function ? false,
     }:
     ''
       <domain type='kvm' id='21050'>
@@ -136,9 +138,14 @@ let
             ${
               # Assign a fixed BDF that would normally be acquired by the implicit RNG device
               if all_static_bdf then
-                ''
-                  <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
-                ''
+                if use_bdf_function then
+                  ''
+                    <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+                  ''
+                else
+                  ''
+                    <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
+                  ''
               else
                 ""
             }
@@ -567,6 +574,14 @@ in
           "C+" = {
             argument = "${pkgs.writeText "domain-chv-static-bdf.xml" (virsh_ch_xml {
               all_static_bdf = true;
+            })}";
+          };
+        };
+        "/etc/domain-chv-static-bdf-with-function.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-chv-static-bdf-with-function.xml" (virsh_ch_xml {
+              all_static_bdf = true;
+              use_bdf_function = true;
             })}";
           };
         };
