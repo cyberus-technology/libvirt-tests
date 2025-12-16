@@ -6,9 +6,8 @@
 }:
 
 {
-  default = import ./libvirt-test.nix {
+  default = pkgs.callPackage ./libvirt-test.nix {
     inherit
-      pkgs
       libvirt-src
       nixos-image
       chv-ovmf
@@ -16,9 +15,8 @@
     testScriptFile = ./testscript.py;
   };
 
-  long_migration_with_load = import ./libvirt-test.nix {
+  long_migration_with_load = pkgs.callPackage ./libvirt-test.nix {
     inherit
-      pkgs
       libvirt-src
       nixos-image
       chv-ovmf

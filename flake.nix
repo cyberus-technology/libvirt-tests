@@ -186,7 +186,14 @@
             cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
           '';
         };
-        tests = pkgs.callPackage ./tests/default.nix { inherit libvirt-src nixos-image chv-ovmf; };
+        tests = import ./tests/default.nix {
+          inherit
+            pkgs
+            libvirt-src
+            nixos-image
+            chv-ovmf
+            ;
+        };
       }
     );
 }
