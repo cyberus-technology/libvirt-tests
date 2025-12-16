@@ -205,7 +205,7 @@ in
         "-Ddocs=disabled"
         # Disabling unneeded backends: 800 -> 685
         "-Ddriver_ch=enabled"
-        "-Ddriver_qemu=enabled"
+        "-Ddriver_qemu=disabled"
         "-Ddriver_bhyve=disabled"
         "-Ddriver_esx=disabled"
         "-Ddriver_hyperv=disabled"
