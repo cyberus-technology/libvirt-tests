@@ -179,6 +179,7 @@ in
     sshProxy = false;
     package = pkgs.libvirt.overrideAttrs (old: {
       src = libvirt-src;
+      name = "libvirt-gardenlinux";
       version =
         let
           fallback = builtins.trace "WARN: cannot obtain version from libvirt fork" "0.0.0-unknown";
