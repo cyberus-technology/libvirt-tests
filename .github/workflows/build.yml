@@ -3,7 +3,6 @@ name: Build
 on:
   merge_group:
   pull_request:
-  push:
 
 concurrency:
   # Special care needs to be taken here to prevent cancelled runs in the GitHub
