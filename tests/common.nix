@@ -179,6 +179,15 @@ in
     sshProxy = false;
     package = pkgs.libvirt.overrideAttrs (old: {
       src = libvirt-src;
+      version =
+        let
+          fallback = builtins.trace "WARN: cannot obtain version from libvirt fork" "0.0.0-unknown";
+          mesonBuild = builtins.readFile "${libvirt-src}/meson.build";
+          # Searches for the line `version: '11.3.0'` and captures the version.
+          matches = builtins.match ".*[[:space:]]*version:[[:space:]]'([0-9]+.[0-9]+.[0-9]+)'.*" mesonBuild;
+          version = builtins.elemAt matches 0;
+        in
+        if matches != null then version else fallback;
       debug = true;
       doInstallCheck = false;
       doCheck = false;
