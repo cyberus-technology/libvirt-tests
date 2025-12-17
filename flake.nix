@@ -191,7 +191,7 @@
                 "-Ddriver_vbox=disabled"
                 "-Ddriver_vmware=disabled"
                 "-Ddriver_vz=disabled"
-                # Disabling unneeded backends: 685 -> 608
+                # Disabling unneeded backends: 685 -> 609
                 "-Dstorage_dir=disabled"
                 "-Dstorage_disk=disabled"
                 "-Dstorage_fs=enabled" # for netfs

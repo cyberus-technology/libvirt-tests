@@ -199,11 +199,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1765971783,
-        "narHash": "sha256-atO2vB/ZYPcr3OD1G+WhbApr56xzc/jJ4v/urscmXz4=",
+        "lastModified": 1765977281,
+        "narHash": "sha256-yVEsANjQFxUUF+OamiUIpqolHvSgGAnEqMUOa8KTiOY=",
         "ref": "refs/heads/nix-2",
-        "rev": "ee689f68a39dd47e551591e7b2b8db405505b9e6",
-        "revCount": 52421,
+        "rev": "fdf5f0631e2e49d0f0e837a8f47cb67aa85e8bd1",
+        "revCount": 52427,
         "submodules": true,
         "type": "git",
         "url": "file:/home/pschuster/dev/libvirt"
