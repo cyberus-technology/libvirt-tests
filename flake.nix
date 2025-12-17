@@ -7,9 +7,8 @@
 
     # Our patched libvirt for Cloud Hypervisor.
     libvirt-chv = {
-      # A local path can be used for developing or testing local changes. Make
-      # sure the submodules in a local libvirt checkout are populated.
-      url = "git+file:/home/pschuster/dev/libvirt?submodules=1";
+      # A local path can be used for developing or testing local changes.
+      url = "git+file:/home/pschuster/dev/libvirt";
       #url = "git+https://github.com/phip1611/libvirt?ref=nix-2&submodules=1";
       # url = "git+ssh://git@gitlab.cyberus-technology.de/pschuster/libvirt?ref=nix-2&submodules=1";
     };
@@ -39,7 +38,7 @@
     inputs:
     let
       dnf = (inputs.dried-nix-flakes.for inputs).override {
-        systems = ["x86_64-linux"];
+        systems = [ "x86_64-linux" ];
       };
       inherit (dnf)
         exportOutputs
@@ -93,7 +92,7 @@
             '';
       in
       {
-      inherit inputs;
+        inherit inputs;
         checks =
           let
             fs = pkgs.lib.fileset;
@@ -167,21 +166,76 @@
             gitlint
           ];
         };
-        packages = {
-          # Export of the overlay'ed package
-          inherit (pkgs) cloud-hypervisor;
-          inherit nixos-image;
-          chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
-            cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
-          '';
-        } // libvirt-chv.packages;
+        packages =
+          let
+            # For quicker rebuilds, which we experience quite often during development
+            # and prototyping,, we remove all unneeded functionality.
+            libvirt-chv-testsuite = libvirt-chv.packages.libvirt-debugoptimized.overrideAttrs (old: {
+              # Reduce files needed to compile. We cut the build-time in half.
+              mesonFlags = old.mesonFlags ++ [
+                # Disabling tests: 1500 -> 1200
+                "-Dtests=disabled"
+                "-Dexpensive_tests=disabled"
+                # Disabling docs: 1200 -> 800
+                "-Ddocs=disabled"
+                # Disabling unneeded backends: 800 -> 685
+                "-Ddriver_ch=enabled"
+                "-Ddriver_qemu=disabled"
+                "-Ddriver_bhyve=disabled"
+                "-Ddriver_esx=disabled"
+                "-Ddriver_hyperv=disabled"
+                "-Ddriver_libxl=disabled"
+                "-Ddriver_lxc=disabled"
+                "-Ddriver_openvz=disabled"
+                "-Ddriver_secrets=disabled"
+                "-Ddriver_vbox=disabled"
+                "-Ddriver_vmware=disabled"
+                "-Ddriver_vz=disabled"
+                # Disabling unneeded backends: 685 -> 608
+                "-Dstorage_dir=disabled"
+                "-Dstorage_disk=disabled"
+                "-Dstorage_fs=enabled" # for netfs
+                "-Dstorage_gluster=disabled"
+                "-Dstorage_iscsi=disabled"
+                "-Dstorage_iscsi_direct=disabled"
+                "-Dstorage_lvm=disabled"
+                "-Dstorage_mpath=disabled"
+                "-Dstorage_rbd=disabled"
+                "-Dstorage_scsi=disabled"
+                "-Dstorage_vstorage=disabled"
+                "-Dstorage_zfs=disabled"
+                "-Dapparmor=disabled"
+                "-Dwireshark_dissector=disabled"
+                "-Dselinux=disabled"
+                "-Dsecdriver_apparmor=disabled"
+                "-Dsecdriver_selinux=disabled"
+                "-Db_sanitize=leak"
+                "-Db_sanitize=address,undefined"
+                # Enabling the sanitizers has led to warnings about inlining macro
+                # generated cleanup methods of the glib which spam the build log.
+                # Ignoring and suppressing the warnings seems like the only option.
+                # "warning: inlining failed in call to 'glib_autoptr_cleanup_virNetlinkMsg': call is unlikely and code size would grow [-Winline]"
+                "-Dc_args=-Wno-inline"
+              ];
+            });
+          in
+          {
+            # Export of the overlay'ed package
+            inherit (pkgs) cloud-hypervisor;
+            inherit libvirt-chv-testsuite;
+            inherit nixos-image;
+            chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
+              cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
+            '';
+          }
+          // libvirt-chv.packages;
         tests = import ./tests/default.nix {
           inherit
             pkgs
             nixos-image
             chv-ovmf
             ;
-          libvirt-chv = self.packages.libvirt-debugoptimized;
+          libvirt-chv = self.packages.libvirt-chv-testsuite;
         };
       }
     );
