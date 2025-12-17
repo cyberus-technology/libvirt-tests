@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  checks:
+  build:
     name: Checks, Build, Lints
     runs-on: ubuntu-latest
     steps:
@@ -20,7 +20,7 @@ jobs:
       # We restore Nix evaluation and Nix tarball cache, speeding up the CI.
       # This does not cover any Nix artifacts from the Nix store.
       - name: Restore Nix cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/nix
           key: nix-cache-${{ github.job }}
@@ -42,14 +42,21 @@ jobs:
       - name: Check Spelling
         run: nix build -L .#checks.x86_64-linux.typos
       # Run all in case we forgot to add a fine-grained job.
-      - name: Check All
-        run: |
-          nix build -L .#checks.x86_64-linux.all
-          # Run all other flake-wide checks
-          # TODO add once we have quicker CI runners
-          # This
-          # nix flake check
-      - name: Eval Default Test Suite
-        run: nix eval -L .#tests.x86_64-linux.default.driver
-      - name: Eval Long-Running Test Suite
-        run: nix eval -L .#tests.x86_64-linux.long_migration_with_load.driver
+      - name: All Checks combined
+        run: nix build -L .#checks.x86_64-linux.all
+      - name: "Build Test Prerequisites: chv-ovmf"
+        run: nix build -L .#packages.x86_64-linux.chv-ovmf
+      - name: "Build Test Prerequisites: cloud-hypervisor"
+        run: nix build -L .#packages.x86_64-linux.cloud-hypervisor
+      - name: "Build Test Prerequisites: nixos-image"
+        run: nix build -L .#packages.x86_64-linux.nixos-image
+      - name: Build Default Test Suite
+        run: nix build -L .#tests.x86_64-linux.default.driver
+      - name: Build Long-Running Test Suite
+        run: nix build -L .#tests.x86_64-linux.long_migration_with_load.driver
+      - name: Run Default Test Suite
+        run: nix run -L .#tests.x86_64-linux.default.driver
+      # We run this last. This should only fail if we forgot anything important
+      # in the above lines.
+      - name: Nix flake check
+        run: nix flake check
