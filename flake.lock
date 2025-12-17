@@ -199,17 +199,15 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1765977281,
-        "narHash": "sha256-yVEsANjQFxUUF+OamiUIpqolHvSgGAnEqMUOa8KTiOY=",
+        "lastModified": 1765977330,
+        "narHash": "sha256-eCOxgC46lfU+BwdZW5u/ZJDK4PRgzykFSk0WUztYsUk=",
         "ref": "refs/heads/nix-2",
-        "rev": "fdf5f0631e2e49d0f0e837a8f47cb67aa85e8bd1",
-        "revCount": 52427,
-        "submodules": true,
+        "rev": "1322649dfbedc1f2b100d1ba0e0b863cb2ee00ca",
+        "revCount": 52428,
         "type": "git",
         "url": "file:/home/pschuster/dev/libvirt"
       },
       "original": {
-        "submodules": true,
         "type": "git",
         "url": "file:/home/pschuster/dev/libvirt"
       }
