@@ -1,11 +1,11 @@
 # Returns a NixOS module.
 
 {
-  libvirt-src,
+  libvirt-chv,
   nixos-image,
   chv-ovmf,
 }:
-{ pkgs, ... }:
+{ pkgs, system, ... }:
 let
   cirros_qcow = pkgs.fetchurl {
     url = "https://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img";
@@ -174,38 +174,12 @@ in
   };
 
   boot.kernelPackages = pkgs.linuxPackages_6_17;
-  virtualisation.libvirtd = {
+  virtualisation.libvirtd =  {
     enable = true;
     sshProxy = false;
-    package = pkgs.libvirt.overrideAttrs (old: {
-      src = libvirt-src;
-      name = "libvirt-gardenlinux";
-      version =
-        let
-          fallback = builtins.trace "WARN: cannot obtain version from libvirt fork" "0.0.0-unknown";
-          mesonBuild = builtins.readFile "${libvirt-src}/meson.build";
-          # Searches for the line `version: '11.3.0'` and captures the version.
-          matches = builtins.match ".*[[:space:]]*version:[[:space:]]'([0-9]+.[0-9]+.[0-9]+)'.*" mesonBuild;
-          version = builtins.elemAt matches 0;
-        in
-        if matches != null then version else fallback;
-      debug = true;
-      doInstallCheck = false;
-      doCheck = false;
-      patches = [
-        ../patches/libvirt/0001-meson-patch-in-an-install-prefix-for-building-on-nix.patch
-        ../patches/libvirt/0002-substitute-zfs-and-zpool-commands.patch
-      ];
-
-      # Use the optimized debug build
-      mesonBuildType = "debugoptimized";
-
-      # IMPORTANT: donStrip is required because otherwise, nix will strip all
-      # debug info from the binaries in its fixupPhase. Having the debug info
-      # is crucial for getting source code info from the sanitizers, as well as
-      # when using GDB.
-      dontStrip = true;
-
+    # For quicker rebuilds, which we experience quite often during development
+    # and prototyping,, we remove all unneeded functionality.
+    package = libvirt-chv.overrideAttrs (old: {
       # Reduce files needed to compile. We cut the build-time in half.
       mesonFlags = old.mesonFlags ++ [
         # Disabling tests: 1500 -> 1200
@@ -226,6 +200,7 @@ in
         "-Ddriver_vbox=disabled"
         "-Ddriver_vmware=disabled"
         "-Ddriver_vz=disabled"
+        # Disabling unneeded backends: 685 -> 608
         "-Dstorage_dir=disabled"
         "-Dstorage_disk=disabled"
         "-Dstorage_fs=enabled" # for netfs

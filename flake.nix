@@ -5,14 +5,13 @@
     dried-nix-flakes.url = "github:cyberus-technology/dried-nix-flakes";
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.11";
 
-    # Our patched libvirt.
-    libvirt-dev = {
+    # Our patched libvirt for Cloud Hypervisor.
+    libvirt-chv = {
       # A local path can be used for developing or testing local changes. Make
       # sure the submodules in a local libvirt checkout are populated.
-      # url = "git+file:/home/pschuster/dev/libvirt?submodules=1";
-      url = "git+https://github.com/phip1611/libvirt?ref=nix-2&submodules=1";
-      # url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt?ref=managedsave-fix&submodules=1";
-      flake = false;
+      url = "git+file:/home/pschuster/dev/libvirt?submodules=1";
+      #url = "git+https://github.com/phip1611/libvirt?ref=nix-2&submodules=1";
+      # url = "git+ssh://git@gitlab.cyberus-technology.de/pschuster/libvirt?ref=nix-2&submodules=1";
     };
     cloud-hypervisor-src = {
       url = "git+file:/home/pschuster/dev/cloud-hypervisor";
@@ -54,7 +53,7 @@
         crane,
         edk2-src,
         fcntl-tool,
-        libvirt-src,
+        libvirt-chv,
         nixpkgs,
         rust-overlay,
         ...
@@ -69,7 +68,6 @@
               rustToolchain = rust-bin.stable.latest.default;
               cloud-hypervisor-meta = prev.cloud-hypervisor.meta;
             };
-            # libvirt =
           })
         ];
 
@@ -95,6 +93,7 @@
             '';
       in
       {
+      inherit inputs;
         checks =
           let
             fs = pkgs.lib.fileset;
@@ -175,14 +174,14 @@
           chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
             cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
           '';
-        };
+        } // libvirt-chv.packages;
         tests = import ./tests/default.nix {
           inherit
             pkgs
-            libvirt-src
             nixos-image
             chv-ovmf
             ;
+          libvirt-chv = self.packages.libvirt-debugoptimized;
         };
       }
     );
