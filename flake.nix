@@ -5,11 +5,12 @@
     dried-nix-flakes.url = "github:cyberus-technology/dried-nix-flakes";
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.11";
 
-    # A local path can be used for developing or testing local changes. Make
-    # sure the submodules in a local libvirt checkout are populated.
-    libvirt-src = {
+    # Our patched libvirt.
+    libvirt-dev = {
+      # A local path can be used for developing or testing local changes. Make
+      # sure the submodules in a local libvirt checkout are populated.
       # url = "git+file:/home/pschuster/dev/libvirt?submodules=1";
-      url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
+      url = "git+https://github.com/phip1611/libvirt?ref=nix-2&submodules=1";
       # url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt?ref=managedsave-fix&submodules=1";
       flake = false;
     };
@@ -39,19 +40,7 @@
     inputs:
     let
       dnf = (inputs.dried-nix-flakes.for inputs).override {
-        # Expose only platforms that the most restrictive set of packages supports.
-        systems =
-          let
-            # The `x86_64-linux` attribute is used arbitrarily to access lib and the derivation's attributes.
-            pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
-            inherit (pkgs) lib;
-            intersectAll =
-              lists: builtins.foldl' lib.intersectLists (builtins.head lists) (builtins.tail lists);
-          in
-          intersectAll [
-            pkgs.cloud-hypervisor.meta.platforms
-            pkgs.OVMF-cloud-hypervisor.meta.platforms
-          ];
+        systems = ["x86_64-linux"];
       };
       inherit (dnf)
         exportOutputs
@@ -80,6 +69,7 @@
               rustToolchain = rust-bin.stable.latest.default;
               cloud-hypervisor-meta = prev.cloud-hypervisor.meta;
             };
+            # libvirt =
           })
         ];
 
