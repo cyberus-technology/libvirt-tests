@@ -17,7 +17,7 @@
 
   long_migration_with_load = pkgs.callPackage ./libvirt-test.nix {
     inherit
-      libvirt-src
+      libvirt-chv
       nixos-image
       chv-ovmf
       ;
