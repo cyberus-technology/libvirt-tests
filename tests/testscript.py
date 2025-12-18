@@ -1479,15 +1479,29 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         certificates have been deployed. The assumption is that the
         migration fails, and the VM is still running on the sender side.
         Both sides should also have a non-blocking virsh.
+
+        There are two different cases we have to test:
+          1. The whole folder is missing, this case should be handled by
+             libvirt.
+          2. Only the files are missing. libvirt only checks whether the folder
+             exists (because it doesn't know which files are necessary), thus
+             Cloud Hypervisor has to handle that without a panic.
         """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
 
         certificate_dir = "/var/lib/libvirt/ch/pki"
 
         # Function to move the certificates into a temporary directory.
-        def remove_certs(machine):
+        def remove_certificates(remove_dir, machine):
             tmp_dir = machine.succeed("mktemp -d").strip()
             machine.succeed(f"mv {certificate_dir}/* {tmp_dir}/")
-            machine.succeed(f"rm -rf {certificate_dir}")
+            # If remove_dir is true, we delete the files and the directory.
+            # Otherwise we only delete the files but keep the directory.
+            machine.succeed(f"rm -rf {certificate_dir}{'' if remove_dir else '/*'}")
             return tmp_dir
 
         # Function to reset the certificates.
@@ -1495,55 +1509,59 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
             machine.succeed(f"mkdir -p {certificate_dir}")
             machine.succeed(f"mv {tmp_dir}/* {certificate_dir}/")
 
-        # Certificates are missing on both machines.
-        reset_certs_controller = partial(reset_certs, remove_certs(controllerVM))
-        reset_certs_compute = partial(reset_certs, remove_certs(computeVM))
+        # Function check that all certificates and keys exist.
+        def check_certificates(machine):
+            expected_files = ["ca-cert.pem", "server-cert.pem", "server-key.pem"]
+            files = machine.succeed(f"ls {certificate_dir}").strip()
+            for expected_file in expected_files:
+                assert expected_file in files, f"{expected_file} not in {files}"
 
-        with (
-            CommandGuard(reset_certs_controller, controllerVM) as _,
-            CommandGuard(reset_certs_compute, computeVM) as _,
-        ):
-            controllerVM.succeed("virsh define /etc/domain-chv.xml")
-            controllerVM.succeed("virsh start testvm")
+        # We first check case one, then case two (see comment above).
+        for remove_cert_dir in [True, False]:
+            remove_certs = partial(remove_certificates, remove_cert_dir)
+            # Certificates are missing on both machines.
+            reset_certs_controller = partial(reset_certs, remove_certs(controllerVM))
+            reset_certs_compute = partial(reset_certs, remove_certs(computeVM))
+            with (
+                CommandGuard(reset_certs_controller, controllerVM) as _,
+                CommandGuard(reset_certs_compute, computeVM) as _,
+            ):
+                controllerVM.fail(
+                    "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
+                )
+                assert wait_for_ssh(controllerVM)
 
-            assert wait_for_ssh(controllerVM)
+                controllerVM.succeed("virsh list | grep 'testvm'")
+                computeVM.fail("virsh list | grep 'testvm'")
 
-            controllerVM.fail(
-                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
-            )
-            assert wait_for_ssh(controllerVM)
+            check_certificates(controllerVM)
+            check_certificates(computeVM)
 
-            controllerVM.succeed("virsh list | grep 'testvm'")
-            computeVM.fail("virsh list | grep 'testvm'")
+            # Certificates are missing only on the source machine.
+            reset_certs_controller = partial(reset_certs, remove_certs(controllerVM))
+            with CommandGuard(reset_certs_controller, controllerVM) as _:
+                controllerVM.fail(
+                    "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
+                )
+                assert wait_for_ssh(controllerVM)
 
-        # To check whether the cleanup worked, we try the live migration again.
-        controllerVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
-        )
-        assert wait_for_ssh(computeVM)
+                controllerVM.succeed("virsh list | grep 'testvm'")
+                computeVM.fail("virsh list | grep 'testvm'")
 
-        # Certificates are missing only on the source machine.
-        # We already migrated to computeVM, so this is the source now.
-        reset_certs_compute = partial(reset_certs, remove_certs(computeVM))
-        with CommandGuard(reset_certs_compute, computeVM) as _:
-            computeVM.fail(
-                "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --tls"
-            )
-            assert wait_for_ssh(computeVM)
+            check_certificates(controllerVM)
 
-            computeVM.succeed("virsh list | grep 'testvm'")
-            controllerVM.fail("virsh list | grep 'testvm'")
+            # Certificates are missing only on the target machine.
+            reset_certs_compute = partial(reset_certs, remove_certs(computeVM))
+            with CommandGuard(reset_certs_compute, computeVM) as _:
+                controllerVM.fail(
+                    "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
+                )
+                assert wait_for_ssh(controllerVM)
 
-        # Certificates are missing only on the target machine.
-        reset_certs_controller = partial(reset_certs, remove_certs(controllerVM))
-        with CommandGuard(reset_certs_controller, controllerVM) as _:
-            computeVM.fail(
-                "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --tls"
-            )
-            assert wait_for_ssh(computeVM)
+                controllerVM.succeed("virsh list | grep 'testvm'")
+                computeVM.fail("virsh list | grep 'testvm'")
 
-            computeVM.succeed("virsh list | grep 'testvm'")
-            controllerVM.fail("virsh list | grep 'testvm'")
+            check_certificates(computeVM)
 
 
 def suite():
