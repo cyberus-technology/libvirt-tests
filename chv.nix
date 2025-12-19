@@ -16,7 +16,6 @@ let
 
   commonArgs = {
     meta = cloud-hypervisor-meta;
-
     src = craneLib'.cleanCargoSource cloud-hypervisor-src;
 
     # Pragmatic release profile with debug-ability and faster
@@ -26,6 +25,11 @@ let
       CARGO_PROFILE_RELEASE_OPT_LEVEL = 2;
       CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
       CARGO_PROFILE_RELEASE_LTO = "no";
+
+      # Fix build. Reference:
+      # - https://github.com/sfackler/rust-openssl/issues/1430
+      # - https://docs.rs/openssl/latest/openssl/
+      OPENSSL_NO_VENDOR = true;
     };
 
     nativeBuildInputs = [
@@ -34,18 +38,12 @@ let
     buildInputs = [
       openssl
     ];
-    # Fix build. Reference:
-    # - https://github.com/sfackler/rust-openssl/issues/1430
-    # - https://docs.rs/openssl/latest/openssl/
-    OPENSSL_NO_VENDOR = true;
   };
 
   # Downloaded and compiled dependencies.
   cargoArtifacts = craneLib'.buildDepsOnly (
     commonArgs
     // {
-      # "suffix '-deps' will be appended
-      pname = "cloud-hypervisor";
       doCheck = false;
     }
   );
@@ -54,8 +52,8 @@ let
     commonArgs
     // {
       inherit cargoArtifacts;
-      pname = "cloud-hypervisor";
-      # Don't execute tests here. We want this in a dedicated step.
+      # Don't execute tests here. Too expensive for local development with
+      # frequent rebuilds + little benefit.
       doCheck = false;
       cargoExtraArgs = "--features kvm";
     }
