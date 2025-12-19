@@ -15,9 +15,8 @@ let
   craneLib' = craneLib.overrideToolchain rustToolchain;
 
   commonArgs = {
-    meta = cloud-hypervisor-meta;
-
     src = craneLib'.cleanCargoSource cloud-hypervisor-src;
+    meta = cloud-hypervisor-meta;
 
     # Pragmatic release profile with debug-ability and faster
     # compilation times in mind.
@@ -44,8 +43,6 @@ let
   cargoArtifacts = craneLib'.buildDepsOnly (
     commonArgs
     // {
-      # "suffix '-deps' will be appended
-      pname = "cloud-hypervisor";
       doCheck = false;
     }
   );
@@ -54,8 +51,8 @@ let
     commonArgs
     // {
       inherit cargoArtifacts;
-      pname = "cloud-hypervisor";
-      # Don't execute tests here. We want this in a dedicated step.
+      # Don't execute tests here. Too expensive for local development with
+      # frequent rebuilds + little benefit.
       doCheck = false;
       cargoExtraArgs = "--features kvm";
     }
