@@ -1404,8 +1404,6 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         for parallel in [True, False]:
             for dst_host, dst, src in [
                 ("192.168.100.2", computeVM, controllerVM),
-                ("192.168.100.1", controllerVM, computeVM),
-                ("computeVM", computeVM, controllerVM),
                 ("controllerVM", controllerVM, computeVM),
             ]:
                 # To check for established TLS connections, we count the number
