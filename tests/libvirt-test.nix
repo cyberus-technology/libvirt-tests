@@ -4,13 +4,13 @@
 
 {
   pkgs,
-  libvirt-src,
+  libvirt-chv,
   nixos-image,
   chv-ovmf,
   testScriptFile,
 }:
 let
-  common = import ./common.nix { inherit libvirt-src nixos-image chv-ovmf; };
+  common = import ./common.nix { inherit libvirt-chv nixos-image chv-ovmf; };
 
   tls =
     let
