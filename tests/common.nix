@@ -173,7 +173,8 @@ in
     environment.LSAN_OPTIONS = "report_objects=1";
   };
 
-  boot.kernelPackages = pkgs.linuxPackages_6_17;
+  # We use the freshest kernel available to reduce nested virtualization bugs.
+  boot.kernelPackages = pkgs.linuxPackages_6_18;
   virtualisation.libvirtd = {
     enable = true;
     sshProxy = false;
