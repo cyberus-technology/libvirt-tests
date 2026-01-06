@@ -32,11 +32,6 @@ nixpkgs.lib.nixosSystem {
         ];
         boot.initrd.kernelModules = [ "virtio_net" ];
         boot.initrd.systemd.enable = false;
-        # 6.17 has a broken virtio-net driver. As this image runs in a CHV VM
-        # with a virtio-net device for communication with the outer world, we
-        # stick to a LTS kernel for now.
-        # https://github.com/cloud-hypervisor/cloud-hypervisor/issues/7447
-        boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_12;
         boot.kernelParams = [
           "console=ttyS0"
           "earlyprintk=ttyS0"
