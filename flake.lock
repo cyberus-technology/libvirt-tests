@@ -74,11 +74,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1764620651,
-        "narHash": "sha256-OOoCw8Bo36VGDkSPqYYxY8JSJarI1FTmwK0G47K6KKQ=",
+        "lastModified": 1767391073,
+        "narHash": "sha256-TVOIqy5dYK+kwQkktsIzqGEnMCansC+5ny7PoZh35I4=",
         "owner": "phip1611",
         "repo": "fcntl-tool",
-        "rev": "ca5d70e4096eb1ea7d32fac93bd2fd4b9c617345",
+        "rev": "d5e4ea39b03a557aa63c598687d649bd02b97690",
         "type": "github"
       },
       "original": {
