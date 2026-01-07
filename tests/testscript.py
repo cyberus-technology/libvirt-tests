@@ -1,5 +1,6 @@
 from functools import partial
 import libvirt  # type: ignore
+import os
 import textwrap
 import time
 import unittest
@@ -13,9 +14,9 @@ if "start_all" not in globals():
     from nixos_test_stubs import start_all, computeVM, controllerVM  # type: ignore
 
 
-class PrintLogsOnErrorTestCase(unittest.TestCase):
+class SaveLogsOnErrorTestCase(unittest.TestCase):
     """
-    Custom TestCase class that prints interesting logs in error case.
+    Custom TestCase class that saves interesting logs in error case.
     """
 
     def run(self, result=None):
@@ -26,11 +27,11 @@ class PrintLogsOnErrorTestCase(unittest.TestCase):
         original_addFailure = result.addFailure
 
         def custom_addError(test, err):
-            self.print_logs(f"Error in {test._testMethodName}")
+            self.save_logs(test, f"Error in {test._testMethodName}")
             original_addError(test, err)
 
         def custom_addFailure(test, err):
-            self.print_logs(f"Failure in {test._testMethodName}")
+            self.save_logs(test, f"Failure in {test._testMethodName}")
             original_addFailure(test, err)
 
         result.addError = custom_addError
@@ -38,19 +39,25 @@ class PrintLogsOnErrorTestCase(unittest.TestCase):
 
         return super().run(result)
 
-    def print_machine_log(self, machine, path):
-        status, out = machine.execute(f"cat {path}")
-        if status != 0:
-            print(f"Could not retrieve logs: {machine.name}:{path}")
-            return
-        print(f"\nLog {machine.name}:{path}:\n{out}\n")
+    def save_machine_log(self, machine, log_path, dst_path):
+        try:
+            machine.copy_from_vm(log_path, dst_path)
+        # Non-existing logs lead to an Exception that we ignore
+        except Exception:
+            pass
 
-    def print_logs(self, message):
+    def save_logs(self, test, message):
         print(f"{message}")
 
+        if "DBG_LOG_DIR" not in os.environ:
+            return
+
         for machine in [controllerVM, computeVM]:
-            self.print_machine_log(machine, "/var/log/libvirt/ch/testvm.log")
-            self.print_machine_log(machine, "/var/log/libvirt/libvirtd.log")
+            dst_path = os.path.join(
+                os.environ["DBG_LOG_DIR"], f"{test._testMethodName}", f"{machine.name}"
+            )
+            self.save_machine_log(machine, "/var/log/libvirt/ch/testvm.log", dst_path)
+            self.save_machine_log(machine, "/var/log/libvirt/libvirtd.log", dst_path)
 
 
 class CommandGuard:
@@ -79,7 +86,7 @@ class CommandGuard:
         self._finilizer()
 
 
-class LibvirtTests(PrintLogsOnErrorTestCase):
+class LibvirtTests(SaveLogsOnErrorTestCase):
     @classmethod
     def setUpClass(cls):
         start_all()
