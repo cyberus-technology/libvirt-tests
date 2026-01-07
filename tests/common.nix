@@ -118,7 +118,7 @@ let
             <target dev='vda' bus='virtio'/>
           </disk>
           <interface type='ethernet'>
-            <mac address='52:54:00:e5:b8:ef'/>
+            <mac address='52:54:00:e5:b8:01'/>
             <target dev='vnet0'/>
             <model type='virtio'/>
             <driver queues='1'/>
@@ -156,8 +156,8 @@ let
 
   new_interface = ''
     <interface type='ethernet'>
-      <mac address='52:54:00:e5:b8:dd'/>
-      <target dev='tap0'/>
+      <mac address='52:54:00:e5:b8:02'/>
+      <target dev='vnet1'/>
       <model type='virtio'/>
       <driver queues='1'/>
     </interface>
@@ -296,10 +296,12 @@ in
 
         # Static IP configuration for the bridge itself
         address = [
-          "192.168.1.1/24"
+          "192.168.1.1/24" # default VM network device
+          "192.168.2.1/24" # hotplugged interface
         ];
       };
       "10-vnet0" = {
+        # All interfaces matching this prefix are added to this bridge.
         matchConfig.Name = "vnet*";
         networkConfig.Bridge = "br0";
       };

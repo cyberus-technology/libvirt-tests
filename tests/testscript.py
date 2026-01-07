@@ -342,6 +342,15 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         assert number_of_network_devices(controllerVM) == num_devices_old
 
     def test_hotplug(self):
+        """
+        Tests device hot plugging with multiple devices of different types:
+        - attaching a disk (persistent)
+        - attaching a network with type ethernet (persistent)
+
+        Also connects into the VM via each attached network interface.
+        :return:
+        """
+
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
@@ -360,8 +369,10 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         )
 
         num_devices_new = number_of_devices(controllerVM)
-
         assert num_devices_new == num_devices_old + 2
+
+        # Test attached network interface (type ethernet)
+        self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.2.2"))
 
         controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
         controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")

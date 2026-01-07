@@ -4,9 +4,6 @@
   nixpkgs,
 }:
 
-let
-  mac = "52:54:00:e5:b8:ef";
-in
 nixpkgs.lib.nixosSystem {
   system = "x86_64-linux";
   modules = [
@@ -87,6 +84,14 @@ nixpkgs.lib.nixosSystem {
           }
         ];
         networking.interfaces.eth1337.useDHCP = false;
+        networking.interfaces.eth1338.ipv4.addresses = [
+          {
+            address = "192.168.2.2";
+            prefixLength = 24;
+          }
+        ];
+        networking.interfaces.eth1338.useDHCP = false;
+
         networking.useDHCP = false;
         networking.useNetworkd = true;
 
@@ -116,10 +121,15 @@ nixpkgs.lib.nixosSystem {
         services.resolved.enable = false;
         services.timesyncd.enable = false;
         services.udev.extraRules = ''
-          # Stable NIC name for known test VM MAC
+          # Stable NIC name for the default VM network.
           ACTION=="add", SUBSYSTEM=="net", \
-            ATTR{address}=="${mac}", \
+            ATTR{address}=="52:54:00:e5:b8:01", \
             NAME="eth1337"
+
+          # Stable NIC name for hotplugged network (type 'ethernet').
+          ACTION=="add", SUBSYSTEM=="net", \
+            ATTR{address}=="52:54:00:e5:b8:02", \
+            NAME="eth1338"
         '';
         services.udisks2.enable = false;
 
