@@ -38,6 +38,18 @@ heavy memory load use:
 $ nix run -L .#tests.x86_64-linux.long_migration_with_load.driver
 ```
 
+### Obtaining debug logs
+
+To obtain debug logs from failing test cases automatically, set the
+`DBG_LOG_DIR` environment variable:
+
+```bash
+DBG_LOG_DIR="./logs" nix run .#tests.x86_64-linux.default.driver
+```
+
+After the run is over, you can find relevant Libvirt and Cloud Hypervisor logs
+in the `DBG_LOG_DIR`.
+
 ## Using a Custom Libvirt or Cloud Hypervisor
 
 To test against a specific version or local build, you should update your
