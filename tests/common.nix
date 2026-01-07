@@ -162,6 +162,24 @@ let
       <driver queues='1'/>
     </interface>
   '';
+
+  libvirt_test_network = ''
+    <network>
+      <name>libvirt-testnetwork</name>
+      <forward mode='nat'/>
+      <bridge name='br3' stp='on' delay='0'/>
+      <ip address='192.168.3.1' netmask='255.255.255.0'>
+        <!--
+        Not strictly required for our setup, but libvirt still expects a DHCP
+        range to configure its dnsmasq instance. Without an explicit range,
+        libvirt chooses one dynamically.
+         -->
+        <dhcp>
+          <range start='192.168.3.100' end='192.168.3.254'/>
+        </dhcp>
+      </ip>
+    </network>
+  '';
 in
 {
   # Silence the monolithic libvirtd, which otherwise starts before the virtchd
@@ -259,8 +277,13 @@ in
 
   systemd.services.virtchd.wantedBy = [ "multi-user.target" ];
   systemd.services.virtchd.path = [ pkgs.openssh ];
+  systemd.services.virtnetworkd.path = with pkgs; [
+    dnsmasq
+    nftables
+  ];
   systemd.sockets.virtproxyd-tcp.wantedBy = [ "sockets.target" ];
   systemd.sockets.virtstoraged.wantedBy = [ "sockets.target" ];
+  systemd.sockets.virtnetworkd.wantedBy = [ "sockets.target" ];
 
   systemd.services.virtchd = {
     serviceConfig = {
@@ -457,6 +480,18 @@ in
         "/etc/new_interface.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "new_interface.xml" new_interface}";
+          };
+        };
+        "/etc/libvirt_test_network.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "libvirt_test_network.xml" libvirt_test_network}";
+          };
+        };
+        "/var/lib/libvirt/network.conf" = {
+          "C+" = {
+            argument = "${pkgs.writeText "network.conf" ''
+              firewall_backend = "nftables"
+            ''}";
           };
         };
         "/var/log/libvirt/" = {

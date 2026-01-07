@@ -106,6 +106,9 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         )
         computeVM.succeed("virsh pool-start nfs-share")
 
+        # Define a libvirt network and automatically starts it
+        controllerVM.succeed("virsh net-create /etc/libvirt_test_network.xml")
+
     def setUp(self):
         # A restart of the libvirt daemon resets the logging configuration, so
         # apply it freshly for every test
