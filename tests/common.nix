@@ -163,6 +163,16 @@ let
     </interface>
   '';
 
+  new_interface_type_network = ''
+    <interface type='network'>
+      <mac address='52:54:00:e5:b8:03'/>
+      <source network='libvirt-testnetwork'/>
+      <target dev='tap3'/>
+      <model type='virtio'/>
+      <driver queues='1'/>
+    </interface>
+  '';
+
   libvirt_test_network = ''
     <network>
       <name>libvirt-testnetwork</name>
@@ -175,6 +185,7 @@ let
         libvirt chooses one dynamically.
          -->
         <dhcp>
+          <!-- Static interface in VM has 192.168.3.2. -->
           <range start='192.168.3.100' end='192.168.3.254'/>
         </dhcp>
       </ip>
@@ -480,6 +491,11 @@ in
         "/etc/new_interface.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "new_interface.xml" new_interface}";
+          };
+        };
+        "/etc/new_interface_type_network.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "new_interface_type_network.xml" new_interface_type_network}";
           };
         };
         "/etc/libvirt_test_network.xml" = {
