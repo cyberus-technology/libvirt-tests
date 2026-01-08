@@ -1566,44 +1566,53 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
             check_certificates(computeVM)
 
+    def test_fail(self):
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        assert wait_for_ssh(controllerVM)
+
+        self.assertTrue(False)
+
 
 def suite():
     # Test cases in alphabetical order
     testcases = [
         LibvirtTests.test_disk_is_locked,
-        LibvirtTests.test_disk_resize_qcow2,
-        LibvirtTests.test_disk_resize_raw,
-        LibvirtTests.test_hotplug,
-        LibvirtTests.test_hugepages,
-        LibvirtTests.test_hugepages_prefault,
-        LibvirtTests.test_libvirt_event_stop_failed,
-        LibvirtTests.test_libvirt_restart,
-        LibvirtTests.test_live_migration,
-        LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
-        LibvirtTests.test_live_migration_kill_chv_on_sender_side,
-        LibvirtTests.test_live_migration_parallel_connections,
-        LibvirtTests.test_live_migration_tls,
-        LibvirtTests.test_live_migration_tls_without_certificates,
-        LibvirtTests.test_live_migration_virsh_non_blocking,
-        LibvirtTests.test_live_migration_with_hotplug,
-        LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
-        LibvirtTests.test_live_migration_with_hugepages,
-        LibvirtTests.test_live_migration_with_hugepages_failure_case,
-        LibvirtTests.test_live_migration_with_serial_tcp,
-        LibvirtTests.test_live_migration_with_vcpu_pinning,
-        LibvirtTests.test_managedsave,
-        LibvirtTests.test_network_hotplug_attach_detach_persistent,
-        LibvirtTests.test_network_hotplug_attach_detach_transient,
-        LibvirtTests.test_network_hotplug_persistent_transient_detach_vm_restart,
-        LibvirtTests.test_network_hotplug_persistent_vm_restart,
-        LibvirtTests.test_network_hotplug_transient_vm_restart,
-        LibvirtTests.test_numa_hugepages,
-        LibvirtTests.test_numa_hugepages_prefault,
-        LibvirtTests.test_numa_topology,
-        LibvirtTests.test_serial_file_output,
-        LibvirtTests.test_serial_tcp,
-        LibvirtTests.test_shutdown,
-        LibvirtTests.test_virsh_console_works_with_pty,
+        LibvirtTests.test_fail,
+        # LibvirtTests.test_disk_resize_qcow2,
+        # LibvirtTests.test_disk_resize_raw,
+        # LibvirtTests.test_hotplug,
+        # LibvirtTests.test_hugepages,
+        # LibvirtTests.test_hugepages_prefault,
+        # LibvirtTests.test_libvirt_event_stop_failed,
+        # LibvirtTests.test_libvirt_restart,
+        # LibvirtTests.test_live_migration,
+        # LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
+        # LibvirtTests.test_live_migration_kill_chv_on_sender_side,
+        # LibvirtTests.test_live_migration_parallel_connections,
+        # LibvirtTests.test_live_migration_tls,
+        # LibvirtTests.test_live_migration_tls_without_certificates,
+        # LibvirtTests.test_live_migration_virsh_non_blocking,
+        # LibvirtTests.test_live_migration_with_hotplug,
+        # LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
+        # LibvirtTests.test_live_migration_with_hugepages,
+        # LibvirtTests.test_live_migration_with_hugepages_failure_case,
+        # LibvirtTests.test_live_migration_with_serial_tcp,
+        # LibvirtTests.test_live_migration_with_vcpu_pinning,
+        # LibvirtTests.test_managedsave,
+        # LibvirtTests.test_network_hotplug_attach_detach_persistent,
+        # LibvirtTests.test_network_hotplug_attach_detach_transient,
+        # LibvirtTests.test_network_hotplug_persistent_transient_detach_vm_restart,
+        # LibvirtTests.test_network_hotplug_persistent_vm_restart,
+        # LibvirtTests.test_network_hotplug_transient_vm_restart,
+        # LibvirtTests.test_numa_hugepages,
+        # LibvirtTests.test_numa_hugepages_prefault,
+        # LibvirtTests.test_numa_topology,
+        # LibvirtTests.test_serial_file_output,
+        # LibvirtTests.test_serial_tcp,
+        # LibvirtTests.test_shutdown,
+        # LibvirtTests.test_virsh_console_works_with_pty,
     ]
 
     suite = unittest.TestSuite()
