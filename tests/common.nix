@@ -173,6 +173,16 @@ let
     </interface>
   '';
 
+  new_interface_type_bridge = ''
+    <interface type='bridge'>
+      <mac address='52:54:00:e5:b8:04'/>
+      <source bridge='br4'/>
+      <target dev='tap4'/>
+      <model type='virtio'/>
+      <driver queues='1'/>
+    </interface>
+  '';
+
   libvirt_test_network = ''
     <network>
       <name>libvirt-testnetwork</name>
@@ -316,6 +326,12 @@ in
           Name = "br0";
         };
       };
+      "10-br4" = {
+        netdevConfig = {
+          Kind = "bridge";
+          Name = "br4";
+        };
+      };
     };
 
     networks = {
@@ -328,14 +344,25 @@ in
           DHCPServer = "no";
         };
 
-        # Static IP configuration for the bridge itself
         address = [
           "192.168.1.1/24" # default VM network device
           "192.168.2.1/24" # hotplugged interface
         ];
       };
+      "10-br4" = {
+        enable = true;
+        matchConfig.Name = "br4";
+        networkConfig = {
+          Description = "Hot Plug Bridge";
+          DHCPServer = "no";
+        };
+
+        address = [
+          "192.168.4.1/24" # hotplugged interface
+        ];
+      };
       "10-vnet0" = {
-        # All interfaces matching this prefix are added to this bridge.
+        # All interfaces matching this prefix are added to the bridge.
         matchConfig.Name = "vnet*";
         networkConfig.Bridge = "br0";
       };
@@ -496,6 +523,11 @@ in
         "/etc/new_interface_type_network.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "new_interface_type_network.xml" new_interface_type_network}";
+          };
+        };
+        "/etc/new_interface_type_bridge.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "new_interface_type_bridge.xml" new_interface_type_bridge}";
           };
         };
         "/etc/libvirt_test_network.xml" = {

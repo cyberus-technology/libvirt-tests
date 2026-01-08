@@ -350,6 +350,7 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         - attaching a disk (persistent)
         - attaching a network with type 'ethernet' (persistent)
         - attaching a network with type 'network' (transient)
+        - attaching a network with type 'bridge' (transient)
 
         Also connects into the VM via each attached network interface.
         :return:
@@ -374,19 +375,27 @@ class LibvirtTests(PrintLogsOnErrorTestCase):
         controllerVM.succeed(
             "virsh attach-device testvm /etc/new_interface_type_network.xml"
         )
+        controllerVM.succeed(
+            "virsh attach-device testvm /etc/new_interface_type_bridge.xml"
+        )
 
         num_devices_new = number_of_devices(controllerVM)
-        assert num_devices_new == num_devices_old + 3
+        assert num_devices_new == num_devices_old + 4
 
         # Test attached network interface (type ethernet)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.2.2"))
         # Test attached network interface (type network - managed by libvirt)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.3.2"))
+        # Test attached network interface (type bridge - managed by libvirt)
+        self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.4.2"))
 
         controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
         controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
         controllerVM.succeed(
             "virsh detach-device testvm /etc/new_interface_type_network.xml"
+        )
+        controllerVM.succeed(
+            "virsh detach-device testvm /etc/new_interface_type_bridge.xml"
         )
 
         assert number_of_devices(controllerVM) == num_devices_old

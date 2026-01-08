@@ -98,6 +98,13 @@ nixpkgs.lib.nixosSystem {
           }
         ];
         networking.interfaces.eth1339.useDHCP = false;
+        networking.interfaces.eth1340.ipv4.addresses = [
+          {
+            address = "192.168.4.2";
+            prefixLength = 24;
+          }
+        ];
+        networking.interfaces.eth1340.useDHCP = false;
 
         networking.useDHCP = false;
         networking.useNetworkd = true;
@@ -142,6 +149,11 @@ nixpkgs.lib.nixosSystem {
           ACTION=="add", SUBSYSTEM=="net", \
             ATTR{address}=="52:54:00:e5:b8:03", \
             NAME="eth1339"
+
+          # Stable NIC name for hotplugged network #2 (type 'network').
+          ACTION=="add", SUBSYSTEM=="net", \
+            ATTR{address}=="52:54:00:e5:b8:04", \
+            NAME="eth1340"
         '';
         services.udisks2.enable = false;
 
