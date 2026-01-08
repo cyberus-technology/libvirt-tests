@@ -64,3 +64,6 @@ with password `root` to access the Cloud Hypervisor VM (***testvm***).
 To directly access the Cloud Hypervisor VM, you can run
 
 `ssh -o StrictHostKeyChecking=no -J root@localhost:2222 root@192.168.1.2`.
+
+## More Documentation
+- [VM networks overview](./docs/networks.md)

@@ -154,6 +154,7 @@ let
       </domain>
     '';
 
+  # Please keep in sync with documentation in networks.md!
   new_interface = ''
     <interface type='ethernet'>
       <mac address='52:54:00:e5:b8:02'/>
@@ -163,6 +164,7 @@ let
     </interface>
   '';
 
+  # Please keep in sync with documentation in networks.md!
   new_interface_type_network = ''
     <interface type='network'>
       <mac address='52:54:00:e5:b8:03'/>
@@ -173,6 +175,7 @@ let
     </interface>
   '';
 
+  # Please keep in sync with documentation in networks.md!
   new_interface_type_bridge = ''
     <interface type='bridge'>
       <mac address='52:54:00:e5:b8:04'/>
@@ -183,6 +186,7 @@ let
     </interface>
   '';
 
+  # Please keep in sync with documentation in networks.md!
   libvirt_test_network = ''
     <network>
       <name>libvirt-testnetwork</name>
@@ -344,6 +348,7 @@ in
           DHCPServer = "no";
         };
 
+        # Please keep in sync with documentation in networks.md!
         address = [
           "192.168.1.1/24" # default VM network device
           "192.168.2.1/24" # hotplugged interface
@@ -357,6 +362,7 @@ in
           DHCPServer = "no";
         };
 
+        # Please keep in sync with documentation in networks.md!
         address = [
           "192.168.4.1/24" # hotplugged interface
         ];
@@ -369,6 +375,7 @@ in
     };
   };
 
+  # Please keep in sync with documentation in networks.md!
   networking = {
     useDHCP = false;
     networkmanager.enable = false;
