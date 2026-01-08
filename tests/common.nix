@@ -306,6 +306,7 @@ in
   systemd.services.virtchd.path = [ pkgs.openssh ];
   systemd.services.virtnetworkd.path = with pkgs; [
     dnsmasq
+    iproute2
     nftables
   ];
   systemd.sockets.virtproxyd-tcp.wantedBy = [ "sockets.target" ];
