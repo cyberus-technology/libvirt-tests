@@ -128,7 +128,7 @@
                 }
                 ''
                   cp -r ${cleanSrc}/. .
-                  ruff format --check ./tests
+                  ruff format --check .
                   mkdir $out
                 '';
             pythonLint =
