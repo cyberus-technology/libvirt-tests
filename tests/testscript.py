@@ -1788,12 +1788,50 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         devices_after = pci_devices_by_bdf(controllerVM)
         assert devices_after == devices_before
 
+    def test_bdfs_dont_conflict_after_transient_unplug(self):
+        """
+        Test that BDFs that are handed out persistently are not freed by
+        transient unplugs.
+
+        The persistent config needs to adopt the assigned BDF correctly
+        and when unplugging a device, the transient config has to
+        respect BDFs that are already reserved in the persistent config.
+        In other words, we test that BDFs are correctly synced between
+        persistent and transient config whenever both are affected and
+        that weird hot/-unplugging doesn't make both configs go out of
+        sync.
+        """
+        with CommandGuard(reset_system_image, controllerVM) as _:
+            # Using define + start creates a "persistent" domain rather than a transient
+            controllerVM.succeed("virsh define /etc/domain-chv.xml")
+            controllerVM.succeed("virsh start testvm")
+            assert wait_for_ssh(controllerVM)
+
+            # Add a persistent disk.
+            controllerVM.succeed(
+                "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
+            )
+            controllerVM.succeed(
+                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent"
+            )
+            # Remove transient. The device is removed from the transient config but not from the persistent one. The
+            # transient config has to mark the BDF as still in use nevertheless.
+            controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+            # Attach another device persistently. If we did not respect in the transient config that the disk we
+            # detached before is still present in persistent config, then we now try to assign BDF 4 twice in the
+            # persistent config. In other words: Persistent and transient config's BDF management are out of sync if
+            # this command fails.
+            controllerVM.succeed(
+                "virsh attach-device testvm /etc/new_interface.xml --persistent "
+            )
+
 
 def suite():
     # Test cases in alphabetical order
     testcases = [
         LibvirtTests.test_bdf_explicit_assignment,
         LibvirtTests.test_bdf_implicit_assignment,
+        LibvirtTests.test_bdfs_dont_conflict_after_transient_unplug,
         LibvirtTests.test_bdfs_implicitly_assigned_same_after_recreate,
         LibvirtTests.test_disk_is_locked,
         LibvirtTests.test_disk_resize_qcow2,
