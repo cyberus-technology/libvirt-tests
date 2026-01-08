@@ -1,4 +1,6 @@
-# Returns a NixOS module.
+# This file exports a function that returns a NixOS module.
+#
+# The module defines the common parts of the host VMs.
 
 {
   libvirt-src,
@@ -323,6 +325,7 @@ in
     enable = true;
     wait-online.enable = false;
 
+    # Created devices.
     netdevs = {
       "10-br0" = {
         netdevConfig = {
