@@ -2,5 +2,8 @@
 .nixos-test-history
 /result*
 
+# Default log directory.
+/logs
+
 # gitlint
 __pycache__
