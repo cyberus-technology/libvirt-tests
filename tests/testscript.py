@@ -1,3 +1,7 @@
+import ipaddress
+from typing import List, Optional
+
+import json
 from functools import partial
 import libvirt  # type: ignore
 import os
@@ -398,7 +402,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.2.2"))
         # Test attached network interface (type network - managed by libvirt)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.3.2"))
-        # Test attached network interface (type bridge - managed by libvirt)
+        # Test attached network interface (type bridge)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.4.2"))
 
         controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
@@ -1967,11 +1971,10 @@ def wait_until_fail(func):
 
 def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
     """
-    Waits for SSH to become available to connect into the Cloud Hypervisor VM
-    hosted on the corresponding machine.
+    Waits for the VM to become accessible via SSH.
 
-    Effectively we use it to wait until the Cloud Hypervisor VM's network is up
-    and available.
+    It first checks whether the VM responds to ping, and then attempts to
+    establish an SSH connection using the provided credentials.
 
     :param machine: VM host
     :param user: user for SSH login
@@ -1980,10 +1983,28 @@ def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
     :return: True if the VM became available in a reasonable amount of time
     """
     retries = 100
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+
+    print(f"Waiting for VM with IP {ip} to become available ...")
+
+    # First wait until the VM is pingable
     for i in range(retries):
-        print(f"Wait for ssh {i}/{retries}")
+        print(f"Checking ping to {ip} ({i + 1}/{retries}) ...")
+        if is_pingable(machine, ip, 1, 1):
+            print(f"{ip} is pingable")
+            break
+    else:
+        print(f"{ip} is not reachable via ping after {retries} attempts")
+        return False
+
+    for i in range(retries):
+        print(f"Wait for SSH ({i + 1}/{retries}) ...")
         status, _ = ssh(machine, "echo hello", user, password, ip)
         if status == 0:
+            print("SSH available")
             return True
         time.sleep(0.1)
     return False
@@ -1993,19 +2014,53 @@ def ssh(machine, cmd, user="root", password="root", ip="192.168.1.2"):
     """
     Runs the specified command in the Cloud Hypervisor VM via SSH.
 
-    The specified machine is used as SSH jump host.
+    The SSH connection will be established from the specified machine.
 
-    :param machine: Machine to run SSH on
+    Performs some sanity network checks beforehand:
+    - does the IP actually share a (local) network with the given machine?
+    - is the IP ping-able?
+
+    :param machine: Machine to execute the SSH command on.
     :param cmd: The command to execute via SSH
     :param user: user for SSH login
     :param password: password for SSH login
     :param ip: SSH host to log into
     :return: status and output
     """
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+
+    if not is_pingable(machine, ip, 1, 1):
+        raise RuntimeError(f"VM with IP {ip} is not pingable")
+
+    # And here we check if the guest also responds via SSH.
     status, out = machine.execute(
-        f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
+        f"sshpass -p {password} "
+        + "ssh "
+        + "-o UserKnownHostsFile=/dev/null "
+        + "-o StrictHostKeyChecking=no "
+        + "-o ConnectTimeout=1 "
+        + f"{user}@{ip} {cmd}"
     )
     return status, out
+
+
+def is_pingable(machine, ip, count=1, timeout=1):
+    """
+    Check if the IP is reachable via ping from the given machine.
+
+    :param machine: VM host
+    :param ip: IP address to ping
+    :param count: Number of ping packets to send
+    :param timeout: Timeout in seconds for the ping command
+    :return: True if ping succeeds, False otherwise
+    """
+    # '-c' sets packet count, '-W' sets timeout in seconds
+    cmd = f"ping -c {count} -W {timeout} {ip}"
+    status, _ = machine.execute(cmd)
+    return status == 0
 
 
 def number_of_devices(machine):
@@ -2061,6 +2116,101 @@ def pci_devices_by_bdf(machine):
         bdf, device_class = line.split(",")
         out[bdf] = device_class
     return out
+
+
+def get_local_192_168_net24_networks(machine) -> List[ipaddress.IPv4Network]:
+    """
+     Discover local IPv4 interface networks that match all the following:
+       - IPv4 only
+       - Prefix length exactly /24
+       - Network is within 192.168.0.0/16
+
+    :param machine: Machine to execute the SSH command on.
+
+     Returns:
+         list[ipaddress.IPv4Network]:
+             A list of IPv4Network objects representing local
+             192.168.x.0/24 networks.
+
+             The list may be empty if no matching interfaces exist.
+             Networks are returned in alphabetical order.
+    """
+    status, result = machine.execute("ip -j a")
+    assert status == 0
+
+    interfaces: list[dict[str, object]] = json.loads(result)
+    networks: List[ipaddress.IPv4Network] = []
+
+    for iface in interfaces:
+        addr_info = iface.get("addr_info")
+        if not isinstance(addr_info, list):
+            continue
+
+        for addr in addr_info:
+            if not isinstance(addr, dict):
+                continue
+
+            family = addr.get("family")
+            ip = addr.get("local")
+            prefix = addr.get("prefixlen")
+
+            if (
+                family == "inet"
+                and isinstance(ip, str)
+                and isinstance(prefix, int)
+                and prefix == 24
+            ):
+                network = ipaddress.IPv4Network(f"{ip}/24", strict=False)
+
+                if network.network_address in ipaddress.IPv4Network("192.168.0.0/16"):
+                    networks.append(network)
+
+    return sorted(networks)
+
+
+def ip_in_local_192_168_net24(machine, ip: str) -> Optional[ipaddress.IPv4Network]:
+    """
+    Returns the matching local 192.168.x.0/24 network, or None.
+
+    This is helpful to check if for some intended or unintended reason the network
+    connection of the host technically still allows a network connection into
+    the corresponding guest VM.
+
+    :param ip: IP address to check
+    :param machine: Machine to execute the SSH command on.
+    """
+    target = ipaddress.IPv4Address(ip)
+
+    if not target.is_private or not target.exploded.startswith("192.168."):
+        return None
+
+    for network in get_local_192_168_net24_networks(machine):
+        if target in network:
+            return network
+
+    return None
+
+
+def assert_ip_in_local_192_168_net24(machine, ip: str):
+    """
+    Convenient wrapper around `ip_in_local_192_168_net24()` that pretty-prints
+    an insightful error message and raises an exception on failure.
+
+    :param ip: IP address to check
+    :param machine: Machine to execute the SSH command on.
+    """
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    if not ip_in_local_192_168_net24(machine, ip):
+        msg = f"The VM host is not in the same network as IP {ip}!"
+        networks = get_local_192_168_net24_networks(machine)
+        print(f"{msg} Networks:\n{networks}")
+
+        status, result = machine.execute("ip a")
+        assert status == 0
+        print("`ip a`:")
+        print(result)
+        raise RuntimeError(msg)
 
 
 runner = unittest.TextTestRunner()
