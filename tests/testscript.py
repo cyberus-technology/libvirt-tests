@@ -1886,6 +1886,27 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # should still ensure that no new devices magically appeared.
         assert number_of_devices(controllerVM) == num_before_expected_failure
 
+    def test_cpu_models(self):
+        """
+        This tests checks that cpu-models API call is implemented and returns
+        at least a sapphire-rapids model.
+        Further, we check that the domcapabilities API call returns the
+        expected CPU profile as usable.
+        Both is required to be able to use the specific CPU profile.
+        While the 'virsh cpu-models' call only lists the CPU profiles the VMM
+        supports, the 'virsh domcapabilities' call takes into account the hosts
+        architecture. Thus, the latter reports what CPU profile actually can be
+        used in the current environment.
+        """
+        out = controllerVM.succeed("virsh cpu-models x86_64")
+        self.assertIn("sapphire-rapids", out)
+
+        out = controllerVM.succeed("virsh domcapabilities")
+        self.assertIn(
+            "<model usable='yes' vendor='Intel' canonical='sapphire-rapids'>sapphire-rapids</model>",
+            out,
+        )
+
 
 def suite():
     # Test cases in alphabetical order
@@ -1896,6 +1917,7 @@ def suite():
         LibvirtTests.test_bdf_valid_device_id_with_function_id,
         LibvirtTests.test_bdfs_dont_conflict_after_transient_unplug,
         LibvirtTests.test_bdfs_implicitly_assigned_same_after_recreate,
+        LibvirtTests.test_cpu_models,
         LibvirtTests.test_disk_is_locked,
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,

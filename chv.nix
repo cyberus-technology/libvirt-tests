@@ -16,7 +16,8 @@ let
 
   commonArgs =
     let
-      src = craneLib'.cleanCargoSource cloud-hypervisor-src;
+      #src = craneLib'.cleanCargoSource cloud-hypervisor-src;
+      src = cloud-hypervisor-src;
     in
     {
       inherit src;
