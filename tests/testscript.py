@@ -398,7 +398,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.2.2"))
         # Test attached network interface (type network - managed by libvirt)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.3.2"))
-        # Test attached network interface (type bridge - managed by libvirt)
+        # Test attached network interface (type bridge)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.4.2"))
 
         controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
