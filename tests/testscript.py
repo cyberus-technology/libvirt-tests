@@ -383,7 +383,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM, ip="192.168.2.2")
         # Test attached network interface (type network - managed by libvirt)
         wait_for_ssh(controllerVM, ip="192.168.3.2")
-        # Test attached network interface (type bridge - managed by libvirt)
+        # Test attached network interface (type bridge)
         wait_for_ssh(controllerVM, ip="192.168.4.2")
 
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
