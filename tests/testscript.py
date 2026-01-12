@@ -2025,11 +2025,10 @@ def wait_for_ping(machine: Machine, ip="192.168.1.2"):
 
 def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2"):
     """
-    Waits for SSH to become available to connect into the Cloud Hypervisor VM
-    hosted on the corresponding machine.
+    Waits for the VM to become accessible via SSH.
 
-    Effectively we use it to wait until the Cloud Hypervisor VM's network is up
-    and available.
+    It first checks whether the VM responds to ping, and then attempts to
+    establish an SSH connection using the provided credentials.
 
     :param machine: VM host
     :param user: user for SSH login
@@ -2037,13 +2036,23 @@ def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2
     :param ip: SSH host to log into
     """
     retries = 100
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+    wait_for_ping(machine, ip)
+
+    print(f"Waiting for ssh connection into VM with IP {ip} ...")
     for i in range(retries):
-        print(f"Wait for ssh {i}/{retries}")
+        print(f"Wait for ssh ({i + 1}/{retries}) ...")
         status, _ = ssh(machine, "echo hello", user, password, ip)
         if status == 0:
             return
         time.sleep(0.1)
-    raise RuntimeError(f"Could not establish SSH connection to {ip}")
+
+    raise RuntimeError(
+        f"Could not establish SSH connection to {ip} after {retries} attempts"
+    )
 
 
 def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
