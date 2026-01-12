@@ -152,7 +152,7 @@ let
           </disk>
           <interface type='ethernet'>
             <mac address='52:54:00:e5:b8:01'/>
-            <target dev='vnet0'/>
+            <target dev='vtap0'/>
             <model type='virtio'/>
             <driver queues='1'/>
             <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
@@ -196,7 +196,7 @@ let
     ''
       <interface type='ethernet'>
         <mac address='52:54:00:e5:b8:02'/>
-        <target dev='vnet1'/>
+        <target dev='vtap1'/>
         <model type='virtio'/>
         <driver queues='1'/>
         ${
@@ -417,7 +417,7 @@ in
       };
       "10-vnet0" = {
         # All interfaces matching this prefix are added to the bridge.
-        matchConfig.Name = "vnet*";
+        matchConfig.Name = "vtap*";
         networkConfig.Bridge = "br0";
       };
     };
