@@ -6,17 +6,22 @@ import time
 import unittest
 import weakref
 
+# from tests.nixos_test_stubs import Machine
+
 # Following is required to allow proper linting of the python code in IDEs.
 # Because certain functions like start_all() and certain objects like computeVM
 # or other machines are added by Nix, we need to provide certain stub objects
 # in order to allow the IDE to lint the python code successfully.
 if "start_all" not in globals():
-    from nixos_test_stubs import start_all, computeVM, controllerVM  # type: ignore
+    from nixos_test_stubs import start_all, computeVM, controllerVM, Machine  # type: ignore
 
 
 VIRTIO_NETWORK_DEVICE = "1af4:1041"
 VIRTIO_BLOCK_DEVICE = "1af4:1042"
 VIRTIO_ENTROPY_SOURCE = "1af4:1044"
+
+DOMAIN_DEF_PERSISTENT_PATH = "/var/lib/libvirt/ch/testvm.xml"
+DOMAIN_DEF_TRANSIENT_PATH = "/var/run/libvirt/ch/testvm.xml"
 
 
 class SaveLogsOnErrorTestCase(unittest.TestCase):
@@ -1786,20 +1791,21 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
 
         devices_after = pci_devices_by_bdf(controllerVM)
-        assert devices_after == devices_before
+        self.assertEqual(devices_after, devices_before)
 
-    def test_bdfs_dont_conflict_after_transient_unplug(self):
+    def test_domain_defs_in_sync_after_transient_unplug(self):
         """
         Test that BDFs that are handed out persistently are not freed by
         transient unplugs.
 
-        The persistent config needs to adopt the assigned BDF correctly
-        and when unplugging a device, the transient config has to
-        respect BDFs that are already reserved in the persistent config.
-        In other words, we test that BDFs are correctly synced between
-        persistent and transient config whenever both are affected and
-        that weird hot/-unplugging doesn't make both configs go out of
-        sync.
+        The persistent domain definition (XML) needs to adopt the
+        assigned BDF correctly and when unplugging a device, the
+        transient domain definition has to respect BDFs that are already
+        reserved in the persistent domain definition. In other words, we
+        test that BDFs are correctly synced between persistent and
+        transient domain definition whenever both are affected and that
+        weird hot/-unplugging doesn't make both domain definitions go
+        out of sync.
         """
         with CommandGuard(reset_system_image, controllerVM) as _:
             # Using define + start creates a "persistent" domain rather than a transient
@@ -1808,22 +1814,64 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             assert wait_for_ssh(controllerVM)
 
             # Add a persistent disk.
+            # Note: If we would add a network device with <target dev = "vnet*">, then this test would fail
+            devices_persistent = parse_devices_from_dom_def(
+                controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+            )
             controllerVM.succeed(
                 "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
             )
             controllerVM.succeed(
                 "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent"
             )
-            # Remove transient. The device is removed from the transient config but not from the persistent one. The
-            # transient config has to mark the BDF as still in use nevertheless.
+            # Check that vdb is added to the same PCI slot in both definitions
+            devices_persistent_vbd_added = parse_devices_from_dom_def(
+                controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+            )
+            devices_transient = parse_devices_from_dom_def(
+                controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+            )
+            new_bdf_vdb = list(
+                (set(devices_persistent_vbd_added.keys())).difference(
+                    set(devices_persistent.keys())
+                )
+            )[0]
+            self.assertEqual(
+                devices_persistent_vbd_added.get(new_bdf_vdb),
+                devices_transient.get(new_bdf_vdb),
+            )
+
+            # Remove transient. The device is removed from the transient domain definition but not from the persistent
+            # one. The transient domain definition has to mark the BDF as still in use nevertheless.
             controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
-            # Attach another device persistently. If we did not respect in the transient config that the disk we
-            # detached before is still present in persistent config, then we now try to assign BDF 4 twice in the
-            # persistent config. In other words: Persistent and transient config's BDF management are out of sync if
-            # this command fails.
+            devices_transient = parse_devices_from_dom_def(
+                controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+            )
+            self.assertIsNone(devices_transient.get(new_bdf_vdb))
+            # Attach another device persistently. If we did not respect in the transient domain definition that the disk
+            # we detached before is still present in persistent domain definition, then we now try to assign BDF 4 twice
+            # in the persistent domain definition. In other words: Persistent and transient domain definition's BDF
+            # management are out of sync if this command fails.
             controllerVM.succeed(
                 "virsh attach-device testvm /etc/new_interface.xml --persistent "
             )
+            # Find the new devices and their BDFs by comparing to older state
+            devices_persistent = parse_devices_from_dom_def(
+                controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+            )
+            bdf_new_devices = list(
+                (set(devices_persistent.keys())).difference(
+                    set(devices_persistent_vbd_added.keys())
+                )
+            )
+            # Ensure the same device can be found with the same BDF in the transient definition
+            devices_transient = parse_devices_from_dom_def(
+                controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+            )
+            for bdf in bdf_new_devices:
+                self.assertEqual(
+                    devices_transient.get(bdf), devices_persistent.get(bdf)
+                )
 
     def test_bdf_invalid_device_id(self):
         """
@@ -1894,11 +1942,11 @@ def suite():
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_bdf_invalid_device_id,
         LibvirtTests.test_bdf_valid_device_id_with_function_id,
-        LibvirtTests.test_bdfs_dont_conflict_after_transient_unplug,
         LibvirtTests.test_bdfs_implicitly_assigned_same_after_recreate,
         LibvirtTests.test_disk_is_locked,
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,
+        LibvirtTests.test_domain_defs_in_sync_after_transient_unplug,
         LibvirtTests.test_hotplug,
         LibvirtTests.test_hugepages,
         LibvirtTests.test_hugepages_prefault,
@@ -2061,6 +2109,55 @@ def pci_devices_by_bdf(machine):
         bdf, device_class = line.split(",")
         out[bdf] = device_class
     return out
+
+
+def parse_devices_from_dom_def(machine: Machine, path: str):
+    """
+    Parses `devices` from a domain XML given by `path` on `machine` and returns them in a dict.
+
+    The dict returned contains the device PCI slot as keys and an identification string of a device as value. The string
+    differs between device types.
+
+    :param path: Location of the domain definition on `machine`
+    :param machine: Host on which the domain definition is located
+    :return: dict[str, str] = ['<PCI slot in hex>' : '<info:about:device>']
+    """
+    import xml.etree.ElementTree as ET
+
+    command = "cat " + path
+    status, cat_result = machine.execute(command)
+    root = ET.fromstring(cat_result)
+    result = dict()
+    # Use ".//devices" because in persistent conf, `devices` is direct child and in transient config it's one more level
+    # of nesting.
+    for device in root.find(".//devices") or []:
+        value = ""
+        value += device.tag
+        match device.tag:
+            case "disk":
+                source = device.find("source")
+                if source is not None:
+                    value += ":" + source.get("file", "").strip()
+                target = device.find("target")
+                if target is not None:
+                    value += ":" + target.get("dev", "").strip()
+            case "interface":
+                value += ":" + device.attrib.get("type", "")
+                mac = device.find("mac")
+                if mac is not None:
+                    value += ":" + mac.get("address", "")
+                target = device.find("target")
+                if target is not None:
+                    value += ":" + target.get("dev", "").strip()
+            case "rng":
+                backend = device.find("backend")
+                if backend is not None:
+                    value += ":" + (backend.text or "").strip()
+        address = device.find("address")
+        if address is not None:
+            if address.get("type") == "pci":
+                result[address.get("slot")] = value
+    return result
 
 
 runner = unittest.TextTestRunner()
