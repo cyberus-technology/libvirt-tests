@@ -391,8 +391,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh attach-device testvm /etc/new_interface_type_bridge.xml"
         )
 
-        num_devices_new = number_of_devices(controllerVM)
-        assert num_devices_new == num_devices_old + 4
+        wait_for_guest_pci_device_enumeration(controllerVM, num_devices_old + 4)
 
         # Test attached network interface (type ethernet)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.2.2"))
@@ -1848,7 +1847,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.fail(
             "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent --address pci:0.0.20.0"
         )
-        assert number_of_devices(controllerVM) == num_before_expected_failure
+        wait_for_guest_pci_device_enumeration(controllerVM, num_before_expected_failure)
 
     def test_bdf_valid_device_id_with_function_id(self):
         """
@@ -1884,7 +1883,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
         # Even though we only land here if the command above failed, we
         # should still ensure that no new devices magically appeared.
-        assert number_of_devices(controllerVM) == num_before_expected_failure
+        wait_for_guest_pci_device_enumeration(controllerVM, num_before_expected_failure)
 
 
 def suite():
@@ -1947,9 +1946,16 @@ def measure_ms(func):
     return (time.time() - start) * 1000
 
 
-def wait_until_succeed(func):
-    retries = 600
-    for i in range(retries):
+def wait_until_succeed(func, retries=600) -> bool:
+    """
+    Waits for the command to succeed.
+    After each failure, it waits 100ms.
+
+    :param func: Function that is expected to succeed.
+    :param retries: Amount of retries.
+    :return: whether the function succeeded eventually
+    """
+    for _i in range(retries):
         if func():
             return True
         time.sleep(0.1)
@@ -2009,6 +2015,12 @@ def ssh(machine, cmd, user="root", password="root", ip="192.168.1.2"):
 
 
 def number_of_devices(machine):
+    """
+    Returns the number of PCI devices in the VM.
+
+    :param machine: VM host
+    :return: number of PCI devices in VM
+    """
     status, out = ssh(machine, "lspci | wc -l")
     assert status == 0
     return int(out)
@@ -2061,6 +2073,27 @@ def pci_devices_by_bdf(machine):
         bdf, device_class = line.split(",")
         out[bdf] = device_class
     return out
+
+
+def wait_for_guest_pci_device_enumeration(machine, new_count: int):
+    """
+    Block until the guest operating system has observed a PCI topology change
+    (hotplug or unplug) by verifying that the number of enumerated PCI devices
+    matches the expected value.
+
+    Guest-side acknowledgment is inferred by polling the PCI device count
+    (via `lspci`) until it converges to `expected_count`.
+
+    Raises a RuntimeError if the expected PCI device count is not observed
+    within the retry window, otherwise continues.
+
+    :param machine: VM host
+    :param new_count: New device count
+    :return:
+    """
+    # retries=10 => max 1s => we expect hotplug events to be relatively quick
+    if not wait_until_succeed(lambda: number_of_devices(machine) == new_count, 10):
+        raise RuntimeError("guest did acknowledge PCI hotplug event")
 
 
 runner = unittest.TextTestRunner()
