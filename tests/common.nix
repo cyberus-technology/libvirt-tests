@@ -454,6 +454,7 @@ in
   security.pam.services.sshd.allowNullPassword = true;
 
   environment.systemPackages = with pkgs; [
+    btop
     bridge-utils
     cloud-hypervisor
     fcntl-tool
