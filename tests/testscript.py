@@ -821,7 +821,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                 controllerVM.execute('virsh domstate testvm | grep "shut off"')[0] == 0
             )
 
-        assert wait_until_succeed(is_shutoff)
+        wait_until_succeed(is_shutoff)
 
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
@@ -829,14 +829,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         controllerVM.succeed("virsh shutdown testvm")
-        assert wait_until_succeed(is_shutoff)
+        wait_until_succeed(is_shutoff)
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
 
         controllerVM.succeed("virsh destroy testvm")
-        assert wait_until_succeed(is_shutoff)
+        wait_until_succeed(is_shutoff)
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
     def test_libvirt_event_stop_failed(self):
@@ -945,7 +945,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             )
             return status == 0
 
-        assert wait_until_succeed(prompt)
+        wait_until_succeed(prompt)
 
         controllerVM.succeed(
             textwrap.dedent("""
@@ -1058,7 +1058,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             status, _ = controllerVM.execute("screen -ls | grep migrate")
             return status != 0
 
-        self.assertTrue(wait_until_succeed(migration_finished))
+        wait_until_succeed(migration_finished)
 
         computeVM.succeed("virsh list | grep testvm | grep running")
 
@@ -1356,11 +1356,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             status, _ = vm.execute("virsh list | grep testvm > /dev/null")
             return status == 0
 
-        status = wait_until_fail(lambda: check_virsh_list(controllerVM))
-        assert status
-
-        status = wait_until_fail(lambda: check_virsh_list(computeVM))
-        assert status
+        wait_until_fail(lambda: check_virsh_list(controllerVM))
+        wait_until_fail(lambda: check_virsh_list(computeVM))
 
     def test_live_migration_kill_chv_on_receiver_side(self):
         """
@@ -1394,11 +1391,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             status, _ = vm.execute("virsh list | grep testvm > /dev/null")
             return status == 0
 
-        status = wait_until_fail(lambda: check_virsh_list(computeVM))
-        assert status
+        wait_until_fail(lambda: check_virsh_list(computeVM))
 
-        status = wait_until_succeed(lambda: check_virsh_list(controllerVM))
-        assert status
+        wait_until_succeed(lambda: check_virsh_list(controllerVM))
 
         controllerVM.succeed("virsh list | grep 'running'")
 
@@ -1947,29 +1942,34 @@ def measure_ms(func):
     return (time.time() - start) * 1000
 
 
-def wait_until_succeed(func, retries=600) -> bool:
+def wait_until_succeed(func, retries=600):
     """
     Waits for the command to succeed.
     After each failure, it waits 100ms.
 
     :param func: Function that is expected to succeed.
     :param retries: Amount of retries.
-    :return: whether the function succeeded eventually
     """
     for _i in range(retries):
         if func():
-            return True
+            return
         time.sleep(0.1)
-    return False
+    raise RuntimeError("function didn't succeed")
 
 
-def wait_until_fail(func):
-    retries = 600
+def wait_until_fail(func, retries=600):
+    """
+    Waits for the command to fail.
+    After each success, it waits 100ms.
+
+    :param func: Function that is expected to succeed.
+    :param retries: Amount of retries.
+    """
     for i in range(retries):
         if not func():
-            return True
+            return
         time.sleep(0.1)
-    return False
+    raise RuntimeError("function didn't fail")
 
 
 def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2"):
@@ -2163,10 +2163,7 @@ def wait_for_guest_pci_device_enumeration(machine: Machine, new_count: int):
     :return:
     """
     # retries=20 => max 2s => we expect hotplug events to be relatively quick
-    if not wait_until_succeed(lambda: number_of_devices(machine) == new_count, 20):
-        raise RuntimeError(
-            f"guest did acknowledge PCI hotplug event: should be {new_count} but is {number_of_devices(machine)}"
-        )
+    wait_until_succeed(lambda: number_of_devices(machine) == new_count, 20)
 
 
 runner = unittest.TextTestRunner()
