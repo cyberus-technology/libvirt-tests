@@ -2047,6 +2047,56 @@ def number_of_storage_devices(machine: Machine) -> int:
     return number_of_devices(machine, PCI_CLASS_GENERIC_STORAGE_CONTROLLER)
 
 
+def hotplug(machine: Machine, cmd: str, expect_success: bool = True):
+    """
+    Hotplugs (attaches or detaches) a device and waits for the guest to
+    acknowledge that.
+
+    :param machine: The VM host
+    :param cmd: virsh command to perform the detach or attach
+    :param expect_success: whether the command is expected to succeed
+    :return:
+    """
+    if cmd.startswith("virsh attach-"):
+        is_attach = True
+    elif cmd.startswith("virsh detach-"):
+        is_attach = False
+    else:
+        raise RuntimeError(
+            f"command is neither `virsh attach-*` nor `virsh detach-*`: `{cmd}`"
+        )
+
+    num_old = number_of_devices(machine)
+    num_new_expected = -1
+
+    match (is_attach, expect_success):
+        case (True, True):
+            machine.succeed(cmd)
+            num_new_expected = num_old + 1
+        case (True, False):
+            machine.fail(cmd)
+            num_new_expected = num_old
+        case (False, True):
+            machine.succeed(cmd)
+            num_new_expected = num_old - 1
+        case (False, False):
+            machine.fail(cmd)
+            num_new_expected = num_old
+
+    wait_for_guest_pci_device_enumeration(machine, num_new_expected)
+
+
+def hotplug_fail(machine: Machine, cmd: str):
+    """
+    Hotplugs (attaches or detaches) a device and expect that to fail.
+
+    :param machine: The VM host
+    :param cmd: virsh command to perform the detach or attach
+    :return:
+    """
+    hotplug(machine, cmd, False)
+
+
 def reset_system_image(machine: Machine):
     """
     Replaces the (possibly modified) system image with its original
