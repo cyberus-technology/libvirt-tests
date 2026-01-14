@@ -50,6 +50,8 @@ pkgs.testers.nixosTest {
             host.port = 2222;
             guest.port = 22;
           }
+          # The testscript runs in the Host context while we want to connect to
+          # the libvirt in the controllerVM
           {
             from = "host";
             host.port = 2223;

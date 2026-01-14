@@ -18,6 +18,9 @@ VIRTIO_NETWORK_DEVICE = "1af4:1041"
 VIRTIO_BLOCK_DEVICE = "1af4:1042"
 VIRTIO_ENTROPY_SOURCE = "1af4:1044"
 
+# The VM we migrate has 2GiB of memory: 1024 * 2 MiB to cover RAM
+nr_hugepages = 1024
+
 
 class SaveLogsOnErrorTestCase(unittest.TestCase):
     """
@@ -587,8 +590,6 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test that a VM that utilizes hugepages is still using hugepages after live migration.
         """
 
-        nr_hugepages = 1024
-
         controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         status, out = controllerVM.execute(
@@ -631,8 +632,6 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         """
         Test that migrating a VM with hugepages to a destination without huge pages will fail gracefully.
         """
-
-        nr_hugepages = 1024
 
         controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         status, out = controllerVM.execute(
@@ -693,8 +692,6 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage on-demand usage for a non-NUMA VM.
         """
 
-        nr_hugepages = 1024
-
         controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
@@ -731,8 +728,6 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage on-demand usage for a NUMA VM.
         """
 
-        nr_hugepages = 1024
-
         controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
@@ -756,8 +751,6 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         """
         Test hugepage usage with pre-faulting for a NUMA VM.
         """
-
-        nr_hugepages = 1024
 
         controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages-prefault.xml")
