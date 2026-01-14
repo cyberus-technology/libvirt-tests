@@ -221,7 +221,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         num_net_devices_old = number_of_network_devices(controllerVM)
 
@@ -232,7 +232,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
         self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_old)
 
     def test_network_hotplug_persistent_vm_restart(self):
@@ -245,7 +245,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         num_net_devices_old = number_of_network_devices(controllerVM)
 
@@ -259,7 +259,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
         self.assertEqual(
             number_of_network_devices(controllerVM), num_net_devices_old + 1
         )
@@ -274,7 +274,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         num_net_devices_old = number_of_network_devices(controllerVM)
 
@@ -294,7 +294,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         controllerVM.succeed("virsh destroy testvm")
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
         self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_new)
 
     def test_network_hotplug_attach_detach_transient(self):
@@ -307,7 +307,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         num_devices_old = number_of_network_devices(controllerVM)
 
@@ -325,7 +325,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         num_devices_old = number_of_network_devices(controllerVM)
 
@@ -355,7 +355,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("qemu-img create -f raw /tmp/disk.img 100M")
 
@@ -377,11 +377,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
 
         # Test attached network interface (type ethernet)
-        self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.2.2"))
+        wait_for_ssh(controllerVM, ip="192.168.2.2")
         # Test attached network interface (type network - managed by libvirt)
-        self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.3.2"))
+        wait_for_ssh(controllerVM, ip="192.168.3.2")
         # Test attached network interface (type bridge - managed by libvirt)
-        self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.4.2"))
+        wait_for_ssh(controllerVM, ip="192.168.4.2")
 
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
         hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
@@ -407,7 +407,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("virsh shutdown testvm")
         controllerVM.succeed("systemctl restart virtchd")
@@ -429,7 +429,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("qemu-img create -f raw /nfs-root/disk.img 100M")
         controllerVM.succeed("chmod 0666 /nfs-root/disk.img")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
 
@@ -443,7 +443,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
-        assert wait_for_ssh(computeVM)
+        wait_for_ssh(computeVM)
 
         num_devices_compute = number_of_network_devices(computeVM)
         self.assertEqual(num_devices_compute, 2)
@@ -470,7 +470,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("systemctl restart virtchd")
         computeVM.succeed("systemctl restart virtchd")
@@ -496,7 +496,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
         controllerVM.succeed("qemu-img create -f raw /nfs-root/disk.img 100M")
@@ -511,11 +511,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://192.168.100.2/session --persistent --live --p2p"
             )
-            assert wait_for_ssh(computeVM)
+            wait_for_ssh(computeVM)
             computeVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
             )
-            assert wait_for_ssh(controllerVM)
+            wait_for_ssh(controllerVM)
 
     def test_live_migration_with_hotplug(self):
         """
@@ -528,7 +528,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         hotplug(
             controllerVM,
@@ -542,7 +542,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
-        assert wait_for_ssh(computeVM)
+        wait_for_ssh(computeVM)
 
         num_devices_compute = number_of_network_devices(computeVM)
         self.assertEqual(num_devices_controller, num_devices_compute)
@@ -553,13 +553,13 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
         self.assertEqual(number_of_network_devices(controllerVM), 1)
 
         controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
         self.assertEqual(number_of_network_devices(controllerVM), 2)
 
     def test_live_migration_with_hugepages(self):
@@ -582,7 +582,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
@@ -593,7 +593,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
-        assert wait_for_ssh(computeVM)
+        wait_for_ssh(computeVM)
 
         status, out = computeVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
@@ -619,12 +619,12 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.fail(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         computeVM.fail("virsh list | grep testvm")
 
@@ -636,7 +636,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Check that there are 2 NUMA nodes
         status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
@@ -662,7 +662,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-cirros.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM, user="cirros", password="gocubsgo")
+        wait_for_ssh(controllerVM, user="cirros", password="gocubsgo")
 
     def test_hugepages(self):
         """
@@ -673,7 +673,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Check that we really use hugepages from the hugepage pool
         status, out = controllerVM.execute(
@@ -690,7 +690,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Check that all huge pages are in use
         status, out = controllerVM.execute(
@@ -707,7 +707,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Check that there are 2 NUMA nodes
         status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
@@ -731,7 +731,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Check that there are 2 NUMA nodes
         status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
@@ -754,7 +754,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-serial-file.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         status, out = controllerVM.execute("cat /tmp/vm_serial.log | wc -l")
         assert int(out) > 50
@@ -772,7 +772,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Place some temporary file that would not survive a reboot in order to
         # check that we are indeed restored from the saved state.
@@ -790,7 +790,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh restore /var/lib/libvirt/ch/save/testvm.save/")
         controllerVM.succeed("virsh managedsave-remove testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         status, _ = ssh(controllerVM, "ls /tmp/foo")
         assert status == 0
@@ -807,7 +807,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Do some extra magic to not end in a hanging SSH session if the
         # shutdown happens too fast.
@@ -823,14 +823,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("virsh shutdown testvm")
         assert wait_until_succeed(is_shutoff)
         controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
 
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("virsh destroy testvm")
         assert wait_until_succeed(is_shutoff)
@@ -898,7 +898,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Simulate crash of the VMM process
         controllerVM.succeed("kill -9 $(pidof cloud-hypervisor)")
@@ -928,7 +928,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-serial-tcp.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Check that port 2222 is used by cloud hypervisor
         controllerVM.succeed(
@@ -974,7 +974,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-serial-tcp.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Check that port 2222 is used by cloud hypervisor
         controllerVM.succeed(
@@ -993,7 +993,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed(
             "virsh migrate --xml /tmp/domain-chv-serial-tcp.xml --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
-        assert wait_for_ssh(computeVM)
+        wait_for_ssh(computeVM)
 
         computeVM.succeed(
             "ss --numeric --processes --listening --tcp src :2223 | grep cloud-hyperviso"
@@ -1018,7 +1018,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Stress the CH VM in order to make the migration take longer
         status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
@@ -1087,7 +1087,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         """).strip()
         )
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("expect /tmp/console.expect")
 
@@ -1106,7 +1106,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         disk_size_bytes_100M = 1024 * 1024 * 100
         disk_size_bytes_200M = 1024 * 1024 * 200
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("qemu-img create -f raw /tmp/disk.img 100M")
         hotplug(
@@ -1185,7 +1185,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("qemu-img create -f raw /tmp/disk.img 100M")
 
@@ -1223,7 +1223,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         disk_size_bytes_10M = 1024 * 1024 * 10
         disk_size_bytes_100M = 1024 * 1024 * 100
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed("qemu-img create -f qcow2 /tmp/disk.img 100M")
         hotplug(
@@ -1253,12 +1253,12 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         controllerVM.succeed(
             f"virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections {parallel_connections}"
         )
-        assert wait_for_ssh(computeVM)
+        wait_for_ssh(computeVM)
 
         num_threads = controllerVM.succeed(
             'grep -c "Spawned thread to send VM memory" /var/log/libvirt/ch/testvm.log'
@@ -1276,7 +1276,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         chv_pid_controller = controllerVM.succeed("pidof cloud-hypervisor").rstrip()
 
@@ -1300,7 +1300,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
-        assert wait_for_ssh(computeVM)
+        wait_for_ssh(computeVM)
 
         chv_pid_compute = computeVM.succeed("pidof cloud-hypervisor").rstrip()
 
@@ -1331,7 +1331,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Stress the CH VM in order to make the migration take longer
         status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
@@ -1369,7 +1369,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Stress the CH VM in order to make the migration take longer
         status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
@@ -1399,7 +1399,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         controllerVM.succeed("virsh list | grep 'running'")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
     def test_live_migration_tls(self):
         """
@@ -1414,7 +1414,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         parallel_connections = 4
         parallel_string = f"--parallel --parallel-connections {parallel_connections}"
@@ -1486,7 +1486,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                 assert server_hellos == expected
                 assert tcp_streams == expected
 
-                assert wait_for_ssh(dst)
+                wait_for_ssh(dst)
 
     def test_live_migration_tls_without_certificates(self):
         """
@@ -1506,7 +1506,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         certificate_dir = "/var/lib/libvirt/ch/pki"
 
@@ -1544,7 +1544,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                 controllerVM.fail(
                     "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
                 )
-                assert wait_for_ssh(controllerVM)
+                wait_for_ssh(controllerVM)
 
                 controllerVM.succeed("virsh list | grep 'testvm'")
                 computeVM.fail("virsh list | grep 'testvm'")
@@ -1558,7 +1558,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                 controllerVM.fail(
                     "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
                 )
-                assert wait_for_ssh(controllerVM)
+                wait_for_ssh(controllerVM)
 
                 controllerVM.succeed("virsh list | grep 'testvm'")
                 computeVM.fail("virsh list | grep 'testvm'")
@@ -1571,7 +1571,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                 controllerVM.fail(
                     "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --tls"
                 )
-                assert wait_for_ssh(controllerVM)
+                wait_for_ssh(controllerVM)
 
                 controllerVM.succeed("virsh list | grep 'testvm'")
                 computeVM.fail("virsh list | grep 'testvm'")
@@ -1594,7 +1594,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         """
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         hotplug(
             controllerVM,
@@ -1660,7 +1660,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --live --p2p"
         )
-        assert wait_for_ssh(computeVM)
+        wait_for_ssh(computeVM)
         devices_after_livemig = pci_devices_by_bdf(computeVM)
         assert devices_before_livemig == devices_after_livemig
 
@@ -1681,7 +1681,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # Reset the image to purge any information about boot devices when terminating
         with CommandGuard(reset_system_image, controllerVM) as _:
             controllerVM.succeed("virsh start testvm")
-            assert wait_for_ssh(controllerVM)
+            wait_for_ssh(controllerVM)
 
             hotplug(
                 controllerVM,
@@ -1726,7 +1726,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --live --p2p"
             )
-            assert wait_for_ssh(computeVM)
+            wait_for_ssh(computeVM)
             devices_after_livemig = pci_devices_by_bdf(computeVM)
             assert devices_before_livemig == devices_after_livemig
 
@@ -1742,7 +1742,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # Add a persistent network device, i.e. the device should re-appear
         # when the VM is destroyed and recreated.
@@ -1772,7 +1772,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         devices_after = pci_devices_by_bdf(controllerVM)
         assert devices_after == devices_before
@@ -1794,7 +1794,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             # Using define + start creates a "persistent" domain rather than a transient
             controllerVM.succeed("virsh define /etc/domain-chv.xml")
             controllerVM.succeed("virsh start testvm")
-            assert wait_for_ssh(controllerVM)
+            wait_for_ssh(controllerVM)
 
             # Add a persistent disk.
             controllerVM.succeed(
@@ -1826,7 +1826,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # Create a VM
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # We need to check that no devices are added, so let's save how
         # many devices are present in the VM after creating it.
@@ -1862,7 +1862,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # function IDs in it device definition.
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
         # We need to check that no devices are added, so let's save how
         # many devices are present in the VM after creating it.
@@ -1981,16 +1981,15 @@ def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2
     :param user: user for SSH login
     :param password: password for SSH login
     :param ip: SSH host to log into
-    :return: True if the VM became available in a reasonable amount of time
     """
     retries = 100
     for i in range(retries):
         print(f"Wait for ssh {i}/{retries}")
         status, _ = ssh(machine, "echo hello", user, password, ip)
         if status == 0:
-            return True
+            return
         time.sleep(0.1)
-    return False
+    raise RuntimeError(f"Could not establish SSH connection to {ip}")
 
 
 def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
