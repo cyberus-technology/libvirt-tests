@@ -454,11 +454,11 @@ in
   security.pam.services.sshd.allowNullPassword = true;
 
   environment.systemPackages = with pkgs; [
-    btop
     bridge-utils
+    btop
     cloud-hypervisor
-    fcntl-tool
     expect
+    fcntl-tool
     gdb
     htop
     jq
@@ -472,9 +472,9 @@ in
     screen
     socat
     sshpass
-    tunctl
     tcpdump
     tshark
+    tunctl
   ];
 
   systemd.tmpfiles.settings =
