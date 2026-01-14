@@ -227,11 +227,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         # Add a transient network device, i.e. the device should disappear
         # when the VM is destroyed and restarted.
-        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
-
-        num_net_devices_new = number_of_network_devices(controllerVM)
-
-        assert num_net_devices_new == num_net_devices_old + 1
+        hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
 
         controllerVM.succeed("virsh destroy testvm")
 
@@ -256,20 +252,17 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         # Add a persistent network device, i.e. the device should re-appear
         # when the VM is destroyed and restarted.
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml --persistent"
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface.xml --persistent",
         )
-
-        num_net_devices_new = number_of_network_devices(controllerVM)
-
-        assert num_net_devices_new == num_net_devices_old + 1
 
         controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
 
-        assert number_of_network_devices(controllerVM) == num_net_devices_new
+        assert number_of_network_devices(controllerVM) == num_net_devices_old + 1
 
     def test_network_hotplug_persistent_transient_detach_vm_restart(self):
         """
@@ -287,8 +280,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         # Add a persistent network device, i.e. the device should re-appear
         # when the VM is destroyed and restarted.
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml --persistent"
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface.xml --persistent",
         )
 
         num_net_devices_new = number_of_network_devices(controllerVM)
@@ -296,7 +290,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert num_net_devices_new == num_net_devices_old + 1
 
         # Transiently detach the device. It should re-appear when the VM is restarted.
-        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
+        hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
 
         assert number_of_network_devices(controllerVM) == num_net_devices_old
 
@@ -321,13 +315,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         num_devices_old = number_of_network_devices(controllerVM)
 
-        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
-
-        num_devices_new = number_of_network_devices(controllerVM)
-
-        assert num_devices_new == num_devices_old + 1
-
-        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
+        hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
+        hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
 
         assert number_of_network_devices(controllerVM) == num_devices_old
 
@@ -345,16 +334,13 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         num_devices_old = number_of_network_devices(controllerVM)
 
-        controllerVM.succeed(
-            "virsh attach-device --persistent testvm /etc/new_interface.xml"
+        hotplug(
+            controllerVM,
+            "virsh attach-device --persistent testvm /etc/new_interface.xml",
         )
-
-        num_devices_new = number_of_network_devices(controllerVM)
-
-        assert num_devices_new == num_devices_old + 1
-
-        controllerVM.succeed(
-            "virsh detach-device --persistent testvm /etc/new_interface.xml"
+        hotplug(
+            controllerVM,
+            "virsh detach-device --persistent testvm /etc/new_interface.xml",
         )
 
         assert number_of_network_devices(controllerVM) == num_devices_old
@@ -377,24 +363,24 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
-        num_devices_old = number_of_devices(controllerVM)
-
         controllerVM.succeed("qemu-img create -f raw /tmp/disk.img 100M")
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img"
-        )
 
-        controllerVM.succeed(
-            "virsh attach-device --persistent testvm /etc/new_interface.xml"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img",
         )
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface_type_network.xml"
+        hotplug(
+            controllerVM,
+            "virsh attach-device --persistent testvm /etc/new_interface.xml",
         )
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface_type_bridge.xml"
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface_type_network.xml",
         )
-
-        wait_for_guest_pci_device_enumeration(controllerVM, num_devices_old + 4)
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface_type_bridge.xml",
+        )
 
         # Test attached network interface (type ethernet)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.2.2"))
@@ -403,16 +389,16 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # Test attached network interface (type bridge - managed by libvirt)
         self.assertTrue(wait_for_ssh(controllerVM, ip="192.168.4.2"))
 
-        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
-        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
-        controllerVM.succeed(
-            "virsh detach-device testvm /etc/new_interface_type_network.xml"
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
+        hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
+        hotplug(
+            controllerVM,
+            "virsh detach-device testvm /etc/new_interface_type_network.xml",
         )
-        controllerVM.succeed(
-            "virsh detach-device testvm /etc/new_interface_type_bridge.xml"
+        hotplug(
+            controllerVM,
+            "virsh detach-device testvm /etc/new_interface_type_bridge.xml",
         )
-
-        assert number_of_devices(controllerVM) == num_devices_old
 
     def test_libvirt_restart(self):
         """
@@ -451,7 +437,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
-        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
+        hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
 
         num_devices_controller = number_of_network_devices(controllerVM)
         assert num_devices_controller == 2
@@ -474,10 +460,10 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         computeVM.succeed("virsh list | grep testvm")
         controllerVM.fail("virsh list | grep testvm")
 
-        computeVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
-
-        computeVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --persistent --source /var/lib/libvirt/storage-pools/nfs-share/disk.img"
+        hotplug(computeVM, "virsh detach-device testvm /etc/new_interface.xml")
+        hotplug(
+            computeVM,
+            "virsh attach-disk --domain testvm --target vdb --persistent --source /var/lib/libvirt/storage-pools/nfs-share/disk.img",
         )
 
         num_devices_compute = number_of_network_devices(computeVM)
@@ -498,7 +484,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         computeVM.fail("virsh list | grep testvm")
         controllerVM.succeed("virsh list | grep testvm")
 
-        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
         num_disk_compute = number_of_storage_devices(controllerVM)
         assert num_disk_compute == 1
@@ -518,11 +504,12 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
-        controllerVM.succeed("virsh attach-device testvm /etc/new_interface.xml")
+        hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
         controllerVM.succeed("qemu-img create -f raw /nfs-root/disk.img 100M")
         controllerVM.succeed("chmod 0666 /nfs-root/disk.img")
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --persistent --source /var/lib/libvirt/storage-pools/nfs-share/disk.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --persistent --source /var/lib/libvirt/storage-pools/nfs-share/disk.img",
         )
 
         for i in range(2):
@@ -549,8 +536,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         assert wait_for_ssh(controllerVM)
 
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml --persistent"
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface.xml --persistent",
         )
 
         num_devices_controller = number_of_network_devices(controllerVM)
@@ -564,11 +552,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert wait_for_ssh(computeVM)
 
         num_devices_compute = number_of_network_devices(computeVM)
-
         assert num_devices_controller == num_devices_compute
-
-        computeVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
-
+        hotplug(computeVM, "virsh detach-device testvm /etc/new_interface.xml")
         assert number_of_network_devices(computeVM) == 1
 
         computeVM.succeed(
@@ -1132,8 +1117,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
 
         controllerVM.succeed("qemu-img create -f raw /tmp/disk.img 100M")
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img",
         )
         status, disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
@@ -1213,19 +1199,23 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         controllerVM.succeed("fcntl-tool test-lock /tmp/disk.img | grep Unlocked")
 
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --source /tmp/disk.img --mode readonly"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /tmp/disk.img --mode readonly",
         )
+
         # Check for shared read lock
         controllerVM.succeed("fcntl-tool test-lock /tmp/disk.img | grep SharedRead")
-        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --source /tmp/disk.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /tmp/disk.img",
         )
         # Check for exclusive write lock
         controllerVM.succeed("fcntl-tool test-lock /tmp/disk.img | grep ExclusiveWrite")
-        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
     def test_disk_resize_qcow2(self):
         """
@@ -1244,8 +1234,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert wait_for_ssh(controllerVM)
 
         controllerVM.succeed("qemu-img create -f qcow2 /tmp/disk.img 100M")
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img",
         )
         status, disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
@@ -1613,22 +1604,26 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
 
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml"
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml",
         )
         # Add a disks that receive the first free BDFs
         controllerVM.succeed(
             "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
         )
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
         controllerVM.succeed(
             "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdc.img 5M"
         )
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdc --source /var/lib/libvirt/storage-pools/nfs-share/vdc.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdc --source /var/lib/libvirt/storage-pools/nfs-share/vdc.img",
         )
+
         devices = pci_devices_by_bdf(controllerVM)
         # Implicitly added fixed to 0x01
         assert devices["00:01.0"] == VIRTIO_ENTROPY_SOURCE
@@ -1644,24 +1639,27 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert devices["00:06.0"] == VIRTIO_BLOCK_DEVICE
 
         # Check that we can reuse the same non-statically allocated BDF
-        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
         assert pci_devices_by_bdf(controllerVM).get("00:05.0") is None
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
         assert pci_devices_by_bdf(controllerVM).get("00:05.0") == VIRTIO_BLOCK_DEVICE
 
         # We free slot 4 and 5 ...
-        controllerVM.succeed(
-            "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml"
+        hotplug(
+            controllerVM,
+            "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
         )
-        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
         assert pci_devices_by_bdf(controllerVM).get("00:04.0") is None
         assert pci_devices_by_bdf(controllerVM).get("00:05.0") is None
         # ...and expect the same disk that was formerly attached non-statically to slot 5 now to pop up in slot 4
         # through implicit BDF allocation.
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
         assert pci_devices_by_bdf(controllerVM).get("00:04.0") == VIRTIO_BLOCK_DEVICE
 
@@ -1692,11 +1690,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         with CommandGuard(reset_system_image, controllerVM) as _:
             controllerVM.succeed("virsh start testvm")
             assert wait_for_ssh(controllerVM)
-            controllerVM.succeed(
-                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml"
+
+            hotplug(
+                controllerVM,
+                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml",
             )
-            controllerVM.succeed(
-                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.17.0 "
+            hotplug(
+                controllerVM,
+                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.17.0",
             )
 
             devices = pci_devices_by_bdf(controllerVM)
@@ -1709,21 +1710,24 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             assert devices["00:17.0"] == VIRTIO_BLOCK_DEVICE
 
             # Check that BDF is freed and can be reallocated when de-/attaching a (entirely different) device
-            controllerVM.succeed(
-                "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml"
+            hotplug(
+                controllerVM,
+                "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
             )
-            controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+            hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
             assert pci_devices_by_bdf(controllerVM).get("00:04.0") is None
             assert pci_devices_by_bdf(controllerVM).get("00:17.0") is None
-            controllerVM.succeed(
-                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.04.0"
+            hotplug(
+                controllerVM,
+                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.04.0",
             )
             devices_before_livemig = pci_devices_by_bdf(controllerVM)
             assert devices_before_livemig.get("00:04.0") == VIRTIO_BLOCK_DEVICE
 
             # Adding to the same bdf twice fails
-            controllerVM.fail(
-                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml"
+            hotplug_fail(
+                controllerVM,
+                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml",
             )
 
             # Check that BDFs stay the same after migration
@@ -1754,12 +1758,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
         )
         # Attach to implicit BDF 0:04.0, transient
-        controllerVM.succeed(
-            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img"
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
         # Attach to implicit BDF 0:05.0, persistent
-        controllerVM.succeed(
-            "virsh attach-device testvm /etc/new_interface.xml --persistent "
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface.xml --persistent",
         )
         # The net device was attached persistently, so we expect the device to be there after a recreate, but not the
         # disk. We indeed expect it to be not there anymore and leave a hole in the assigned BDFs
@@ -1767,8 +1773,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         del devices_before["00:04.0"]
 
         # Transiently detach the devices. Net should re-appear when the VM is recreated.
-        controllerVM.succeed("virsh detach-device testvm /etc/new_interface.xml")
-        controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+
+        hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
         controllerVM.succeed("virsh destroy testvm")
 
@@ -1801,18 +1808,21 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM.succeed(
                 "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
             )
-            controllerVM.succeed(
-                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent"
+            hotplug(
+                controllerVM,
+                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent",
             )
             # Remove transient. The device is removed from the transient config but not from the persistent one. The
             # transient config has to mark the BDF as still in use nevertheless.
-            controllerVM.succeed("virsh detach-disk --domain testvm --target vdb")
+            hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
+
             # Attach another device persistently. If we did not respect in the transient config that the disk we
             # detached before is still present in persistent config, then we now try to assign BDF 4 twice in the
             # persistent config. In other words: Persistent and transient config's BDF management are out of sync if
             # this command fails.
-            controllerVM.succeed(
-                "virsh attach-device testvm /etc/new_interface.xml --persistent "
+            hotplug(
+                controllerVM,
+                "virsh attach-device testvm /etc/new_interface.xml --persistent",
             )
 
     def test_bdf_invalid_device_id(self):
@@ -1835,8 +1845,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
         # Now we create a disk that we hotplug to a BDF with a device
         # ID 32. This should fail.
-        controllerVM.fail(
-            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent --address pci:0.0.20.0"
+        hotplug_fail(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent --address pci:0.0.20.0",
         )
         wait_for_guest_pci_device_enumeration(controllerVM, num_before_expected_failure)
 
@@ -1869,8 +1880,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed(
             "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
         )
-        controllerVM.fail(
-            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent --address pci:0.0.1f.5"
+        hotplug_fail(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent --address pci:0.0.1f.5",
         )
         # Even though we only land here if the command above failed, we
         # should still ensure that no new devices magically appeared.
