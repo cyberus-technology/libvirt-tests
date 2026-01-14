@@ -19,7 +19,7 @@ VIRTIO_BLOCK_DEVICE = "1af4:1042"
 VIRTIO_ENTROPY_SOURCE = "1af4:1044"
 
 # The VM we migrate has 2GiB of memory: 1024 * 2 MiB to cover RAM
-nr_hugepages = 1024
+NR_HUGEPAGES = 1024
 
 
 class SaveLogsOnErrorTestCase(unittest.TestCase):
@@ -590,17 +590,17 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test that a VM that utilizes hugepages is still using hugepages after live migration.
         """
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
-        computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(NR_HUGEPAGES))
+        computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(NR_HUGEPAGES))
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == nr_hugepages, "unable to allocate hugepages"
+        assert int(out) == NR_HUGEPAGES, "unable to allocate hugepages"
 
         status, out = computeVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == nr_hugepages, "unable to allocate hugepages"
+        assert int(out) == NR_HUGEPAGES, "unable to allocate hugepages"
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
@@ -626,18 +626,18 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == nr_hugepages, "not all huge pages have been freed"
+        assert int(out) == NR_HUGEPAGES, "not all huge pages have been freed"
 
     def test_live_migration_with_hugepages_failure_case(self):
         """
         Test that migrating a VM with hugepages to a destination without huge pages will fail gracefully.
         """
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(NR_HUGEPAGES))
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == nr_hugepages, "unable to allocate hugepages"
+        assert int(out) == NR_HUGEPAGES, "unable to allocate hugepages"
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
@@ -692,7 +692,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage on-demand usage for a non-NUMA VM.
         """
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(NR_HUGEPAGES))
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -702,16 +702,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) < nr_hugepages, "No huge pages have been used"
+        assert int(out) < NR_HUGEPAGES, "No huge pages have been used"
 
     def test_hugepages_prefault(self):
         """
         Test hugepage usage with pre-faulting for a non-NUMA VM.
         """
 
-        nr_hugepages = 1024
-
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(NR_HUGEPAGES))
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -728,7 +726,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage on-demand usage for a NUMA VM.
         """
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(NR_HUGEPAGES))
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -745,14 +743,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) < nr_hugepages, "No huge pages have been used"
+        assert int(out) < NR_HUGEPAGES, "No huge pages have been used"
 
     def test_numa_hugepages_prefault(self):
         """
         Test hugepage usage with pre-faulting for a NUMA VM.
         """
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(NR_HUGEPAGES))
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -1882,6 +1880,15 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 def suite():
     # Test cases in alphabetical order
     testcases = [
+        # First everything with huge-pages to prevent memory-fragmentation
+        # preventing huge-page allocation
+        LibvirtTests.test_numa_hugepages,
+        LibvirtTests.test_numa_hugepages_prefault,
+        LibvirtTests.test_hugepages,
+        LibvirtTests.test_hugepages_prefault,
+        LibvirtTests.test_live_migration_with_hugepages,
+        LibvirtTests.test_live_migration_with_hugepages_failure_case,
+        # Next, all other test cases.
         LibvirtTests.test_bdf_explicit_assignment,
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_bdf_invalid_device_id,
@@ -1892,8 +1899,6 @@ def suite():
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,
         LibvirtTests.test_hotplug,
-        LibvirtTests.test_hugepages,
-        LibvirtTests.test_hugepages_prefault,
         LibvirtTests.test_libvirt_event_stop_failed,
         LibvirtTests.test_libvirt_restart,
         LibvirtTests.test_live_migration,
@@ -1905,8 +1910,6 @@ def suite():
         LibvirtTests.test_live_migration_virsh_non_blocking,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
-        LibvirtTests.test_live_migration_with_hugepages,
-        LibvirtTests.test_live_migration_with_hugepages_failure_case,
         LibvirtTests.test_live_migration_with_serial_tcp,
         LibvirtTests.test_live_migration_with_vcpu_pinning,
         LibvirtTests.test_managedsave,
@@ -1915,8 +1918,6 @@ def suite():
         LibvirtTests.test_network_hotplug_persistent_transient_detach_vm_restart,
         LibvirtTests.test_network_hotplug_persistent_vm_restart,
         LibvirtTests.test_network_hotplug_transient_vm_restart,
-        LibvirtTests.test_numa_hugepages,
-        LibvirtTests.test_numa_hugepages_prefault,
         LibvirtTests.test_numa_topology,
         LibvirtTests.test_serial_file_output,
         LibvirtTests.test_serial_tcp,
