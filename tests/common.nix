@@ -298,10 +298,6 @@ in
 
       # Reduce files needed to compile. We cut the build-time in half.
       mesonFlags = old.mesonFlags ++ [
-        # Helps to keep track of the commit hash in the libvirt log. Nix strips
-        # all `.git`, so we need to be explicit here.
-        "-Dcommit_hash=${libvirt-src.rev}"
-
         # Disabling tests: 1500 -> 1200
         "-Dtests=disabled"
         "-Dexpensive_tests=disabled"
