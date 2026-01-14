@@ -2008,28 +2008,43 @@ def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
     return status, out
 
 
-def number_of_devices(machine: Machine):
+def number_of_devices(machine: Machine, filter: str = "") -> int:
     """
     Returns the number of PCI devices in the VM.
+
+    :param filter: Optional filter for the PCI device, e.g., vendor ID or device class.
+    :param machine: VM host
+    :return: number of PCI devices in VM
+    """
+    if filter == "":
+        cmd = "lspci | wc -l"
+    else:
+        cmd = f"lspci -n | grep {filter} | wc -l"
+    status, out = ssh(machine, cmd)
+    assert status == 0
+    return int(out)
+
+
+def number_of_network_devices(machine: Machine) -> int:
+    """
+    Returns the number of PCI virtio-net devices in the VM.
 
     :param machine: VM host
     :return: number of PCI devices in VM
     """
-    status, out = ssh(machine, "lspci | wc -l")
-    assert status == 0
-    return int(out)
+    PCI_CLASS_GENERIC_ETHERNET_CONTROLLER = "0200"
+    return number_of_devices(machine, PCI_CLASS_GENERIC_ETHERNET_CONTROLLER)
 
 
-def number_of_network_devices(machine: Machine):
-    status, out = ssh(machine, "lspci -n | grep 0200 | wc -l")
-    assert status == 0
-    return int(out)
+def number_of_storage_devices(machine: Machine) -> int:
+    """
+    Returns the number of PCI virtio-blk devices in the VM.
 
-
-def number_of_storage_devices(machine: Machine):
-    status, out = ssh(machine, "lspci -n | grep 0180 | wc -l")
-    assert status == 0
-    return int(out)
+    :param machine: VM host
+    :return: number of PCI devices in VM
+    """
+    PCI_CLASS_GENERIC_STORAGE_CONTROLLER = "0180"
+    return number_of_devices(machine, PCI_CLASS_GENERIC_STORAGE_CONTROLLER)
 
 
 def reset_system_image(machine: Machine):
@@ -2085,9 +2100,11 @@ def wait_for_guest_pci_device_enumeration(machine: Machine, new_count: int):
     :param new_count: New device count
     :return:
     """
-    # retries=10 => max 1s => we expect hotplug events to be relatively quick
-    if not wait_until_succeed(lambda: number_of_devices(machine) == new_count, 10):
-        raise RuntimeError("guest did acknowledge PCI hotplug event")
+    # retries=20 => max 2s => we expect hotplug events to be relatively quick
+    if not wait_until_succeed(lambda: number_of_devices(machine) == new_count, 20):
+        raise RuntimeError(
+            f"guest did acknowledge PCI hotplug event: should be {new_count} but is {number_of_devices(machine)}"
+        )
 
 
 runner = unittest.TextTestRunner()
