@@ -589,8 +589,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
-        computeVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
+        computeVM.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
@@ -634,7 +634,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
@@ -695,7 +695,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -714,7 +714,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -733,7 +733,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -759,7 +759,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         nr_hugepages = 1024
 
-        controllerVM.succeed("echo {} > /proc/sys/vm/nr_hugepages".format(nr_hugepages))
+        controllerVM.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
