@@ -11,7 +11,7 @@ import weakref
 # or other machines are added by Nix, we need to provide certain stub objects
 # in order to allow the IDE to lint the python code successfully.
 if "start_all" not in globals():
-    from nixos_test_stubs import start_all, computeVM, controllerVM  # type: ignore
+    from nixos_test_stubs import start_all, computeVM, controllerVM, Machine  # type: ignore
 
 
 VIRTIO_NETWORK_DEVICE = "1af4:1041"
@@ -44,7 +44,7 @@ class SaveLogsOnErrorTestCase(unittest.TestCase):
 
         return super().run(result)
 
-    def save_machine_log(self, machine, log_path, dst_path):
+    def save_machine_log(self, machine: Machine, log_path, dst_path):
         try:
             machine.copy_from_vm(log_path, dst_path)
         # Non-existing logs lead to an Exception that we ignore
@@ -1971,7 +1971,7 @@ def wait_until_fail(func):
     return False
 
 
-def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
+def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2"):
     """
     Waits for SSH to become available to connect into the Cloud Hypervisor VM
     hosted on the corresponding machine.
@@ -1995,7 +1995,7 @@ def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
     return False
 
 
-def ssh(machine, cmd, user="root", password="root", ip="192.168.1.2"):
+def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
     """
     Runs the specified command in the Cloud Hypervisor VM via SSH.
 
@@ -2014,7 +2014,7 @@ def ssh(machine, cmd, user="root", password="root", ip="192.168.1.2"):
     return status, out
 
 
-def number_of_devices(machine):
+def number_of_devices(machine: Machine):
     """
     Returns the number of PCI devices in the VM.
 
@@ -2026,19 +2026,19 @@ def number_of_devices(machine):
     return int(out)
 
 
-def number_of_network_devices(machine):
+def number_of_network_devices(machine: Machine):
     status, out = ssh(machine, "lspci -n | grep 0200 | wc -l")
     assert status == 0
     return int(out)
 
 
-def number_of_storage_devices(machine):
+def number_of_storage_devices(machine: Machine):
     status, out = ssh(machine, "lspci -n | grep 0180 | wc -l")
     assert status == 0
     return int(out)
 
 
-def reset_system_image(machine):
+def reset_system_image(machine: Machine):
     """
     Replaces the (possibly modified) system image with its original
     image.
@@ -2052,7 +2052,7 @@ def reset_system_image(machine):
     )
 
 
-def pci_devices_by_bdf(machine):
+def pci_devices_by_bdf(machine: Machine):
     """
     Creates a dict of all PCI devices addressable by their BDF in the VM.
 
@@ -2075,7 +2075,7 @@ def pci_devices_by_bdf(machine):
     return out
 
 
-def wait_for_guest_pci_device_enumeration(machine, new_count: int):
+def wait_for_guest_pci_device_enumeration(machine: Machine, new_count: int):
     """
     Block until the guest operating system has observed a PCI topology change
     (hotplug or unplug) by verifying that the number of enumerated PCI devices
