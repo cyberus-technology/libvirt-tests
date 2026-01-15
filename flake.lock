@@ -90,11 +90,11 @@
     "libvirt-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1767796362,
-        "narHash": "sha256-kGSpFe/RlYDXkPbZCev9rQrTADTOg8QfpB7tl07TbMg=",
+        "lastModified": 1768398097,
+        "narHash": "sha256-B1WecaszR3HgJp+e4LUewUmTWse/xN4dD+lCjx0CwKE=",
         "ref": "gardenlinux",
-        "rev": "64e396108c8a9557d3e60e47da7745c2b48796a9",
-        "revCount": 53553,
+        "rev": "0b892466ffc9e1d66de3cadfd844fb08aa6541f4",
+        "revCount": 53575,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/cyberus-technology/libvirt"
