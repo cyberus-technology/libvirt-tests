@@ -233,8 +233,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
-
-        assert number_of_network_devices(controllerVM) == num_net_devices_old
+        self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_old)
 
     def test_network_hotplug_persistent_vm_restart(self):
         """
@@ -261,8 +260,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
-
-        assert number_of_network_devices(controllerVM) == num_net_devices_old + 1
+        self.assertEqual(
+            number_of_network_devices(controllerVM), num_net_devices_old + 1
+        )
 
     def test_network_hotplug_persistent_transient_detach_vm_restart(self):
         """
@@ -286,20 +286,16 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
 
         num_net_devices_new = number_of_network_devices(controllerVM)
-
-        assert num_net_devices_new == num_net_devices_old + 1
+        self.assertEqual(num_net_devices_new, num_net_devices_old + 1)
 
         # Transiently detach the device. It should re-appear when the VM is restarted.
         hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
-
-        assert number_of_network_devices(controllerVM) == num_net_devices_old
+        self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_old)
 
         controllerVM.succeed("virsh destroy testvm")
-
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
-
-        assert number_of_network_devices(controllerVM) == num_net_devices_new
+        self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_new)
 
     def test_network_hotplug_attach_detach_transient(self):
         """
@@ -317,8 +313,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
         hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
-
-        assert number_of_network_devices(controllerVM) == num_devices_old
+        self.assertEqual(number_of_network_devices(controllerVM), num_devices_old)
 
     def test_network_hotplug_attach_detach_persistent(self):
         """
@@ -342,8 +337,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM,
             "virsh detach-device --persistent testvm /etc/new_interface.xml",
         )
-
-        assert number_of_network_devices(controllerVM) == num_devices_old
+        self.assertEqual(number_of_network_devices(controllerVM), num_devices_old)
 
     def test_hotplug(self):
         """
@@ -440,10 +434,10 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
 
         num_devices_controller = number_of_network_devices(controllerVM)
-        assert num_devices_controller == 2
+        self.assertEqual(num_devices_controller, 2)
 
         num_disk_controller = number_of_storage_devices(controllerVM)
-        assert num_disk_controller == 1
+        self.assertEqual(num_disk_controller, 1)
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -452,7 +446,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert wait_for_ssh(computeVM)
 
         num_devices_compute = number_of_network_devices(computeVM)
-        assert num_devices_compute == 2
+        self.assertEqual(num_devices_compute, 2)
 
         controllerVM.succeed("systemctl restart virtchd")
         computeVM.succeed("systemctl restart virtchd")
@@ -467,10 +461,10 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
 
         num_devices_compute = number_of_network_devices(computeVM)
-        assert num_devices_compute == 1
+        self.assertEqual(num_devices_compute, 1)
 
         num_disk_compute = number_of_storage_devices(computeVM)
-        assert num_disk_compute == 2
+        self.assertEqual(num_disk_compute, 2)
 
         computeVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -487,7 +481,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
         num_disk_compute = number_of_storage_devices(controllerVM)
-        assert num_disk_compute == 1
+        self.assertEqual(num_disk_compute, 1)
 
     def test_live_migration(self):
         """
@@ -542,8 +536,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
 
         num_devices_controller = number_of_network_devices(controllerVM)
-
-        assert num_devices_controller == 2
+        self.assertEqual(num_devices_controller, 2)
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -552,23 +545,22 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         assert wait_for_ssh(computeVM)
 
         num_devices_compute = number_of_network_devices(computeVM)
-        assert num_devices_controller == num_devices_compute
+        self.assertEqual(num_devices_controller, num_devices_compute)
         hotplug(computeVM, "virsh detach-device testvm /etc/new_interface.xml")
-        assert number_of_network_devices(computeVM) == 1
+        self.assertEqual(number_of_network_devices(computeVM), 1)
 
         computeVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         assert wait_for_ssh(controllerVM)
-        assert number_of_network_devices(controllerVM) == 1
+        self.assertEqual(number_of_network_devices(controllerVM), 1)
 
         controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
         assert wait_for_ssh(controllerVM)
-
-        assert number_of_network_devices(controllerVM) == 2
+        self.assertEqual(number_of_network_devices(controllerVM), 2)
 
     def test_live_migration_with_hugepages(self):
         """
