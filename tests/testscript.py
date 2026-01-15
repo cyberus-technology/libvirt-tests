@@ -2068,9 +2068,21 @@ def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
     :param ip: SSH host to log into
     :return: status and output
     """
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+
+    # Check VM is pingable
+    status, _ = machine.execute(f"ping -c 1 -W 1 {ip}")
+    if status != 0:
+        raise RuntimeError(f"IP {ip} is not pingable")
+
+    # And here we check if the guest also responds via SSH.
     status, out = machine.execute(
         f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
     )
+    # TODO, this could be refactored to raise an exception on error
     return status, out
 
 
