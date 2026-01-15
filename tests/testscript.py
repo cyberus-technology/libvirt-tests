@@ -918,7 +918,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             libvirt.virEventRunDefaultImpl()
             time.sleep(0.1)
 
-        assert stop_failed_event
+        self.assertTrue(stop_failed_event)
         vc.close()
 
         # In case we would not detect the crash, Libvirt would still show the
@@ -1492,9 +1492,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                     set(server_hello)
                 )  # creating a set will discard duplicates.
 
-                assert server_hellos == expected
-                assert tcp_streams == expected
-
+                self.assertEqual(server_hellos, expected)
+                self.assertEqual(tcp_streams, expected)
                 wait_for_ssh(dst)
 
     def test_live_migration_tls_without_certificates(self):
@@ -1538,7 +1537,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             expected_files = ["ca-cert.pem", "server-cert.pem", "server-key.pem"]
             files = machine.succeed(f"ls {certificate_dir}").strip()
             for expected_file in expected_files:
-                assert expected_file in files, f"{expected_file} not in {files}"
+                self.assertIn(
+                    expected_file,
+                    files,
+                    f"didn't find file '{expected_file}' in '{certificate_dir}'",
+                )
 
         # We first check case one, then case two (see comment above).
         for remove_cert_dir in [True, False]:
@@ -1627,26 +1630,29 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         devices = pci_devices_by_bdf(controllerVM)
         # Implicitly added fixed to 0x01
-        assert devices["00:01.0"] == VIRTIO_ENTROPY_SOURCE
+        self.assertEqual(devices["00:01.0"], VIRTIO_ENTROPY_SOURCE)
         # Added by XML; dynamic BDF
-        assert devices["00:02.0"] == VIRTIO_NETWORK_DEVICE
+        self.assertEqual(devices["00:02.0"], VIRTIO_NETWORK_DEVICE)
         # Add through XML
-        assert devices["00:03.0"] == VIRTIO_BLOCK_DEVICE
+        self.assertEqual(devices["00:03.0"], VIRTIO_BLOCK_DEVICE)
         # Defined fixed BDF in XML; Hotplugged
-        assert devices["00:04.0"] == VIRTIO_NETWORK_DEVICE
+        self.assertEqual(devices["00:04.0"], VIRTIO_NETWORK_DEVICE)
         # Hotplugged by this test (vdb)
-        assert devices["00:05.0"] == VIRTIO_BLOCK_DEVICE
+        self.assertEqual(devices["00:05.0"], VIRTIO_BLOCK_DEVICE)
         # Hotplugged by this test (vdc)
-        assert devices["00:06.0"] == VIRTIO_BLOCK_DEVICE
+        self.assertEqual(devices["00:06.0"], VIRTIO_BLOCK_DEVICE)
 
         # Check that we can reuse the same non-statically allocated BDF
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
-        assert pci_devices_by_bdf(controllerVM).get("00:05.0") is None
+
+        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:05.0"))
         hotplug(
             controllerVM,
             "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
-        assert pci_devices_by_bdf(controllerVM).get("00:05.0") == VIRTIO_BLOCK_DEVICE
+        self.assertEqual(
+            pci_devices_by_bdf(controllerVM).get("00:05.0"), VIRTIO_BLOCK_DEVICE
+        )
 
         # We free slot 4 and 5 ...
         hotplug(
@@ -1654,15 +1660,17 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
         )
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
-        assert pci_devices_by_bdf(controllerVM).get("00:04.0") is None
-        assert pci_devices_by_bdf(controllerVM).get("00:05.0") is None
+        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:04.0"))
+        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:05.0"))
         # ...and expect the same disk that was formerly attached non-statically to slot 5 now to pop up in slot 4
         # through implicit BDF allocation.
         hotplug(
             controllerVM,
             "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
-        assert pci_devices_by_bdf(controllerVM).get("00:04.0") == VIRTIO_BLOCK_DEVICE
+        self.assertEqual(
+            pci_devices_by_bdf(controllerVM).get("00:04.0"), VIRTIO_BLOCK_DEVICE
+        )
 
         # Check that BDFs stay the same after migration
         devices_before_livemig = pci_devices_by_bdf(controllerVM)
@@ -1671,7 +1679,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
         wait_for_ssh(computeVM)
         devices_after_livemig = pci_devices_by_bdf(computeVM)
-        assert devices_before_livemig == devices_after_livemig
+        self.assertEqual(devices_before_livemig, devices_after_livemig)
 
     def test_bdf_explicit_assignment(self):
         """
@@ -1702,13 +1710,13 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             )
 
             devices = pci_devices_by_bdf(controllerVM)
-            assert devices["00:01.0"] == VIRTIO_BLOCK_DEVICE
-            assert devices["00:02.0"] == VIRTIO_NETWORK_DEVICE
-            assert devices.get("00:03.0") is None
-            assert devices["00:04.0"] == VIRTIO_NETWORK_DEVICE
-            assert devices["00:05.0"] == VIRTIO_ENTROPY_SOURCE
-            assert devices.get("00:06.0") is None
-            assert devices["00:17.0"] == VIRTIO_BLOCK_DEVICE
+            self.assertEqual(devices["00:01.0"], VIRTIO_BLOCK_DEVICE)
+            self.assertEqual(devices["00:02.0"], VIRTIO_NETWORK_DEVICE)
+            self.assertIsNone(devices.get("00:03.0"))
+            self.assertEqual(devices["00:04.0"], VIRTIO_NETWORK_DEVICE)
+            self.assertEqual(devices["00:05.0"], VIRTIO_ENTROPY_SOURCE)
+            self.assertIsNone(devices.get("00:06.0"))
+            self.assertEqual(devices["00:17.0"], VIRTIO_BLOCK_DEVICE)
 
             # Check that BDF is freed and can be reallocated when de-/attaching a (entirely different) device
             hotplug(
@@ -1716,14 +1724,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                 "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
             )
             hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
-            assert pci_devices_by_bdf(controllerVM).get("00:04.0") is None
-            assert pci_devices_by_bdf(controllerVM).get("00:17.0") is None
+            self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:04.0"))
+            self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:17.0"))
             hotplug(
                 controllerVM,
                 "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.04.0",
             )
             devices_before_livemig = pci_devices_by_bdf(controllerVM)
-            assert devices_before_livemig.get("00:04.0") == VIRTIO_BLOCK_DEVICE
+            self.assertEqual(devices_before_livemig["00:04.0"], VIRTIO_BLOCK_DEVICE)
 
             # Adding to the same bdf twice fails
             hotplug_fail(
@@ -1737,7 +1745,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             )
             wait_for_ssh(computeVM)
             devices_after_livemig = pci_devices_by_bdf(computeVM)
-            assert devices_before_livemig == devices_after_livemig
+            self.assertEqual(devices_before_livemig, devices_after_livemig)
 
     def test_bdfs_implicitly_assigned_same_after_recreate(self):
         """
@@ -1784,7 +1792,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         devices_after = pci_devices_by_bdf(controllerVM)
-        assert devices_after == devices_before
+        self.assertEqual(devices_after, devices_before)
 
     def test_bdfs_dont_conflict_after_transient_unplug(self):
         """
