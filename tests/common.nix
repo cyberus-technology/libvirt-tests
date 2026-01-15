@@ -152,7 +152,7 @@ let
           </disk>
           <interface type='ethernet'>
             <mac address='52:54:00:e5:b8:01'/>
-            <target dev='vtap0'/>
+            <target dev='tap1'/>
             <model type='virtio'/>
             <driver queues='1'/>
             <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
@@ -196,7 +196,7 @@ let
     ''
       <interface type='ethernet'>
         <mac address='52:54:00:e5:b8:02'/>
-        <target dev='vtap1'/>
+        <target dev='tap2'/>
         <model type='virtio'/>
         <driver queues='1'/>
         ${
@@ -372,12 +372,6 @@ in
 
     # Created devices.
     netdevs = {
-      "10-br0" = {
-        netdevConfig = {
-          Kind = "bridge";
-          Name = "br0";
-        };
-      };
       "10-br4" = {
         netdevConfig = {
           Kind = "bridge";
@@ -387,21 +381,33 @@ in
     };
 
     networks = {
-      # Bridge interface configuration
-      "10-br0" = {
+      "10-tap1" = {
         enable = true;
-        matchConfig.Name = "br0";
+        matchConfig.Name = "tap1";
         networkConfig = {
-          Description = "Main Bridge";
+          Description = "Main network";
           DHCPServer = "no";
         };
 
         # Please keep in sync with documentation in networks.md!
         address = [
-          "192.168.1.1/24" # default VM network device
+          "192.168.1.1/24" # Main network
+        ];
+      };
+      "10-tap2" = {
+        enable = true;
+        matchConfig.Name = "tap2";
+        networkConfig = {
+          Description = "Hotplug device";
+          DHCPServer = "no";
+        };
+
+        # Please keep in sync with documentation in networks.md!
+        address = [
           "192.168.2.1/24" # hotplugged interface
         ];
       };
+      # Bridge interface configuration
       "10-br4" = {
         enable = true;
         matchConfig.Name = "br4";
@@ -414,11 +420,6 @@ in
         address = [
           "192.168.4.1/24" # hotplugged interface
         ];
-      };
-      "10-vnet0" = {
-        # All interfaces matching this prefix are added to the bridge.
-        matchConfig.Name = "vtap*";
-        networkConfig.Bridge = "br0";
       };
     };
   };
