@@ -39,6 +39,8 @@ jobs:
         run: nix build -L .#checks.x86_64-linux.pythonFormat
       - name: Check Python Lints
         run: nix build -L .#checks.x86_64-linux.pythonLint
+      - name: Check Python Types
+        run: nix build -L .#checks.x86_64-linux.pythonTypes
       - name: Check Spelling
         run: nix build -L .#checks.x86_64-linux.typos
       # Run all in case we forgot to add a fine-grained job.
@@ -47,7 +49,6 @@ jobs:
           nix build -L .#checks.x86_64-linux.all
           # Run all other flake-wide checks
           # TODO add once we have quicker CI runners
-          # This
           # nix flake check
       - name: Eval Default Test Suite
         run: nix eval -L .#tests.x86_64-linux.default.driver
