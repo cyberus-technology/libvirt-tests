@@ -141,6 +141,15 @@
                   ruff check ./tests
                   mkdir $out
                 '';
+            pythonTypes =
+              pkgs.runCommand "python-types"
+                {
+                  nativeBuildInputs = with pkgs; [ pyright ];
+                }
+                ''
+                  pyright ${cleanSrc}/tests
+                  mkdir $out
+                '';
             typos =
               pkgs.runCommand "spellcheck"
                 {
@@ -167,6 +176,7 @@
               deadnix
               pythonFormat
               pythonLint
+              pythonTypes
               typos
               ;
             default = all;

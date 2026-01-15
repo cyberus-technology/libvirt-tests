@@ -6,6 +6,8 @@ import time
 import unittest
 import weakref
 
+# pyright: reportPossiblyUnboundVariable=false
+
 # Following is required to allow proper linting of the python code in IDEs.
 # Because certain functions like start_all() and certain objects like computeVM
 # or other machines are added by Nix, we need to provide certain stub objects
@@ -85,7 +87,8 @@ class CommandGuard:
         :param machine: Virtual machine to send the command from
         :type machine: Machine
         """
-        self._finilizer = weakref.finalize(self, command, machine)
+
+        self._finilizer = weakref.finalize(self, command, machine)  # pyright: ignore[reportCallIssue]
 
     def __enter__(self):
         return self
