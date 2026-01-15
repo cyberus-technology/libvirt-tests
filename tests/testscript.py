@@ -1,3 +1,7 @@
+import ipaddress
+from typing import List
+
+import json
 from functools import partial
 import libvirt  # type: ignore
 import os
@@ -1990,6 +1994,30 @@ def wait_until_fail(func, retries=600):
     raise RuntimeError("function didn't fail")
 
 
+def wait_for_ping(machine: Machine, ip: str = "192.168.1.2", retries: int = 200):
+    """
+    Waits for the VM to become pingable.
+
+    :param machine: VM host
+    :param ip: IP to ping from `machine`
+    :param retries: number of retries
+    :raises RuntimeError: If the IP could not be pinged after `retries` times.
+    """
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+
+    for i in range(retries):
+        print(f"Checking ping to {ip} ({i + 1}/{retries}) ...")
+        status, _ = machine.execute(f"ping -c 1 -W 1 {ip}")
+        if status == 0:
+            return
+        time.sleep(0.2)
+
+    raise RuntimeError(f"{ip} does not respond to pings after {retries} attempts")
+
+
 def wait_for_ssh(
     machine: Machine,
     user: str = "root",
@@ -2204,6 +2232,90 @@ def allocate_hugepages(machine: Machine, nr_hugepages: int):
     # To make sure that allocating the hugepages doesn't just take a moment,
     # we check few times.
     wait_until_succeed(lambda: number_of_free_hugepages(machine) == nr_hugepages, 10)
+
+
+def get_local_192_168_net24_networks(machine: Machine) -> List[ipaddress.IPv4Network]:
+    """
+    Discover local IPv4 interface networks that match all the following:
+      - IPv4 only
+      - Prefix length exactly /24
+      - Network is within 192.168.0.0/16
+
+    :param machine: Machine to execute the SSH command on.
+    """
+    status, result = machine.execute("ip -j a")
+    assert status == 0
+
+    interfaces: list[dict[str, object]] = json.loads(result)
+    networks: List[ipaddress.IPv4Network] = []
+
+    for iface in interfaces:
+        addr_info = iface.get("addr_info")
+        if not isinstance(addr_info, list):
+            continue
+
+        for addr in addr_info:
+            if not isinstance(addr, dict):
+                continue
+
+            family = addr.get("family")
+            ip = addr.get("local")
+            prefix = addr.get("prefixlen")
+
+            if (
+                family == "inet"
+                and isinstance(ip, str)
+                and isinstance(prefix, int)
+                and prefix == 24
+            ):
+                network = ipaddress.IPv4Network(f"{ip}/24", strict=False)
+
+                if network.network_address in ipaddress.IPv4Network("192.168.0.0/16"):
+                    networks.append(network)
+
+    return sorted(networks)
+
+
+def assert_ip_in_local_192_168_net24(machine: Machine, ip: str):
+    """
+    Assert that the given IPv4 address belongs to one of the machine's local
+    192.168.x.0/24 networks.
+
+    The function enumerates all local /24 networks in the private
+    192.168.0.0/16 range configured on the machine's network interfaces and
+    checks whether the provided IP address is contained in any of them.
+
+    This is primarily intended as a sanity check to verify that the host
+    is still on a network that can directly reach a guest VM via a
+    192.168.x.x address (e.g. after network reconfiguration, hotplug,
+    or unintended interface changes).
+
+    On success, the function returns silently.
+    On failure, it raises a RuntimeError with diagnostic information.
+
+    :param machine: Machine on which local network interfaces are inspected.
+    :param ip: Target IPv4 address expected to be reachable via a local /24
+               192.168.x.0 network.
+    :raises RuntimeError: If the IP is invalid or no matching local network exists.
+    """
+    target = ipaddress.IPv4Address(ip)
+
+    if not target.is_private or not target.exploded.startswith("192.168."):
+        raise RuntimeError(f"invalid IP: {ip} / {target}")
+
+    networks = get_local_192_168_net24_networks(machine)
+    for network in networks:
+        if target in network:
+            return  # all good
+
+    out = machine.succeed("ip a")
+    msg = (
+        f"The {ip} is not reachable from the host! An interface may has lost its IP?!\n"
+        f"networks={networks}\n"
+        f"`ip a`:\n"
+        f"{out}"
+    )
+    raise RuntimeError(msg)
 
 
 runner = unittest.TextTestRunner()
