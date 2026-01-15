@@ -2129,7 +2129,7 @@ def reset_system_image(machine: Machine):
     )
 
 
-def pci_devices_by_bdf(machine: Machine):
+def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
     """
     Creates a dict of all PCI devices addressable by their BDF in the VM.
 
@@ -2138,7 +2138,6 @@ def pci_devices_by_bdf(machine: Machine):
 
     :param machine: Host machine of the nested VM
     :return: BDF mapped to devices, example: {'00:00.0': '8086:0d57'}
-    :rtype: dict[str, str]
     """
     lines = ssh(
         machine,
