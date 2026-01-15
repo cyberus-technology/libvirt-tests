@@ -572,12 +572,16 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == NR_HUGEPAGES, "unable to allocate hugepages"
+        self.assertEqual(
+            int(out), NR_HUGEPAGES, "unable to allocate hugepages on controllerVM"
+        )
 
         status, out = computeVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == NR_HUGEPAGES, "unable to allocate hugepages"
+        self.assertEqual(
+            int(out), NR_HUGEPAGES, "unable to allocate hugepages on computeVM"
+        )
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
@@ -587,7 +591,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == 0, "not enough huge pages are in-use"
+        self.assertEqual(
+            int(out), 0, "not enough huge pages are in-use on controllerVM"
+        )
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -598,12 +604,14 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = computeVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == 0, "not enough huge pages are in-use"
+        self.assertEqual(int(out), 0, "not enough huge pages are in-use on computeVM")
 
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == NR_HUGEPAGES, "not all huge pages have been freed"
+        self.assertEqual(
+            int(out), NR_HUGEPAGES, "not all huge pages have been freed on controllerVM"
+        )
 
     def test_live_migration_with_hugepages_failure_case(self):
         """
@@ -614,7 +622,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == NR_HUGEPAGES, "unable to allocate hugepages"
+        self.assertEqual(
+            int(out), NR_HUGEPAGES, "not all huge pages have been freed on controllerVM"
+        )
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
@@ -648,11 +658,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # Check that there are 2 CPU sockets and 2 threads per core
         status, out = ssh(controllerVM, "lscpu | grep Socket | awk '{print $2}'")
         self.assertEqual(status, 0)
-        assert int(out) == 2, "Expect to find 2 sockets"
+        self.assertEqual(int(out), 2, "could not find two sockets")
 
         status, out = ssh(controllerVM, "lscpu | grep Thread\\( | awk '{print $4}'")
         self.assertEqual(status, 0)
-        assert int(out) == 2, "Expect to find 2 threads per core"
+        self.assertEqual(int(out), 2, "could not find two threads per core")
 
     def test_cirros_image(self):
         """
@@ -679,7 +689,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) < NR_HUGEPAGES, "No huge pages have been used"
+        self.assertLess(int(out), NR_HUGEPAGES, "no huge pages have been used")
 
     def test_hugepages_prefault(self):
         """
@@ -696,7 +706,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == 0, "Invalid hugepage usage"
+        self.assertEqual(int(out), 0, "not all huge pages are in use")
 
     def test_numa_hugepages(self):
         """
@@ -720,7 +730,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) < NR_HUGEPAGES, "No huge pages have been used"
+        self.assertLess(int(out), NR_HUGEPAGES, "no huge pages have been used")
 
     def test_numa_hugepages_prefault(self):
         """
@@ -744,7 +754,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         status, out = controllerVM.execute(
             "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
         )
-        assert int(out) == 0, "Invalid huge page usage"
+        self.assertEqual(int(out), 0, "not all huge pages are in use")
 
     def test_serial_file_output(self):
         """
@@ -757,7 +767,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         status, out = controllerVM.execute("cat /tmp/vm_serial.log | wc -l")
-        assert int(out) > 50
+        self.assertGreater(int(out), 50, "no serial log output")
 
         status, out = controllerVM.execute("grep 'Welcome to NixOS' /tmp/vm_serial.log")
 
@@ -1119,8 +1129,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
         self.assertEqual(status, 0)
-        assert int(disk_size_guest) == disk_size_bytes_100M
-        assert int(disk_size_host) == disk_size_bytes_100M
+        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
+        self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
 
         # Use full file path instead of virtual device name here because both should work with --path
         controllerVM.succeed(
@@ -1133,8 +1143,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
         self.assertEqual(status, 0)
-        assert int(disk_size_guest) == disk_size_bytes_10M
-        assert int(disk_size_host) == disk_size_bytes_10M
+        self.assertEqual(int(disk_size_guest), disk_size_bytes_10M)
+        self.assertEqual(int(disk_size_host), disk_size_bytes_10M)
 
         # Use virtual device name as --path
         controllerVM.succeed(
@@ -1147,8 +1157,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
         self.assertEqual(status, 0)
-        assert int(disk_size_guest) == disk_size_bytes_200M
-        assert int(disk_size_host) == disk_size_bytes_200M
+        self.assertEqual(int(disk_size_guest), disk_size_bytes_200M)
+        self.assertEqual(int(disk_size_host), disk_size_bytes_200M)
 
         # Use bytes instead of KiB
         controllerVM.succeed(
@@ -1161,8 +1171,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
         self.assertEqual(status, 0)
-        assert int(disk_size_guest) == disk_size_bytes_100M
-        assert int(disk_size_host) == disk_size_bytes_100M
+        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
+        self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
 
         # Changing to capacity must fail and not change the disk size because it
         # is not supported for file-based disk images.
@@ -1174,8 +1184,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
         self.assertEqual(status, 0)
-        assert int(disk_size_guest) == disk_size_bytes_100M
-        assert int(disk_size_host) == disk_size_bytes_100M
+        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
+        self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
 
     def test_disk_is_locked(self):
         """
@@ -1235,7 +1245,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         )
 
         self.assertEqual(status, 0)
-        assert int(disk_size_guest) == disk_size_bytes_100M
+        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
 
         controllerVM.fail(
             f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_10M // 1024}"
@@ -1294,8 +1304,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             f"taskset -p {tid_vcpu2_controller} | awk '{{print $6}}'"
         ).rstrip()
 
-        assert int(taskset_vcpu0_controller, 16) == 0x3
-        assert int(taskset_vcpu2_controller, 16) == 0xC
+        self.assertEqual(int(taskset_vcpu0_controller, 16), 0x3)
+        self.assertEqual(int(taskset_vcpu2_controller, 16), 0xC)
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -1318,8 +1328,12 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             f"taskset -p {tid_vcpu2_compute} | awk '{{print $6}}'"
         ).rstrip()
 
-        assert int(taskset_vcpu0_controller, 16) == int(taskset_vcpu0_compute, 16)
-        assert int(taskset_vcpu2_controller, 16) == int(taskset_vcpu2_compute, 16)
+        self.assertEqual(
+            int(taskset_vcpu0_controller, 16), int(taskset_vcpu0_compute, 16)
+        )
+        self.assertEqual(
+            int(taskset_vcpu2_controller, 16), int(taskset_vcpu2_compute, 16)
+        )
 
     def test_live_migration_kill_chv_on_sender_side(self):
         """
