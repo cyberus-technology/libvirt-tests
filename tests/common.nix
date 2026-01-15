@@ -75,12 +75,12 @@ let
                             <allocation mode="immediate"/>
                           ''
                         else
-                          ''''
+                          ""
                       }
                     </memoryBacking>
                   ''
                 else
-                  ''''
+                  ""
               }
             ''
           else
@@ -99,12 +99,12 @@ let
                             <allocation mode="immediate"/>
                           ''
                         else
-                          ''''
+                          ""
                       }
                     </memoryBacking>
                   ''
                 else
-                  ''''
+                  ""
               }
             ''
         }
