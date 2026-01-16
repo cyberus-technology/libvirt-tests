@@ -1,3 +1,7 @@
+import ipaddress
+from typing import List
+
+import json
 from functools import partial
 import libvirt  # type: ignore
 import os
@@ -383,7 +387,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM, ip="192.168.2.2")
         # Test attached network interface (type network - managed by libvirt)
         wait_for_ssh(controllerVM, ip="192.168.3.2")
-        # Test attached network interface (type bridge - managed by libvirt)
+        # Test attached network interface (type bridge)
         wait_for_ssh(controllerVM, ip="192.168.4.2")
 
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
@@ -1994,13 +1998,37 @@ def wait_until_fail(func, retries=600):
     raise RuntimeError("function didn't fail")
 
 
+def wait_for_ping(machine: Machine, ip="192.168.1.2"):
+    """
+    Waits for the VM to become pingable.
+
+    :param machine: VM host
+    :param ip: SSH host to log into
+    """
+    retries = 100
+
+    print(f"Waiting for VM with IP {ip} to respond to pings ...")
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+
+    for i in range(retries):
+        print(f"Checking ping to {ip} ({i + 1}/{retries}) ...")
+        status, _ = machine.execute(f"ping -c 1 -W 1 {ip}")
+        if status == 0:
+            return
+        time.sleep(0.1)
+
+    raise RuntimeError(f"{ip} does not respond to pings after {retries} attempts")
+
+
 def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2"):
     """
-    Waits for SSH to become available to connect into the Cloud Hypervisor VM
-    hosted on the corresponding machine.
+    Waits for the VM to become accessible via SSH.
 
-    Effectively we use it to wait until the Cloud Hypervisor VM's network is up
-    and available.
+    It first checks whether the VM responds to ping, and then attempts to
+    establish an SSH connection using the provided credentials.
 
     :param machine: VM host
     :param user: user for SSH login
@@ -2008,13 +2036,23 @@ def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2
     :param ip: SSH host to log into
     """
     retries = 100
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+    wait_for_ping(machine, ip)
+
+    print(f"Waiting for ssh connection into VM with IP {ip} ...")
     for i in range(retries):
-        print(f"Wait for ssh {i}/{retries}")
+        print(f"Wait for ssh ({i + 1}/{retries}) ...")
         status, _ = ssh(machine, "echo hello", user, password, ip)
         if status == 0:
             return
         time.sleep(0.1)
-    raise RuntimeError(f"Could not establish SSH connection to {ip}")
+
+    raise RuntimeError(
+        f"Could not establish SSH connection to {ip} after {retries} attempts"
+    )
 
 
 def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
@@ -2030,9 +2068,22 @@ def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
     :param ip: SSH host to log into
     :return: status and output
     """
+
+    # Sometimes we experienced test runs where the host lost IPs. We therefore
+    # check that early and always for better debuggability.
+    assert_ip_in_local_192_168_net24(machine, ip)
+
+    # Check VM is pingable
+    status, _ = machine.execute(f"ping -c 1 -W 1 {ip}")
+    if status != 0:
+        _, out = machine.execute("ip a")
+        raise RuntimeError(f"IP {ip} is not pingable! `ip a`:\n{out}")
+
+    # And here we check if the guest also responds via SSH.
     status, out = machine.execute(
         f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
     )
+    # TODO, this could be refactored to raise an exception on error
     return status, out
 
 
@@ -2142,7 +2193,7 @@ def reset_system_image(machine: Machine):
     )
 
 
-def pci_devices_by_bdf(machine: Machine):
+def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
     """
     Creates a dict of all PCI devices addressable by their BDF in the VM.
 
@@ -2151,7 +2202,6 @@ def pci_devices_by_bdf(machine: Machine):
 
     :param machine: Host machine of the nested VM
     :return: BDF mapped to devices, example: {'00:00.0': '8086:0d57'}
-    :rtype: dict[str, str]
     """
     status, lines = ssh(
         machine,
@@ -2186,6 +2236,98 @@ def wait_for_guest_pci_device_enumeration(machine: Machine, new_count: int):
     """
     # retries=20 => max 2s => we expect hotplug events to be relatively quick
     wait_until_succeed(lambda: number_of_devices(machine) == new_count, 20)
+
+
+def get_local_192_168_net24_networks(machine: Machine) -> List[ipaddress.IPv4Network]:
+    """
+    Discover local IPv4 interface networks that match all the following:
+      - IPv4 only
+      - Prefix length exactly /24
+      - Network is within 192.168.0.0/16
+
+    :param machine: Machine to execute the SSH command on.
+
+    Returns:
+        list[ipaddress.IPv4Network]:
+            A list of IPv4Network objects representing local
+            192.168.x.0/24 networks.
+
+            The list may be empty if no matching interfaces exist.
+            Networks are returned in alphabetical order.
+    """
+    status, result = machine.execute("ip -j a")
+    assert status == 0
+
+    interfaces: list[dict[str, object]] = json.loads(result)
+    networks: List[ipaddress.IPv4Network] = []
+
+    for iface in interfaces:
+        addr_info = iface.get("addr_info")
+        if not isinstance(addr_info, list):
+            continue
+
+        for addr in addr_info:
+            if not isinstance(addr, dict):
+                continue
+
+            family = addr.get("family")
+            ip = addr.get("local")
+            prefix = addr.get("prefixlen")
+
+            if (
+                family == "inet"
+                and isinstance(ip, str)
+                and isinstance(prefix, int)
+                and prefix == 24
+            ):
+                network = ipaddress.IPv4Network(f"{ip}/24", strict=False)
+
+                if network.network_address in ipaddress.IPv4Network("192.168.0.0/16"):
+                    networks.append(network)
+
+    return sorted(networks)
+
+
+def assert_ip_in_local_192_168_net24(machine: Machine, ip: str):
+    """
+    Assert that the given IPv4 address belongs to one of the machine's local
+    192.168.x.0/24 networks.
+
+    The function enumerates all local /24 networks in the private
+    192.168.0.0/16 range configured on the machine's network interfaces and
+    checks whether the provided IP address is contained in any of them.
+
+    This is primarily intended as a sanity check to verify that the host
+    is still on a network that can directly reach a guest VM via a
+    192.168.x.x address (e.g. after network reconfiguration, hotplug,
+    or unintended interface changes).
+
+    On success, the function returns silently.
+    On failure, it raises a RuntimeError with diagnostic information.
+
+    :param machine: Machine on which local network interfaces are inspected.
+    :param ip: Target IPv4 address expected to be reachable via a local /24
+               192.168.x.0 network.
+    :raises RuntimeError: If the IP is invalid or no matching local network exists.
+    """
+    target = ipaddress.IPv4Address(ip)
+
+    if not target.is_private or not target.exploded.startswith("192.168."):
+        raise RuntimeError(f"invalid IP: {ip} / {target}")
+
+    networks = get_local_192_168_net24_networks(machine)
+    for network in networks:
+        if target in network:
+            return  # all good
+
+    out = machine.succeed("ip a")
+    msg = (
+        f"The {ip} is not reachable from the host! An interface may has lost its IP?!\n"
+        f"networks={networks}\n"
+        f"`ip a`:\n"
+        f"{out}"
+    )
+    raise RuntimeError(msg)
 
 
 runner = unittest.TextTestRunner()
