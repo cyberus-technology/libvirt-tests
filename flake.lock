@@ -3,16 +3,16 @@
     "cloud-hypervisor-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1768559181,
-        "narHash": "sha256-5OHc7Rm0UbuDe5E6h8iSVjmdss9VhKUrouKvKwlEnYg=",
-        "owner": "cyberus-technology",
+        "lastModified": 1768575885,
+        "narHash": "sha256-r8aeWxuofPQprvHQjwey6aQxspm2GNPAfomqXeMFtNw=",
+        "owner": "amphi",
         "repo": "cloud-hypervisor",
-        "rev": "d8066c9934b0f040a37ca0365c83ff5b25ccaa49",
+        "rev": "f2e10ba3884de1149d80b2cc27e132f7fcea48a9",
         "type": "github"
       },
       "original": {
-        "owner": "cyberus-technology",
-        "ref": "gardenlinux",
+        "owner": "amphi",
+        "ref": "migration-rarp",
         "repo": "cloud-hypervisor",
         "type": "github"
       }

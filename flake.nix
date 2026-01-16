@@ -15,7 +15,7 @@
     };
     cloud-hypervisor-src = {
       # url = "git+file:<path/to/cloud-hypervisor>";
-      url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
+      url = "github:amphi/cloud-hypervisor?ref=migration-rarp";
       flake = false;
     };
     edk2-src = {
