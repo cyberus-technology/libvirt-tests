@@ -652,19 +652,15 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Check that there are 2 NUMA nodes
-        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "ls /sys/devices/system/node/node0")
 
-        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node1")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "ls /sys/devices/system/node/node1")
 
         # Check that there are 2 CPU sockets and 2 threads per core
-        status, out = ssh(controllerVM, "lscpu | grep Socket | awk '{print $2}'")
-        self.assertEqual(status, 0)
+        out = ssh(controllerVM, "lscpu | grep Socket | awk '{print $2}'")
         self.assertEqual(int(out), 2, "could not find two sockets")
 
-        status, out = ssh(controllerVM, "lscpu | grep Thread\\( | awk '{print $4}'")
-        self.assertEqual(status, 0)
+        out = ssh(controllerVM, "lscpu | grep Thread\\( | awk '{print $4}'")
         self.assertEqual(int(out), 2, "could not find two threads per core")
 
     def test_cirros_image(self):
@@ -723,11 +719,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Check that there are 2 NUMA nodes
-        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "ls /sys/devices/system/node/node0")
 
-        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node1")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "ls /sys/devices/system/node/node1")
 
         # Check that we really use hugepages from the hugepage pool
         status, out = controllerVM.execute(
@@ -747,11 +741,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Check that there are 2 NUMA nodes
-        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node0")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "ls /sys/devices/system/node/node0")
 
-        status, _ = ssh(controllerVM, "ls /sys/devices/system/node/node1")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "ls /sys/devices/system/node/node1")
 
         # Check that all huge pages are in use
         status, out = controllerVM.execute(
@@ -805,8 +797,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         wait_for_ssh(controllerVM)
 
-        status, _ = ssh(controllerVM, "ls /tmp/foo")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "ls /tmp/foo")
 
     def test_shutdown(self):
         """
@@ -1034,8 +1025,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Stress the CH VM in order to make the migration take longer
-        status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
 
         # Do migration in a screen session and detach
         controllerVM.succeed(
@@ -1126,12 +1116,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM,
             "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img",
         )
-        status, disk_size_guest = ssh(
+        disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(status, 0)
         self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
         self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
 
@@ -1140,12 +1129,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             f"virsh blockresize --domain testvm --path /tmp/disk.img --size {disk_size_bytes_10M // 1024}"
         )
 
-        status, disk_size_guest = ssh(
+        disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(status, 0)
         self.assertEqual(int(disk_size_guest), disk_size_bytes_10M)
         self.assertEqual(int(disk_size_host), disk_size_bytes_10M)
 
@@ -1154,12 +1142,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_200M // 1024}"
         )
 
-        status, disk_size_guest = ssh(
+        disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(status, 0)
         self.assertEqual(int(disk_size_guest), disk_size_bytes_200M)
         self.assertEqual(int(disk_size_host), disk_size_bytes_200M)
 
@@ -1168,12 +1155,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_100M}b"
         )
 
-        status, disk_size_guest = ssh(
+        disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(status, 0)
         self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
         self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
 
@@ -1181,12 +1167,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         # is not supported for file-based disk images.
         controllerVM.fail("virsh blockresize --domain testvm --path vdb --capacity")
 
-        status, disk_size_guest = ssh(
+        disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(status, 0)
         self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
         self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
 
@@ -1243,11 +1228,10 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM,
             "virsh attach-disk --domain testvm --target vdb --persistent --source /tmp/disk.img",
         )
-        status, disk_size_guest = ssh(
+        disk_size_guest = ssh(
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
         )
 
-        self.assertEqual(status, 0)
         self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
 
         controllerVM.fail(
@@ -1351,8 +1335,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Stress the CH VM in order to make the migration take longer
-        status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
 
         # Do migration in a screen session and detach
         controllerVM.succeed(
@@ -1386,8 +1369,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Stress the CH VM in order to make the migration take longer
-        status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
-        self.assertEqual(status, 0)
+        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
 
         # Do migration in a screen session and detach
         controllerVM.succeed(
@@ -2010,14 +1992,21 @@ def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2
     retries = 100
     for i in range(retries):
         print(f"Wait for ssh {i}/{retries}")
-        status, _ = ssh(machine, "echo hello", user, password, ip)
-        if status == 0:
+        try:
+            ssh(machine, "echo hello", user, password, ip)
             return
-        time.sleep(0.1)
+        except Exception:
+            time.sleep(0.1)
     raise RuntimeError(f"Could not establish SSH connection to {ip}")
 
 
-def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
+def ssh(
+    machine: Machine,
+    cmd: str,
+    user: str = "root",
+    password: str = "root",
+    ip: str = "192.168.1.2",
+) -> str:
     """
     Runs the specified command in the Cloud Hypervisor VM via SSH.
 
@@ -2028,12 +2017,13 @@ def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
     :param user: user for SSH login
     :param password: password for SSH login
     :param ip: SSH host to log into
-    :return: status and output
     """
     status, out = machine.execute(
         f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
     )
-    return status, out
+    if status != 0:
+        raise RuntimeError(f"failed to execute cmd in VM: `{cmd}`")
+    return out
 
 
 def number_of_devices(machine: Machine, filter: str = "") -> int:
@@ -2043,16 +2033,13 @@ def number_of_devices(machine: Machine, filter: str = "") -> int:
     :param filter: Optional filter for the PCI device, e.g., vendor ID or device class.
     :param machine: VM host
     :return: number of PCI devices in VM
+    :return: output from command
     """
     if filter == "":
         cmd = "lspci | wc -l"
     else:
         cmd = f"lspci -n | grep {filter} | wc -l"
-    status, out = ssh(machine, cmd)
-    if status != 0:
-        raise RuntimeError(
-            "failed to query the number of PCI devices from the guest: cmd=`{cmd}`"
-        )
+    out = ssh(machine, cmd)
     return int(out)
 
 
@@ -2153,14 +2140,10 @@ def pci_devices_by_bdf(machine: Machine):
     :return: BDF mapped to devices, example: {'00:00.0': '8086:0d57'}
     :rtype: dict[str, str]
     """
-    status, lines = ssh(
+    lines = ssh(
         machine,
         "lspci -n | awk '/^[0-9a-f]{2}:[0-9a-f]{2}\\.[0-9]/{bdf=$1}{class=$3} {print bdf \",\" class}'",
     )
-    if status != 0:
-        raise RuntimeError(
-            "failed to get PCI devices grouped by their BDF from the guest"
-        )
     out = {}
     for line in lines.splitlines():
         bdf, device_class = line.split(",")
