@@ -2076,7 +2076,8 @@ def ssh(machine: Machine, cmd, user="root", password="root", ip="192.168.1.2"):
     # Check VM is pingable
     status, _ = machine.execute(f"ping -c 1 -W 1 {ip}")
     if status != 0:
-        raise RuntimeError(f"IP {ip} is not pingable")
+        _, out = machine.execute("ip a")
+        raise RuntimeError(f"IP {ip} is not pingable! `ip a`:\n{out}")
 
     # And here we check if the guest also responds via SSH.
     status, out = machine.execute(
