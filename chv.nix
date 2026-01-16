@@ -14,9 +14,16 @@ let
   # Crane lib with proper Rust toolchain
   craneLib' = craneLib.overrideToolchain rustToolchain;
 
+  jsonFilter = path: _type: builtins.match ".*json$" path != null;
+  sourceFilter = path: type: (jsonFilter path type) || (craneLib.filterCargoSources path type);
+
   commonArgs =
     let
-      src = craneLib'.cleanCargoSource cloud-hypervisor-src;
+      src = lib.cleanSourceWith {
+        src = cloud-hypervisor-src;
+        filter = sourceFilter;
+        name = "source";
+      };
     in
     {
       inherit src;
