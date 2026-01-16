@@ -521,6 +521,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         want to test.
         We also hot-attach some devices before migrating, in order to cover
         proper migration of those devices.
+
+        This test also checks that the destination host sends out RARP packets
+        to announce its new location to the network.
         """
 
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
@@ -536,16 +539,44 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             "virsh attach-disk --domain testvm --target vdb --persistent --source /var/lib/libvirt/storage-pools/nfs-share/disk.img",
         )
 
-        for i in range(2):
+        # We use tcpdump and tshark to check for the RARP packets.
+        ethertype_rarp = "0x8035"
+
+        def start_capture(machine):
+            machine.succeed(
+                f"systemd-run --unit tcpdump-mig -- bash -lc 'tcpdump -i any -w /tmp/rarp.pcap \"ether proto {ethertype_rarp}\" 2> /tmp/rarp.log'"
+            )
+            machine.wait_until_succeeds("grep -q 'listening on any' /tmp/rarp.log")
+
+        def stop_capture_and_count_packets(machine):
+            machine.succeed("systemctl stop tcpdump-mig")
+            rarps = (
+                machine.succeed(
+                    f'tshark -r /tmp/rarp.pcap -Y "sll.etype == {ethertype_rarp}" -T fields -e sll.src.eth'
+                )
+                .strip()
+                .splitlines()
+            )
+
+            # We only check whether we got rarp packets for both NICs, by
+            # looking at the source MAC addresses.
+            self.assertEqual(len(set(rarps)), 2)
+
+        for _ in range(2):
+            start_capture(computeVM)
             # Explicitly use IP in desturi as this was already a problem in the past
             controllerVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://192.168.100.2/session --persistent --live --p2p"
             )
             wait_for_ssh(computeVM)
+            stop_capture_and_count_packets(computeVM)
+
+            start_capture(controllerVM)
             computeVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
             )
             wait_for_ssh(controllerVM)
+            stop_capture_and_count_packets(controllerVM)
 
     def test_live_migration_with_hotplug(self):
         """
