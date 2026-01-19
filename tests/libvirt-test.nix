@@ -8,6 +8,7 @@
   nixos-image,
   chv-ovmf,
   testScriptFile,
+  enablePortForwarding,
 }:
 let
   common = import ./common.nix { inherit libvirt-src nixos-image chv-ovmf; };
@@ -33,7 +34,7 @@ pkgs.testers.nixosTest {
     ];
 
   nodes.controllerVM =
-    { ... }:
+    { lib, ... }:
     {
       imports = [
         common
@@ -45,20 +46,19 @@ pkgs.testers.nixosTest {
         memorySize = 4096;
         interfaces.eth1.vlan = 1;
         diskSize = 8192;
-        forwardPorts = [
-          {
-            from = "host";
-            host.port = 2222;
-            guest.port = 22;
-          }
-          # The testscript runs in the Host context while we want to connect to
-          # the libvirt in the controllerVM
-          {
-            from = "host";
-            host.port = 2223;
-            guest.port = 16509;
-          }
-        ];
+        forwardPorts =
+          # Port forwarding prevents us from executing the nixos tests in
+          # parallel in the CI, as they run in the same context and ports are
+          # already occupied then.
+          (
+            lib.optionals enablePortForwarding [
+              {
+                from = "host";
+                host.port = 2222;
+                guest.port = 22;
+              }
+            ]
+          );
       };
 
       networking.extraHosts = ''
@@ -92,7 +92,7 @@ pkgs.testers.nixosTest {
     };
 
   nodes.computeVM =
-    { ... }:
+    { lib, ... }:
     {
       imports = [
         common
@@ -108,13 +108,19 @@ pkgs.testers.nixosTest {
         memorySize = 4096;
         interfaces.eth1.vlan = 1;
         diskSize = 2048;
-        forwardPorts = [
-          {
-            from = "host";
-            host.port = 3333;
-            guest.port = 22;
-          }
-        ];
+        forwardPorts =
+          # Port forwarding prevents us from executing the nixos tests in
+          # parallel in the CI, as they run in the same context and ports are
+          # already occupied then.
+          (
+            lib.optionals enablePortForwarding [
+              {
+                from = "host";
+                host.port = 3333;
+                guest.port = 22;
+              }
+            ]
+          );
       };
 
       livemig.nfs.host = "192.168.100.1";
