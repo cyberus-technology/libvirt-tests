@@ -577,21 +577,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test that a VM that utilizes hugepages is still using hugepages after live migration.
         """
 
-        controllerVM.succeed(f"echo {NR_HUGEPAGES} > /proc/sys/vm/nr_hugepages")
-        computeVM.succeed(f"echo {NR_HUGEPAGES} > /proc/sys/vm/nr_hugepages")
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
-        )
-        self.assertEqual(
-            int(out), NR_HUGEPAGES, "unable to allocate hugepages on controllerVM"
-        )
-
-        status, out = computeVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
-        )
-        self.assertEqual(
-            int(out), NR_HUGEPAGES, "unable to allocate hugepages on computeVM"
-        )
+        allocate_hugepages(controllerVM, NR_HUGEPAGES)
+        allocate_hugepages(computeVM, NR_HUGEPAGES)
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
@@ -628,13 +615,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test that migrating a VM with hugepages to a destination without huge pages will fail gracefully.
         """
 
-        controllerVM.succeed(f"echo {NR_HUGEPAGES} > /proc/sys/vm/nr_hugepages")
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
-        )
-        self.assertEqual(
-            int(out), NR_HUGEPAGES, "not all huge pages have been freed on controllerVM"
-        )
+        allocate_hugepages(controllerVM, NR_HUGEPAGES)
 
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
@@ -702,7 +683,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage on-demand usage for a non-NUMA VM.
         """
 
-        controllerVM.succeed(f"echo {NR_HUGEPAGES} > /proc/sys/vm/nr_hugepages")
+        allocate_hugepages(controllerVM, NR_HUGEPAGES)
+
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -719,7 +701,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage usage with pre-faulting for a non-NUMA VM.
         """
 
-        controllerVM.succeed(f"echo {NR_HUGEPAGES} > /proc/sys/vm/nr_hugepages")
+        allocate_hugepages(controllerVM, NR_HUGEPAGES)
+
         controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -736,7 +719,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage on-demand usage for a NUMA VM.
         """
 
-        controllerVM.succeed(f"echo {NR_HUGEPAGES} > /proc/sys/vm/nr_hugepages")
+        allocate_hugepages(controllerVM, NR_HUGEPAGES)
+
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -758,7 +742,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Test hugepage usage with pre-faulting for a NUMA VM.
         """
 
-        controllerVM.succeed(f"echo {NR_HUGEPAGES} > /proc/sys/vm/nr_hugepages")
+        allocate_hugepages(controllerVM, NR_HUGEPAGES)
+
         controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages-prefault.xml")
         controllerVM.succeed("virsh start testvm")
 
@@ -2182,6 +2167,36 @@ def wait_for_guest_pci_device_enumeration(machine: Machine, new_count: int):
     """
     # retries=20 => max 2s => we expect hotplug events to be relatively quick
     wait_until_succeed(lambda: number_of_devices(machine) == new_count, 20)
+
+
+def number_of_free_hugepages(machine: Machine) -> int:
+    """
+    Returns the number of free hugepages on the given machine.
+
+    :param machine: VM host
+    :return: Number of free hugepages
+    """
+    _, out = machine.execute("awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo")
+    return int(out)
+
+
+def allocate_hugepages(machine: Machine, nr_hugepages: int):
+    """
+    Allocates the given amount of hugepages on the given machine, and checks
+    whether the allocation was successful.
+
+    Raises a RuntimeError if the amount of available hugepages after allocation
+    is below the number of expected hugepages.
+
+    :param machine: VM host
+    :param nr_hugepages: The amount of desired hugepages
+    :return:
+    """
+    machine.succeed(f"echo {nr_hugepages} > /proc/sys/vm/nr_hugepages")
+
+    # To make sure that allocating the hugepages doesn't just take a moment,
+    # we check few times.
+    wait_until_succeed(lambda: number_of_free_hugepages(machine) == nr_hugepages, 10)
 
 
 runner = unittest.TextTestRunner()
