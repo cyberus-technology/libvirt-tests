@@ -207,6 +207,13 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM.succeed(cmd)
             computeVM.succeed(cmd)
 
+        # Reset the (possibly modified) system image. This helps avoid
+        # situations where the image has been modified by a test and thus
+        # doesn't boot in subsequent tests.
+        controllerVM.succeed(
+            "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
+        )
+
         self.assertNotEqual(
             statusController, 0, msg=f"Sanitizer detected an issue: {outController}"
         )
@@ -1697,57 +1704,55 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         Developer Note: This test resets the NixOS image.
         """
         controllerVM.succeed("virsh define /etc/domain-chv-static-bdf.xml")
-        # Reset the image to purge any information about boot devices when terminating
-        with CommandGuard(reset_system_image, controllerVM) as _:
-            controllerVM.succeed("virsh start testvm")
-            wait_for_ssh(controllerVM)
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
 
-            hotplug(
-                controllerVM,
-                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml",
-            )
-            hotplug(
-                controllerVM,
-                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.17.0",
-            )
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml",
+        )
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.17.0",
+        )
 
-            devices = pci_devices_by_bdf(controllerVM)
-            self.assertEqual(devices["00:01.0"], VIRTIO_BLOCK_DEVICE)
-            self.assertEqual(devices["00:02.0"], VIRTIO_NETWORK_DEVICE)
-            self.assertIsNone(devices.get("00:03.0"))
-            self.assertEqual(devices["00:04.0"], VIRTIO_NETWORK_DEVICE)
-            self.assertEqual(devices["00:05.0"], VIRTIO_ENTROPY_SOURCE)
-            self.assertIsNone(devices.get("00:06.0"))
-            self.assertEqual(devices["00:17.0"], VIRTIO_BLOCK_DEVICE)
+        devices = pci_devices_by_bdf(controllerVM)
+        self.assertEqual(devices["00:01.0"], VIRTIO_BLOCK_DEVICE)
+        self.assertEqual(devices["00:02.0"], VIRTIO_NETWORK_DEVICE)
+        self.assertIsNone(devices.get("00:03.0"))
+        self.assertEqual(devices["00:04.0"], VIRTIO_NETWORK_DEVICE)
+        self.assertEqual(devices["00:05.0"], VIRTIO_ENTROPY_SOURCE)
+        self.assertIsNone(devices.get("00:06.0"))
+        self.assertEqual(devices["00:17.0"], VIRTIO_BLOCK_DEVICE)
 
-            # Check that BDF is freed and can be reallocated when de-/attaching a (entirely different) device
-            hotplug(
-                controllerVM,
-                "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
-            )
-            hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
-            self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:04.0"))
-            self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:17.0"))
-            hotplug(
-                controllerVM,
-                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.04.0",
-            )
-            devices_before_livemig = pci_devices_by_bdf(controllerVM)
-            self.assertEqual(devices_before_livemig["00:04.0"], VIRTIO_BLOCK_DEVICE)
+        # Check that BDF is freed and can be reallocated when de-/attaching a (entirely different) device
+        hotplug(
+            controllerVM,
+            "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
+        )
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
+        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:04.0"))
+        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:17.0"))
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.04.0",
+        )
+        devices_before_livemig = pci_devices_by_bdf(controllerVM)
+        self.assertEqual(devices_before_livemig["00:04.0"], VIRTIO_BLOCK_DEVICE)
 
-            # Adding to the same bdf twice fails
-            hotplug_fail(
-                controllerVM,
-                "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml",
-            )
+        # Adding to the same bdf twice fails
+        hotplug_fail(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface_explicit_bdf.xml",
+        )
 
-            # Check that BDFs stay the same after migration
-            controllerVM.succeed(
-                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --live --p2p"
-            )
-            wait_for_ssh(computeVM)
-            devices_after_livemig = pci_devices_by_bdf(computeVM)
-            self.assertEqual(devices_before_livemig, devices_after_livemig)
+        # Check that BDFs stay the same after migration
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --live --p2p"
+        )
+        wait_for_ssh(computeVM)
+        devices_after_livemig = pci_devices_by_bdf(computeVM)
+        self.assertEqual(devices_before_livemig, devices_after_livemig)
 
     def test_bdfs_implicitly_assigned_same_after_recreate(self):
         """
@@ -1809,32 +1814,31 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         that weird hot/-unplugging doesn't make both configs go out of
         sync.
         """
-        with CommandGuard(reset_system_image, controllerVM) as _:
-            # Using define + start creates a "persistent" domain rather than a transient
-            controllerVM.succeed("virsh define /etc/domain-chv.xml")
-            controllerVM.succeed("virsh start testvm")
-            wait_for_ssh(controllerVM)
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
 
-            # Add a persistent disk.
-            controllerVM.succeed(
-                "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
-            )
-            hotplug(
-                controllerVM,
-                "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent",
-            )
-            # Remove transient. The device is removed from the transient config but not from the persistent one. The
-            # transient config has to mark the BDF as still in use nevertheless.
-            hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
+        # Add a persistent disk.
+        controllerVM.succeed(
+            "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
+        )
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent",
+        )
+        # Remove transient. The device is removed from the transient config but not from the persistent one. The
+        # transient config has to mark the BDF as still in use nevertheless.
+        hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
-            # Attach another device persistently. If we did not respect in the transient config that the disk we
-            # detached before is still present in persistent config, then we now try to assign BDF 4 twice in the
-            # persistent config. In other words: Persistent and transient config's BDF management are out of sync if
-            # this command fails.
-            hotplug(
-                controllerVM,
-                "virsh attach-device testvm /etc/new_interface.xml --persistent",
-            )
+        # Attach another device persistently. If we did not respect in the transient config that the disk we
+        # detached before is still present in persistent config, then we now try to assign BDF 4 twice in the
+        # persistent config. In other words: Persistent and transient config's BDF management are out of sync if
+        # this command fails.
+        hotplug(
+            controllerVM,
+            "virsh attach-device testvm /etc/new_interface.xml --persistent",
+        )
 
     def test_bdf_invalid_device_id(self):
         """
@@ -2137,20 +2141,6 @@ def hotplug_fail(machine: Machine, cmd: str):
     :return:
     """
     hotplug(machine, cmd, False)
-
-
-def reset_system_image(machine: Machine):
-    """
-    Replaces the (possibly modified) system image with its original
-    image.
-
-    This helps avoid situations where a VM hangs during boot after the
-    underlying disk’s BDF was changed, since OVMF may store NVRAM
-    entries that reference specific BDF values.
-    """
-    machine.succeed(
-        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-    )
 
 
 def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
