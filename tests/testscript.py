@@ -585,11 +585,10 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         wait_for_ssh(controllerVM)
 
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
-        )
         self.assertEqual(
-            int(out), 0, "not enough huge pages are in-use on controllerVM"
+            number_of_free_hugepages(controllerVM),
+            0,
+            "not enough huge pages are in-use on controllerVM",
         )
 
         controllerVM.succeed(
@@ -598,16 +597,15 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
         wait_for_ssh(computeVM)
 
-        status, out = computeVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
-        )
-        self.assertEqual(int(out), 0, "not enough huge pages are in-use on computeVM")
-
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
+        self.assertEqual(
+            number_of_free_hugepages(computeVM),
+            0,
+            "not enough huge pages are in-use on computeVM",
         )
         self.assertEqual(
-            int(out), NR_HUGEPAGES, "not all huge pages have been freed on controllerVM"
+            number_of_free_hugepages(controllerVM),
+            NR_HUGEPAGES,
+            "not all huge pages have been freed on controllerVM",
         )
 
     def test_live_migration_with_hugepages_failure_case(self):
@@ -691,10 +689,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Check that we really use hugepages from the hugepage pool
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
+        self.assertLess(
+            number_of_free_hugepages(controllerVM),
+            NR_HUGEPAGES,
+            "no huge pages have been used",
         )
-        self.assertLess(int(out), NR_HUGEPAGES, "no huge pages have been used")
 
     def test_hugepages_prefault(self):
         """
@@ -709,10 +708,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         wait_for_ssh(controllerVM)
 
         # Check that all huge pages are in use
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
+        self.assertEqual(
+            number_of_free_hugepages(controllerVM), 0, "not all huge pages are in use"
         )
-        self.assertEqual(int(out), 0, "not all huge pages are in use")
 
     def test_numa_hugepages(self):
         """
@@ -732,10 +730,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         ssh(controllerVM, "ls /sys/devices/system/node/node1")
 
         # Check that we really use hugepages from the hugepage pool
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
+        self.assertLess(
+            number_of_free_hugepages(controllerVM),
+            NR_HUGEPAGES,
+            "no huge pages have been used",
         )
-        self.assertLess(int(out), NR_HUGEPAGES, "no huge pages have been used")
 
     def test_numa_hugepages_prefault(self):
         """
@@ -755,10 +754,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         ssh(controllerVM, "ls /sys/devices/system/node/node1")
 
         # Check that all huge pages are in use
-        status, out = controllerVM.execute(
-            "awk '/HugePages_Free/ { print $2; exit }' /proc/meminfo"
+        self.assertEqual(
+            number_of_free_hugepages(controllerVM), 0, "not all huge pages are in use"
         )
-        self.assertEqual(int(out), 0, "not all huge pages are in use")
 
     def test_serial_file_output(self):
         """
