@@ -103,6 +103,9 @@
               # deterministic.
               cp ${nixos-image'}/iso/*.iso $out
             '';
+        test-helper = pkgs.callPackage ./test_helper.nix {
+          inherit (pkgs.python3Packages) buildPythonPackage setuptools;
+        };
       in
       {
         checks =
