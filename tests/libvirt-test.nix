@@ -29,6 +29,7 @@ pkgs.testers.nixosTest {
     p: with p; [
       pytest
       libvirt
+      test-helper
     ];
 
   nodes.controllerVM =
