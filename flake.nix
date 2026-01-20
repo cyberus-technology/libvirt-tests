@@ -80,6 +80,11 @@
               rustToolchain = rust-bin.stable.latest.default;
               cloud-hypervisor-meta = prev.cloud-hypervisor.meta;
             };
+            python3Packages = prev.python3Packages.overrideScope (
+              _: _: {
+                inherit test-helper;
+              }
+            );
           })
         ];
 
