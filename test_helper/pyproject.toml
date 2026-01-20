@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "test_helper"
+version = "0.1"
+description = "Python test helper functions"
+dependencies = []
+requires-python = ">=3.8"
+
+[tool.setuptools.package-data]
+"test_helper" = ["py.typed"]
