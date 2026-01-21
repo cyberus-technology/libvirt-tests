@@ -2066,6 +2066,13 @@ def ssh(
     :param password: password for SSH login
     :param ip: SSH host to log into
     """
+
+    # Check VM is still pingable and we didn't lose the network.
+    # One retry is fine as tests gracefully wait for pings+ssh before
+    # calling this function.
+    wait_for_ping(machine, ip, retries=1)
+
+    # And here we check if the guest also responds via SSH.
     status, out = machine.execute(
         f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
     )
