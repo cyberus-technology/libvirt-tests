@@ -2026,22 +2026,35 @@ def wait_for_ssh(
     retries: int = 100,
 ):
     """
-    Waits for SSH to become available to connect into the Cloud Hypervisor VM
-    hosted on the corresponding machine.
+    Waits for the VM to become accessible via SSH.
 
-    Effectively we use it to wait until the Cloud Hypervisor VM's network is up
-    and available.
+    It first checks whether the VM responds to ping, and then attempts to
+    establish an SSH connection using the provided credentials.
 
     :param machine: VM host
     :param user: user for SSH login
     :param password: password for SSH login
     :param ip: SSH host to log into
-    :param retries: number of retries
+    :param retries: Retries for the SSH. Note that this adds on top of the
+           retries that are done in `wait_for_ping()`.
     """
+
+    # We first check pings, before we connect to the SSH daemon.
+    wait_for_ping(machine, ip)
+
     for i in range(retries):
         print(f"Wait for ssh {i}/{retries}")
         try:
-            ssh(machine, "echo hello", user, password, ip)
+            ssh(
+                machine,
+                "echo hello",
+                user,
+                password,
+                ip,
+                # 1: we checked ping above already
+                # 2: we want to prevent unnecessary log clutter
+                ping_check=False,
+            )
             return
         except Exception:
             time.sleep(0.2)
@@ -2054,6 +2067,7 @@ def ssh(
     user: str = "root",
     password: str = "root",
     ip: str = "192.168.1.2",
+    ping_check: bool = True,
 ) -> str:
     """
     Runs the specified command in the Cloud Hypervisor VM via SSH.
@@ -2065,12 +2079,15 @@ def ssh(
     :param user: user for SSH login
     :param password: password for SSH login
     :param ip: SSH host to log into
+    :param ping_check: whether the function should check first if the VM is
+           pingable
     """
 
     # Check VM is still pingable and we didn't lose the network.
-    # One retry is fine as tests gracefully wait for pings+ssh before
-    # calling this function.
-    wait_for_ping(machine, ip, retries=1)
+    if ping_check:
+        # One retry is fine as tests gracefully wait for pings+ssh before
+        # calling this function.
+        wait_for_ping(machine, ip, retries=1)
 
     # And here we check if the guest also responds via SSH.
     status, out = machine.execute(
