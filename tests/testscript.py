@@ -54,8 +54,12 @@ except Exception:
 # or other machines are added by Nix, we need to provide certain stub objects
 # in order to allow the IDE to lint the python code successfully.
 if "start_all" not in globals():
-    from nixos_test_stubs import start_all, computeVM, controllerVM, Machine  # type: ignore
-
+    from ..test_helper.test_helper.nixos_test_stubs import (  # type: ignore
+        start_all,
+        computeVM,
+        controllerVM,
+        Machine,
+    )
 
 VIRTIO_NETWORK_DEVICE = "1af4:1041"
 VIRTIO_BLOCK_DEVICE = "1af4:1042"
