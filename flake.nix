@@ -108,9 +108,16 @@
               # deterministic.
               cp ${nixos-image'}/iso/*.iso $out
             '';
+
         test-helper = pkgs.callPackage ./test_helper.nix {
+          inherit nixos-test-driver;
           inherit (pkgs.python3Packages) buildPythonPackage setuptools;
         };
+
+        # The nixos python test-driver is currently not exported, but we
+        # require it for our test helper lib to get all required type
+        # information.
+        nixos-test-driver = pkgs.callPackage "${pkgs.path}/nixos/lib/test-driver/default.nix" { };
       in
       {
         checks =
