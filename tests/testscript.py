@@ -671,7 +671,24 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         controllerVM.succeed("virsh define /etc/domain-chv-cirros.xml")
         controllerVM.succeed("virsh start testvm")
 
-        wait_for_ssh(controllerVM, user="cirros", password="gocubsgo")
+        # Attach a network where libvirt performs DHCP as the cirros image has
+        # no static IP in it.
+        # We can't use our hotplug() helper here, as it's network check would
+        # fail at this point.
+        controllerVM.succeed(
+            "virsh attach-device testvm /etc/new_interface_type_network.xml"
+        )
+        # The VM boot takes very long (due to DHCP on the default interface
+        # which doesn't uses DHCP.
+        wait_for_ssh(
+            controllerVM,
+            user="cirros",
+            password="gocubsgo",
+            ip="192.168.3.42",
+            # The VM boot is very slow as it tries to perform DHCP on all
+            # interfaces.
+            retries=350,
+        )
 
     def test_hugepages(self):
         """
@@ -1901,6 +1918,7 @@ def suite():
         LibvirtTests.test_bdf_valid_device_id_with_function_id,
         LibvirtTests.test_bdfs_dont_conflict_after_transient_unplug,
         LibvirtTests.test_bdfs_implicitly_assigned_same_after_recreate,
+        LibvirtTests.test_cirros_image,
         LibvirtTests.test_disk_is_locked,
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,
@@ -1976,7 +1994,13 @@ def wait_until_fail(func, retries=600):
     raise RuntimeError("function didn't fail")
 
 
-def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2"):
+def wait_for_ssh(
+    machine: Machine,
+    user: str = "root",
+    password: str = "root",
+    ip: str = "192.168.1.2",
+    retries: int = 100,
+):
     """
     Waits for SSH to become available to connect into the Cloud Hypervisor VM
     hosted on the corresponding machine.
@@ -1988,15 +2012,15 @@ def wait_for_ssh(machine: Machine, user="root", password="root", ip="192.168.1.2
     :param user: user for SSH login
     :param password: password for SSH login
     :param ip: SSH host to log into
+    :param retries: number of retries
     """
-    retries = 100
     for i in range(retries):
         print(f"Wait for ssh {i}/{retries}")
         try:
             ssh(machine, "echo hello", user, password, ip)
             return
         except Exception:
-            time.sleep(0.1)
+            time.sleep(0.2)
     raise RuntimeError(f"Could not establish SSH connection to {ip}")
 
 

@@ -246,7 +246,7 @@ let
          -->
         <dhcp>
           <!-- Static interface in VM has 192.168.3.2. -->
-          <range start='192.168.3.100' end='192.168.3.254'/>
+          <range start='192.168.3.42' end='192.168.3.42'/>
         </dhcp>
       </ip>
     </network>
