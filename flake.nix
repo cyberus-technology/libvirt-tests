@@ -159,7 +159,10 @@
             pythonTypes =
               pkgs.runCommand "python-types"
                 {
-                  nativeBuildInputs = with pkgs; [ pyright ];
+                  nativeBuildInputs = with pkgs; [
+                    pyright
+                    test-helper
+                  ];
                 }
                 ''
                   pyright ${cleanSrc}/tests
