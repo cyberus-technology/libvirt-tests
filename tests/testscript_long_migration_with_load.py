@@ -1,4 +1,18 @@
-import time
+# Following import statement allows for proper python IDE support and proper
+# nix build support. The duplicate listing of imported functions is a bit
+# unfortunate, but it seems to be the best compromise. This way the python IDE
+# support works out of the box in VSCode and IntelliJ without requiring
+# additional IDE configuration.
+try:
+    from ..test_helper.test_helper import (  # type: ignore
+        ssh,
+        wait_for_ssh,
+    )
+except Exception:
+    from test_helper import (
+        ssh,
+        wait_for_ssh,
+    )
 import unittest
 
 # pyright: reportPossiblyUnboundVariable=false
@@ -8,7 +22,11 @@ import unittest
 # or other machines are added by Nix, we need to provide certain stub objects
 # in order to allow the IDE to lint the python code successfully.
 if "start_all" not in globals():
-    from test_helper.test_helper.nixos_test_stubs import start_all, computeVM, controllerVM  # type: ignore
+    from test_helper.test_helper.nixos_test_stubs import (  # type: ignore
+        start_all,
+        computeVM,
+        controllerVM,
+    )
 
 
 class LibvirtTests(unittest.TestCase):
@@ -91,10 +109,9 @@ class LibvirtTests(unittest.TestCase):
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
 
-        assert wait_for_ssh(controllerVM)
+        wait_for_ssh(controllerVM)
 
-        status, _ = ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
-        assert status == 0
+        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
 
         run_loops = 500
         for i in range(run_loops):
@@ -103,36 +120,18 @@ class LibvirtTests(unittest.TestCase):
             controllerVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
             )
-            assert wait_for_ssh(computeVM)
+            wait_for_ssh(computeVM)
 
             computeVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
             )
-            assert wait_for_ssh(controllerVM)
+            wait_for_ssh(controllerVM)
 
 
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(LibvirtTests("test_live_migration_long_running_with_load"))
     return suite
-
-
-def wait_for_ssh(machine, user="root", password="root", ip="192.168.1.2"):
-    retries = 100
-    for i in range(retries):
-        print(f"Wait for ssh {i}/{retries}")
-        status, _ = ssh(machine, "echo hello", user, password, ip="192.168.1.2")
-        if status == 0:
-            return True
-        time.sleep(1)
-    return False
-
-
-def ssh(machine, cmd, user="root", password="root", ip="192.168.1.2"):
-    status, out = machine.execute(
-        f"sshpass -p {password} ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
-    )
-    return status, out
 
 
 runner = unittest.TextTestRunner()
