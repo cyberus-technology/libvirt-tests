@@ -1939,6 +1939,86 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         for bdf in bdf_new_devices:
             self.assertEqual(devices_transient.get(bdf), devices_persistent.get(bdf))
 
+    def test_bdf_domain_defs_in_sync_after_transient_hotplug(self):
+        """
+        Test that BDFs that are handed out persistently are not freed by
+        transient unplugs.
+
+        The persistent config needs to adopt the assigned BDF correctly
+        and when unplugging a device, the transient config has to
+        respect BDFs that are already reserved in the persistent config.
+        In other words, we test that BDFs are correctly synced between
+        persistent and transient config whenever both are affected and
+        that weird hot/-unplugging doesn't make both configs go out of
+        sync.
+        """
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        # Add a transient disk.
+        controllerVM.succeed(
+            "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
+        )
+        devices_transient_before = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
+        )
+        # Following the expected semantics, we now have a disk device in the transient definition that is missing in
+        # the persistent one. We need to find its BDF in the transient definition and check that there is no match
+        # in the persistent one.
+        devices_persistent = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+        )
+        devices_transient_now = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        new_bdf_transient = list(
+            (set(devices_transient_now.keys())).difference(
+                set(devices_transient_before.keys())
+            )
+        )[0]
+        self.assertIsNone(devices_persistent.get(new_bdf_transient))
+
+        # Attach another device persistently. If we did not respect in the persistent definition that the disk we
+        # attached before is still present in transient definition, then we now try to assign the BDF of the disk
+        # attached transiently before to the new network interface. In other words: Persistent and transient
+        # config's BDF management are out of sync. We can see the result by looking into the domain definition...
+        hotplug(
+            controllerVM,
+            "virsh attach-interface --target l33t_n37 --persistent --type network --source libvirt-testnetwork --mac DE:AD:BE:EF:13:37 --model virtio testvm",
+        )
+        controllerVM.succeed(
+            "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdc.img 5M"
+        )
+        hotplug(
+            controllerVM,
+            "virsh attach-disk --domain testvm --persistent --target vdc --source /var/lib/libvirt/storage-pools/nfs-share/vdc.img",
+        )
+
+        # So now look into the config
+        devices_persistent_end = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+        )
+        devices_transient_end = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        # Find the BDFs of devices we just added
+        bdf_new_devices = list(
+            (set(devices_transient_end.keys())).difference(
+                set(devices_transient_now.keys())
+            )
+        )
+        # And make sure that the exact same devices share the same BDF in transient and persistent definitions
+        for bdf in bdf_new_devices:
+            self.assertEqual(
+                devices_transient_end.get(bdf), devices_persistent_end.get(bdf)
+            )
+
     def test_bdf_invalid_device_id(self):
         """
         Test that a BDF with invalid device ID generates an error in libvirt.
@@ -2048,6 +2128,7 @@ def suite():
         # Finally we free the hugepages on the controllerVM and execute the
         # remaining tests.
         LibvirtTests.free_hugepages_controller,
+        LibvirtTests.test_bdf_domain_defs_in_sync_after_transient_hotplug,
         LibvirtTests.test_bdf_domain_defs_in_sync_after_transient_unplug,
         LibvirtTests.test_bdf_explicit_assignment,
         LibvirtTests.test_bdf_implicit_assignment,
