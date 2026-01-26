@@ -1,6 +1,5 @@
 from functools import partial
 import libvirt  # type: ignore
-import os
 import textwrap
 import time
 import unittest
@@ -13,6 +12,11 @@ import unittest
 try:
     from ..test_helper.test_helper import (  # type: ignore
         CommandGuard,
+        LibvirtTestsBase,
+        NR_HUGEPAGES,
+        VIRTIO_BLOCK_DEVICE,
+        VIRTIO_ENTROPY_SOURCE,
+        VIRTIO_NETWORK_DEVICE,
         allocate_hugepages,
         hotplug,
         hotplug_fail,
@@ -22,6 +26,8 @@ try:
         number_of_network_devices,
         number_of_storage_devices,
         pci_devices_by_bdf,
+        initialControllerVMSetup,
+        initialComputeVMSetup,
         ssh,
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
@@ -32,6 +38,11 @@ try:
 except Exception:
     from test_helper import (
         CommandGuard,
+        LibvirtTestsBase,
+        NR_HUGEPAGES,
+        VIRTIO_BLOCK_DEVICE,
+        VIRTIO_ENTROPY_SOURCE,
+        VIRTIO_NETWORK_DEVICE,
         allocate_hugepages,
         hotplug,
         hotplug_fail,
@@ -41,6 +52,8 @@ except Exception:
         number_of_network_devices,
         number_of_storage_devices,
         pci_devices_by_bdf,
+        initialControllerVMSetup,
+        initialComputeVMSetup,
         ssh,
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
@@ -57,191 +70,26 @@ except Exception:
 # in order to allow the IDE to lint the python code successfully.
 if "start_all" not in globals():
     from ..test_helper.test_helper.nixos_test_stubs import (  # type: ignore
-        start_all,
         computeVM,
         controllerVM,
-        Machine,
+        start_all,
     )
-
-VIRTIO_NETWORK_DEVICE = "1af4:1041"
-VIRTIO_BLOCK_DEVICE = "1af4:1042"
-VIRTIO_ENTROPY_SOURCE = "1af4:1044"
-
-# The VM we migrate has 2GiB of memory: 1024 * 2 MiB to cover RAM
-NR_HUGEPAGES = 1024
 
 # Paths where we can find the libvirt domain configuration XML files
 DOMAIN_DEF_PERSISTENT_PATH = "/var/lib/libvirt/ch/testvm.xml"
 DOMAIN_DEF_TRANSIENT_PATH = "/var/run/libvirt/ch/testvm.xml"
 
 
-class SaveLogsOnErrorTestCase(unittest.TestCase):
-    """
-    Custom TestCase class that saves interesting logs in error case.
-    """
+class LibvirtTests(LibvirtTestsBase):  # type: ignore
+    def __init__(self, methodName):
+        super().__init__(methodName, controllerVM, computeVM)
 
-    def run(self, result=None):
-        if result is None:
-            result = self.defaultTestResult()
-
-        original_addError = result.addError
-        original_addFailure = result.addFailure
-
-        def custom_addError(test, err):
-            self.save_logs(test, f"Error in {test._testMethodName}")
-            original_addError(test, err)
-
-        def custom_addFailure(test, err):
-            self.save_logs(test, f"Failure in {test._testMethodName}")
-            original_addFailure(test, err)
-
-        result.addError = custom_addError
-        result.addFailure = custom_addFailure
-
-        return super().run(result)
-
-    def save_machine_log(self, machine: Machine, log_path, dst_path):
-        try:
-            machine.copy_from_vm(log_path, dst_path)
-        # Non-existing logs lead to an Exception that we ignore
-        except Exception:
-            pass
-
-    def save_logs(self, test, message):
-        print(f"{message}")
-
-        if "DBG_LOG_DIR" not in os.environ:
-            return
-
-        for machine in [controllerVM, computeVM]:
-            dst_path = os.path.join(
-                os.environ["DBG_LOG_DIR"], f"{test._testMethodName}", f"{machine.name}"
-            )
-            self.save_machine_log(machine, "/var/log/libvirt/ch/testvm.log", dst_path)
-            self.save_machine_log(machine, "/var/log/libvirt/libvirtd.log", dst_path)
-
-
-class LibvirtTests(SaveLogsOnErrorTestCase):
     @classmethod
     def setUpClass(cls):
         start_all()
-        controllerVM.wait_for_unit("multi-user.target")
-        computeVM.wait_for_unit("multi-user.target")
-        controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
-        controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
+        initialControllerVMSetup(controllerVM)
+        initialComputeVMSetup(computeVM)
 
-        controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
-        computeVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
-
-        controllerVM.succeed("ssh -o StrictHostKeyChecking=no computeVM echo")
-        computeVM.succeed("ssh -o StrictHostKeyChecking=no controllerVM echo")
-
-        controllerVM.succeed(
-            'virsh pool-define-as --name "nfs-share" --type netfs --source-host "localhost" --source-path "nfs-root" --source-format "nfs" --target "/var/lib/libvirt/storage-pools/nfs-share"'
-        )
-        controllerVM.succeed("virsh pool-start nfs-share")
-
-        computeVM.succeed(
-            'virsh pool-define-as --name "nfs-share" --type netfs --source-host "controllerVM" --source-path "nfs-root" --source-format "nfs" --target "/var/lib/libvirt/storage-pools/nfs-share"'
-        )
-        computeVM.succeed("virsh pool-start nfs-share")
-
-        # Define a libvirt network and automatically starts it
-        controllerVM.succeed("virsh net-create /etc/libvirt_test_network.xml")
-
-    def setUp(self):
-        # A restart of the libvirt daemon resets the logging configuration, so
-        # apply it freshly for every test
-        controllerVM.succeed(
-            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
-        )
-        controllerVM.succeed(
-            "virt-admin -c virtchd:///system daemon-timeout --timeout 0"
-        )
-
-        computeVM.succeed(
-            'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
-        )
-        computeVM.succeed("virt-admin -c virtchd:///system daemon-timeout --timeout 0")
-
-        print(f"\n\nRunning test: {self._testMethodName}\n\n")
-
-        # In order to be able to differentiate the journal log for different
-        # tests, we print a message with the test name as a marker
-        controllerVM.succeed(
-            f'echo "Running test: {self._testMethodName}" | systemd-cat -t testscript -p info'
-        )
-        computeVM.succeed(
-            f'echo "Running test: {self._testMethodName}" | systemd-cat -t testscript -p info'
-        )
-
-    def tearDown(self):
-        # Trigger output of the sanitizers. At least the leak sanitizer output
-        # is only triggered if the program under inspection terminates.
-        controllerVM.execute("systemctl restart virtchd")
-        computeVM.execute("systemctl restart virtchd")
-
-        # Make sure there are no reports of the sanitizers. We retrieve the
-        # journal for only the recent test run, by looking for the test run
-        # marker. We then check for any ERROR messages of the sanitizers.
-        jrnCmd = f"journalctl _SYSTEMD_UNIT=virtchd.service + SYSLOG_IDENTIFIER=testscript | sed -n '/Running test: {self._testMethodName}/,$p' | grep ERROR"
-        statusController, outController = controllerVM.execute(jrnCmd)
-        statusCompute, outCompute = computeVM.execute(jrnCmd)
-
-        # Destroy and undefine all running and persistent domains
-        controllerVM.execute(
-            'virsh list --name | while read domain; do [[ -n "$domain" ]] && virsh destroy "$domain"; done'
-        )
-        controllerVM.execute(
-            'virsh list --all --name | while read domain; do [[ -n "$domain" ]] && virsh undefine "$domain"; done'
-        )
-        computeVM.execute(
-            'virsh list --name | while read domain; do [[ -n "$domain" ]] && virsh destroy "$domain"; done'
-        )
-        computeVM.execute(
-            'virsh list --all --name | while read domain; do [[ -n "$domain" ]] && virsh undefine "$domain"; done'
-        )
-
-        # After undefining and destroying all domains, there should not be any .xml files left
-        # Any files left here, indicate that we do not clean up properly
-        controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
-        controllerVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
-        computeVM.fail("find /run/libvirt/ch -name *.xml | grep .")
-        computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
-
-        # Ensure we can access specific test case logs afterward.
-        commands = [
-            f"mv /var/log/libvirt/ch/testvm.log /var/log/libvirt/ch/{self._testMethodName}_vmm.log || true",
-            # libvirt bug: can't cope with new or truncated log files
-            # f"mv /var/log/libvirt/libvirtd.log /var/log/libvirt/{timestamp}_{self._testMethodName}_libvirtd.log",
-            f"mv /var/log/vm_serial.log /var/log/{self._testMethodName}_vm-serial.log || true",
-        ]
-
-        # Various cleanup commands to be executed on all machines
-        commands = commands + [
-            "rm -f /tmp/*.expect",
-        ]
-
-        for cmd in commands:
-            print(f"cmd: {cmd}")
-            controllerVM.succeed(cmd)
-            computeVM.succeed(cmd)
-
-        # Reset the (possibly modified) system image. This helps avoid
-        # situations where the image has been modified by a test and thus
-        # doesn't boot in subsequent tests.
-        controllerVM.succeed(
-            "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-        )
-
-        self.assertNotEqual(
-            statusController, 0, msg=f"Sanitizer detected an issue: {outController}"
-        )
-        self.assertNotEqual(
-            statusCompute, 0, msg=f"Sanitizer detected an issue: {outCompute}"
-        )
 
     # Allocating and freeing hugepages for each test makes these tests flaky.
     # The reason for that is that non deterministic fragmentation of memory
