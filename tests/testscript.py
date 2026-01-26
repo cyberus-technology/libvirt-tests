@@ -2019,6 +2019,47 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                 devices_transient_end.get(bdf), devices_persistent_end.get(bdf)
             )
 
+    def test_libvirt_default_net_prefix_triggers_desynchronizing(self):
+        """
+        Test that using a libvirt reserved name for a net device leads to asynchronism between domain definitions.
+
+        We sync BDFs by finding the net device under its `ifname` property. `ifname` is cleared if the device definition
+        uses a prefix that is reserved by libvirt. This test ensure that clearing works and warns us about semantic
+        changes in libvirt's parsing infrastructure if it fails.
+        """
+        # Using define + start creates a "persistent" domain rather than a transient
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+        # We need to know all devices after starting the VM to conclude which one is new later
+        devices_before_attach = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        # Add network interface that uses a libvirt reserved prefix as argument for `target`. We expect it to be
+        # cleared which leads to address synchronization failing.
+        hotplug(
+            controllerVM,
+            "virsh attach-interface --target vnet2 --persistent --type network --source libvirt-testnetwork --mac DE:AD:BE:EF:13:37 --model virtio testvm",
+        )
+        devices_persistent = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+        )
+        devices_transient = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        bdf_in_transient = list(
+            (set(devices_transient.keys())).difference(
+                set(devices_before_attach.keys())
+            )
+        )[0]
+        # By chance the net device receives the same BDF in both domain definitions, so look for an exact match. If
+        # we find one, this means definitions are in sync (because even the `target` attribute is right)
+        if devices_persistent[bdf_in_transient] is not None:
+            self.assertNotEqual(
+                devices_transient.get(bdf_in_transient),
+                devices_persistent.get(bdf_in_transient),
+            )
+
     def test_bdf_invalid_device_id(self):
         """
         Test that a BDF with invalid device ID generates an error in libvirt.
@@ -2142,6 +2183,7 @@ def suite():
         LibvirtTests.test_hotplug,
         LibvirtTests.test_libvirt_event_stop_failed,
         LibvirtTests.test_libvirt_restart,
+        LibvirtTests.test_libvirt_default_net_prefix_triggers_desynchronizing,
         LibvirtTests.test_list_cpu_models,
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
