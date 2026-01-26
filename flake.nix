@@ -153,7 +153,8 @@
                 }
                 ''
                   cp -r ${cleanSrc}/. .
-                  ruff check ./tests
+                  ruff check ${cleanSrc}/test_helper
+                  ruff check ${cleanSrc}/tests
                   mkdir $out
                 '';
             pythonTypes =
@@ -174,6 +175,8 @@
                   nativeBuildInputs = [ pkgs.typos ];
                 }
                 ''
+                  # By cd'ing first, we prevent that typos complains about
+                  # weird path names (Nix store).
                   cd ${cleanSrc}
                   typos .
                   mkdir $out
