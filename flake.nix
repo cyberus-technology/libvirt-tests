@@ -208,6 +208,28 @@
           packages = with pkgs; [
             gitlint
           ];
+          shellHook =
+            # We need our `test_helper` Python library for the NixOS integration
+            # tests, which are Python projects themselves. For this reason, we
+            # assemble a Python toolchain that includes this package. We however
+            # also want full convenience for local development flows.
+            #
+            # The very same Nix Python toolchain is also used by the Nix
+            # development shell. When developers run `nix run #<test>.driver`,
+            # the Python process executes in the host environment of the caller
+            # and resolves modules via `PYTHONPATH` - from the caller who might
+            # have opened a Nix development shell. In that situation,
+            # `test_helper` will be imported from the likely outdated location
+            # in PYTHONPATH rather than from the local (potentially modified)
+            # files.
+            #
+            # This results in a confusing and very poor developer experience
+            # where an outdated version of `test_helper` is used even though
+            # local changes exist. To ensure the local version always takes
+            # precedence, we explicitly prepend the local path to `PYTHONPATH`.
+            ''
+              export PYTHONPATH=$PWD/test_helper/test_helper:$PYTHONPATH
+            '';
         };
         packages = {
           # Export of the overlay'ed package
