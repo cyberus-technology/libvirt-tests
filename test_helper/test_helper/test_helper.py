@@ -1,6 +1,8 @@
 import ipaddress
 import json
+import os
 import time
+import unittest
 import weakref
 
 try:
@@ -10,6 +12,289 @@ except ImportError:
 
 from test_driver.machine import Machine  # type: ignore
 from typing import Callable, List, Any
+
+# VIRTIO PCI constants
+VIRTIO_NETWORK_DEVICE = "1af4:1041"
+VIRTIO_BLOCK_DEVICE = "1af4:1042"
+VIRTIO_ENTROPY_SOURCE = "1af4:1044"
+
+
+class LibvirtTestsBase(unittest.TestCase):
+    """
+    Custom test base class handling multiple things:
+    * per test case setup and teardown
+    * log exporting on error
+    """
+
+    def __init__(
+        self,
+        methodName,
+        controllerVM: Machine | None,
+        computeVM: Machine | None = None,  # Allow for tests with only a single VM
+    ):
+        super().__init__(methodName)
+        self.controllerVM = controllerVM
+        self.computeVM = computeVM
+
+    def setUp(self):
+        if self.controllerVM:
+            setupTestControllerVM(self.controllerVM, self)
+
+        if self.computeVM:
+            setupTestComputeVM(self.computeVM, self)
+        print(f"\n\nRunning test: {self._testMethodName}\n\n")
+
+    def tearDown(self):
+        if self.controllerVM:
+            teardownTestControllerVM(self.controllerVM, self)
+
+        if self.computeVM:
+            teardownTestComputeVM(self.computeVM, self)
+
+    def run(self, result=None):
+        if result is None:
+            result = self.defaultTestResult()
+
+        original_addError = result.addError
+        original_addFailure = result.addFailure
+
+        def custom_addError(test, err):
+            self.save_logs(test, f"Error in {test._testMethodName}")
+            original_addError(test, err)
+
+        def custom_addFailure(test, err):
+            self.save_logs(test, f"Failure in {test._testMethodName}")
+            original_addFailure(test, err)
+
+        result.addError = custom_addError
+        result.addFailure = custom_addFailure
+
+        return super().run(result)
+
+    def save_machine_log(self, machine: Machine, log_path, dst_path):
+        try:
+            machine.copy_from_vm(log_path, dst_path)
+        # Non-existing logs lead to an Exception that we ignore
+        except Exception:
+            pass
+
+    def save_logs(self, test, message):
+        print(f"{message}")
+
+        if "DBG_LOG_DIR" not in os.environ:
+            return
+
+        for machine in [
+            m for m in [self.controllerVM, self.computeVM] if m is not None
+        ]:
+            dst_path = os.path.join(
+                os.environ["DBG_LOG_DIR"], f"{test._testMethodName}", f"{machine.name}"
+            )
+            self.save_machine_log(machine, "/var/log/libvirt/ch/testvm.log", dst_path)
+            self.save_machine_log(machine, "/var/log/libvirt/libvirtd.log", dst_path)
+
+
+def initialControllerVMSetup(controllerVM: Machine) -> None:
+    """
+    This method configures the controllerVM initially, before the test suite
+    runs. It sets up e.g. the NFS share with the correct OS images.
+
+    :param controllerVM: machine object of the controllerVM
+    :raises RuntimeError: If the machine object is not the controllerVM
+    """
+    if controllerVM.name != "controllerVM":
+        raise RuntimeError(
+            f"Setup method called with unexpected VM {controllerVM.name}"
+        )
+
+    controllerVM.wait_for_unit("multi-user.target")
+    controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
+    controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
+    controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
+    controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
+
+    controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
+
+    controllerVM.succeed("ssh -o StrictHostKeyChecking=no computeVM echo")
+
+    controllerVM.succeed(
+        'virsh pool-define-as --name "nfs-share" --type netfs --source-host "localhost" --source-path "nfs-root" --source-format "nfs" --target "/var/lib/libvirt/storage-pools/nfs-share"'
+    )
+    controllerVM.succeed("virsh pool-start nfs-share")
+
+    # Define a libvirt network and automatically starts it
+    controllerVM.succeed("virsh net-create /etc/libvirt_test_network.xml")
+
+
+def initialComputeVMSetup(computeVM: Machine) -> None:
+    """
+    This method configures the computeVM initially, before the test suite
+    runs. It sets up e.g. the NFS share in client mode.
+
+    :param computeVM: machine object of the computeVM
+    :raises RuntimeError: If the machine object is not the computeVM
+    """
+    if computeVM.name != "computeVM":
+        raise RuntimeError(f"Setup method called with unexpected VM {computeVM.name}")
+
+    computeVM.wait_for_unit("multi-user.target")
+    computeVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
+
+    computeVM.succeed("ssh -o StrictHostKeyChecking=no controllerVM echo")
+
+    computeVM.succeed(
+        'virsh pool-define-as --name "nfs-share" --type netfs --source-host "controllerVM" --source-path "nfs-root" --source-format "nfs" --target "/var/lib/libvirt/storage-pools/nfs-share"'
+    )
+    computeVM.succeed("virsh pool-start nfs-share")
+
+
+def setupTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> None:
+    if controllerVM.name != "controllerVM":
+        raise RuntimeError(
+            f"Setup method called with unexpected VM {controllerVM.name}"
+        )
+    # A restart of the libvirt daemon resets the logging configuration, so
+    # apply it freshly for every test
+    controllerVM.succeed(
+        'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
+    )
+    controllerVM.succeed("virt-admin -c virtchd:///system daemon-timeout --timeout 0")
+
+    # In order to be able to differentiate the journal log for different
+    # tests, we print a message with the test name as a marker
+    controllerVM.succeed(
+        f'echo "Running test: {test._testMethodName}" | systemd-cat -t testscript -p info'
+    )
+
+
+def setupTestComputeVM(computeVM: Machine, test: unittest.TestCase) -> None:
+    if computeVM.name != "computeVM":
+        raise RuntimeError(f"Setup method called with unexpected VM {computeVM.name}")
+
+    # A restart of the libvirt daemon resets the logging configuration, so
+    # apply it freshly for every test
+    computeVM.succeed(
+        'virt-admin -c virtchd:///system daemon-log-outputs "2:journald 1:file:/var/log/libvirt/libvirtd.log"'
+    )
+    computeVM.succeed("virt-admin -c virtchd:///system daemon-timeout --timeout 0")
+
+    # In order to be able to differentiate the journal log for different
+    # tests, we print a message with the test name as a marker
+    computeVM.succeed(
+        f'echo "Running test: {test._testMethodName}" | systemd-cat -t testscript -p info'
+    )
+
+
+def tearDownCommands(test: unittest.TestCase) -> List[str]:
+    """
+    Return a list of strings of generic commands used for the cleanup on all
+    host VMs (e.g. controllerVM).
+
+    :param test: Test case currently tearing down
+    """
+    return [
+        # Ensure we can access specific test case logs afterward.
+        f"mv /var/log/libvirt/ch/testvm.log /var/log/libvirt/ch/{test._testMethodName}_vmm.log || true",
+        # libvirt bug: can't cope with new or truncated log files
+        # f"mv /var/log/libvirt/libvirtd.log /var/log/libvirt/{timestamp}_{self._testMethodName}_libvirtd.log",
+        f"mv /var/log/vm_serial.log /var/log/{test._testMethodName}_vm-serial.log || true",
+        # Various cleanup commands to be executed on all machines
+        "rm -f /tmp/*.expect",
+    ]
+
+
+def teardownTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> None:
+    """
+    Tear down of the actual test case on the controllerVM. Takes care of
+    resetting the nixos image back to the golden state.
+
+    :param controllerVM: controllerVM object reference
+    :param test: the current test case to tear down
+    """
+    if controllerVM.name != "controllerVM":
+        raise RuntimeError(
+            f"Setup method called with unexpected VM {controllerVM.name}"
+        )
+
+    # Trigger output of the sanitizers. At least the leak sanitizer output
+    # is only triggered if the program under inspection terminates.
+    controllerVM.execute("systemctl restart virtchd")
+
+    # Make sure there are no reports of the sanitizers. We retrieve the
+    # journal for only the recent test run, by looking for the test run
+    # marker. We then check for any ERROR messages of the sanitizers.
+    jrnCmd = f"journalctl _SYSTEMD_UNIT=virtchd.service + SYSLOG_IDENTIFIER=testscript | sed -n '/Running test: {test._testMethodName}/,$p' | grep ERROR"
+    statusController, outController = controllerVM.execute(jrnCmd)
+
+    # Destroy and undefine all running and persistent domains
+    controllerVM.execute(
+        'virsh list --name | while read domain; do [[ -n "$domain" ]] && virsh destroy "$domain"; done'
+    )
+    controllerVM.execute(
+        'virsh list --all --name | while read domain; do [[ -n "$domain" ]] && virsh undefine "$domain"; done'
+    )
+
+    # After undefining and destroying all domains, there should not be any .xml files left
+    # Any files left here, indicate that we do not clean up properly
+    controllerVM.fail("find /run/libvirt/ch -name *.xml | grep .")
+    controllerVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
+
+    for cmd in tearDownCommands(test):
+        print(f"cmd: {cmd}")
+        controllerVM.succeed(cmd)
+
+    # Reset the (possibly modified) system image. This helps avoid
+    # situations where the image has been modified by a test and thus
+    # doesn't boot in subsequent tests.
+    controllerVM.succeed(
+        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
+    )
+
+    test.assertNotEqual(
+        statusController, 0, msg=f"Sanitizer detected an issue: {outController}"
+    )
+
+
+def teardownTestComputeVM(computeVM: Machine, test: unittest.TestCase) -> None:
+    """
+    Tear down of the actual test case on the computeVM.
+
+    :param computeVM: computeVM object reference
+    :param test: the current test case to tear down
+    """
+    if computeVM.name != "computeVM":
+        raise RuntimeError(f"Setup method called with unexpected VM {computeVM.name}")
+
+    # Trigger output of the sanitizers. At least the leak sanitizer output
+    # is only triggered if the program under inspection terminates.
+    computeVM.execute("systemctl restart virtchd")
+
+    # Make sure there are no reports of the sanitizers. We retrieve the
+    # journal for only the recent test run, by looking for the test run
+    # marker. We then check for any ERROR messages of the sanitizers.
+    jrnCmd = f"journalctl _SYSTEMD_UNIT=virtchd.service + SYSLOG_IDENTIFIER=testscript | sed -n '/Running test: {test._testMethodName}/,$p' | grep ERROR"
+    statusCompute, outCompute = computeVM.execute(jrnCmd)
+
+    # Destroy and undefine all running and persistent domains
+    computeVM.execute(
+        'virsh list --name | while read domain; do [[ -n "$domain" ]] && virsh destroy "$domain"; done'
+    )
+    computeVM.execute(
+        'virsh list --all --name | while read domain; do [[ -n "$domain" ]] && virsh undefine "$domain"; done'
+    )
+
+    # After undefining and destroying all domains, there should not be any .xml files left
+    # Any files left here, indicate that we do not clean up properly
+    computeVM.fail("find /run/libvirt/ch -name *.xml | grep .")
+    computeVM.fail("find /var/lib/libvirt/ch -name *.xml | grep .")
+
+    for cmd in tearDownCommands(test):
+        print(f"cmd: {cmd}")
+        computeVM.succeed(cmd)
+
+    test.assertNotEqual(
+        statusCompute, 0, msg=f"Sanitizer detected an issue: {outCompute}"
+    )
 
 
 class CommandGuard:
