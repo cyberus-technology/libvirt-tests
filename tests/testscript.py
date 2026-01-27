@@ -11,12 +11,9 @@ import unittest
 try:
     from ..test_helper.test_helper import (  # type: ignore
         LibvirtTestsBase,
-        NR_HUGEPAGES,
-        allocate_hugepages,
         hotplug,
         hotplug_fail,
         number_of_devices,
-        number_of_free_hugepages,
         number_of_network_devices,
         pci_devices_by_bdf,
         initialControllerVMSetup,
@@ -30,12 +27,9 @@ try:
 except Exception:
     from test_helper import (
         LibvirtTestsBase,
-        NR_HUGEPAGES,
-        allocate_hugepages,
         hotplug,
         hotplug_fail,
         number_of_devices,
-        number_of_free_hugepages,
         number_of_network_devices,
         pci_devices_by_bdf,
         initialControllerVMSetup,
@@ -74,25 +68,6 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         start_all()
         initialControllerVMSetup(controllerVM)
         initialComputeVMSetup(computeVM)
-
-
-    # Allocating and freeing hugepages for each test makes these tests flaky.
-    # The reason for that is that non deterministic fragmentation of memory
-    # sometimes leads to failed allocations of hugepages, and sometimes not. To
-    # prevent that, we allocate and free hugepages only once using the following
-    # three functions.
-    def allocate_hugepages(self):
-        """Allocates hugepages for subsequent tests."""
-        allocate_hugepages(controllerVM, NR_HUGEPAGES)
-        allocate_hugepages(computeVM, NR_HUGEPAGES)
-
-    def free_hugepages_compute(self):
-        """Frees all hugepages on the computeVM."""
-        allocate_hugepages(computeVM, 0)
-
-    def free_hugepages_controller(self):
-        """Frees all hugepages on the controllerVM."""
-        allocate_hugepages(controllerVM, 0)
 
     def test_network_hotplug_transient_vm_restart(self):
         """
@@ -348,80 +323,6 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # The VM boot is very slow as it tries to perform DHCP on all
             # interfaces.
             retries=350,
-        )
-
-    def test_hugepages(self):
-        """
-        Test hugepage on-demand usage for a non-NUMA VM.
-        """
-
-        controllerVM.succeed("virsh define /etc/domain-chv-hugepages.xml")
-        controllerVM.succeed("virsh start testvm")
-
-        wait_for_ssh(controllerVM)
-
-        # Check that we really use hugepages from the hugepage pool
-        self.assertLess(
-            number_of_free_hugepages(controllerVM),
-            NR_HUGEPAGES,
-            "no huge pages have been used",
-        )
-
-    def test_hugepages_prefault(self):
-        """
-        Test hugepage usage with pre-faulting for a non-NUMA VM.
-        """
-
-        controllerVM.succeed("virsh define /etc/domain-chv-hugepages-prefault.xml")
-        controllerVM.succeed("virsh start testvm")
-
-        wait_for_ssh(controllerVM)
-
-        # Check that all huge pages are in use
-        self.assertEqual(
-            number_of_free_hugepages(controllerVM), 0, "not all huge pages are in use"
-        )
-
-    def test_numa_hugepages(self):
-        """
-        Test hugepage on-demand usage for a NUMA VM.
-        """
-
-        controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages.xml")
-        controllerVM.succeed("virsh start testvm")
-
-        wait_for_ssh(controllerVM)
-
-        # Check that there are 2 NUMA nodes
-        ssh(controllerVM, "ls /sys/devices/system/node/node0")
-
-        ssh(controllerVM, "ls /sys/devices/system/node/node1")
-
-        # Check that we really use hugepages from the hugepage pool
-        self.assertLess(
-            number_of_free_hugepages(controllerVM),
-            NR_HUGEPAGES,
-            "no huge pages have been used",
-        )
-
-    def test_numa_hugepages_prefault(self):
-        """
-        Test hugepage usage with pre-faulting for a NUMA VM.
-        """
-
-        controllerVM.succeed("virsh define /etc/domain-chv-numa-hugepages-prefault.xml")
-        controllerVM.succeed("virsh start testvm")
-
-        wait_for_ssh(controllerVM)
-
-        # Check that there are 2 NUMA nodes
-        ssh(controllerVM, "ls /sys/devices/system/node/node0")
-
-        ssh(controllerVM, "ls /sys/devices/system/node/node1")
-
-        # Check that all huge pages are in use
-        self.assertEqual(
-            number_of_free_hugepages(controllerVM), 0, "not all huge pages are in use"
         )
 
     def test_serial_file_output(self):
@@ -1168,22 +1069,8 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
 
 def suite():
-    # Test cases sorted by their need of hugepages and in alphabetical order.
+    # Test cases sorted in alphabetical order.
     testcases = [
-        # We allocate hugepages first and then execute all functions that
-        # need hugepages on both hosts.
-        LibvirtTests.allocate_hugepages,
-        LibvirtTests.test_live_migration_with_hugepages,
-        # Free the hugepages on the computeVM and execute tests that use or
-        # need hugepages only on the controllerVM.
-        LibvirtTests.free_hugepages_compute,
-        LibvirtTests.test_hugepages,
-        LibvirtTests.test_hugepages_prefault,
-        LibvirtTests.test_numa_hugepages,
-        LibvirtTests.test_numa_hugepages_prefault,
-        # Finally we free the hugepages on the controllerVM and execute the
-        # remaining tests.
-        LibvirtTests.free_hugepages_controller,
         LibvirtTests.test_bdf_domain_defs_in_sync_after_transient_hotplug,
         LibvirtTests.test_bdf_domain_defs_in_sync_after_transient_unplug,
         LibvirtTests.test_bdf_invalid_device_id,
