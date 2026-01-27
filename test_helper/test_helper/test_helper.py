@@ -80,11 +80,44 @@ def wait_until_fail(func: Callable[[], bool], retries: int = 600) -> None:
     raise RuntimeError("function didn't fail")
 
 
+def wait_for_host_shares_ipv4_network(
+    machine: Machine, ip: str = "192.168.1.2", retries=20
+):
+    """
+    Wait until the host has an IPv4 address in the same /24 network as the
+    given IP address.
+
+    This is used in tests that dynamically create TAP devices. Since udev and
+    systemd-networkd configure interfaces asynchronously, the host may need a
+    short grace period before the correct IPv4 address is assigned. To avoid
+    race conditions, the check is retried a small amount of times.
+
+    Under normal conditions, this returns immediately. If the condition is not
+    met after all retries, a RuntimeError is raised and includes the output of
+    `ip a` for debugging.
+
+    :param machine: Host
+    :param ip: IP to wait for
+    :param retries: Amount of retries
+    """
+
+    try:
+        wait_until_succeed(
+            lambda: ip_in_local_192_168_net24(machine, ip), retries=retries
+        )
+    except RuntimeError as e:
+        _, output = machine.execute("ip a")
+        msg = f"Host doesn't have an IP in the same IPv4 network as {ip}!\nip a:\n{output}"
+        raise RuntimeError(msg) from e
+
+
 def wait_for_ping(
     machine: Machine, ip: str = "192.168.1.2", retries: int = 200
 ) -> None:
     """
     Waits for the VM to become pingable.
+
+    Calls `wait_for_host_shares_ipv4_network()` beforehand.
 
     :param machine: VM host
     :param ip: IP to ping from `machine`
@@ -92,9 +125,7 @@ def wait_for_ping(
     :raises RuntimeError: If the IP could not be pinged after `retries` times.
     """
 
-    # Sometimes we experienced test runs where the host lost IPs. We therefore
-    # check that early and always for better debuggability.
-    assert_ip_in_local_192_168_net24(machine, ip)
+    wait_for_host_shares_ipv4_network(machine, ip)
 
     for i in range(retries):
         print(f"Checking ping to {ip} ({i + 1}/{retries}) ...")
@@ -116,8 +147,7 @@ def wait_for_ssh(
     """
     Waits for the VM to become accessible via SSH.
 
-    It first checks whether the VM responds to ping, and then attempts to
-    establish an SSH connection using the provided credentials.
+    Calls `wait_for_ping()` beforehand.
 
     :param machine: VM host
     :param user: user for SSH login
@@ -404,9 +434,9 @@ def get_local_192_168_net24_networks(machine: Machine) -> List[ipaddress.IPv4Net
     return sorted(networks)
 
 
-def assert_ip_in_local_192_168_net24(machine: Machine, ip: str) -> None:
+def ip_in_local_192_168_net24(machine: Machine, ip: str) -> bool:
     """
-    Assert that the given IPv4 address belongs to one of the machine's local
+    Checks if the given IPv4 address belongs to one of the machine's local
     192.168.x.0/24 networks.
 
     The function enumerates all local /24 networks in the private
@@ -418,13 +448,10 @@ def assert_ip_in_local_192_168_net24(machine: Machine, ip: str) -> None:
     192.168.x.x address (e.g. after network reconfiguration, hotplug,
     or unintended interface changes).
 
-    On success, the function returns silently.
-    On failure, it raises a RuntimeError with diagnostic information.
-
     :param machine: Machine on which local network interfaces are inspected.
     :param ip: Target IPv4 address expected to be reachable via a local /24
                192.168.x.0 network.
-    :raises RuntimeError: If the IP is invalid or no matching local network exists.
+    :return: Whether the host shares a local IPv4 network with the given IP.
     """
     target = ipaddress.IPv4Address(ip)
 
@@ -434,16 +461,9 @@ def assert_ip_in_local_192_168_net24(machine: Machine, ip: str) -> None:
     networks = get_local_192_168_net24_networks(machine)
     for network in networks:
         if target in network:
-            return  # all good
+            return True
 
-    out = machine.succeed("ip a")
-    msg = (
-        f"The {ip} is not reachable from the host! An interface may has lost its IP?!\n"
-        f"networks={networks}\n"
-        f"`ip a`:\n"
-        f"{out}"
-    )
-    raise RuntimeError(msg)
+    return False
 
 
 def parse_devices_from_dom_def(machine: Machine, path: str) -> dict[str, str]:
