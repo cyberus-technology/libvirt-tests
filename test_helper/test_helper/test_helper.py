@@ -9,7 +9,7 @@ except ImportError:
     pass
 
 from test_driver.machine import Machine  # type: ignore
-from typing import Callable, List
+from typing import Callable, List, Any
 
 
 class CommandGuard:
@@ -39,7 +39,7 @@ class CommandGuard:
         self._finilizer()
 
 
-def measure_ms(func: Callable) -> float:
+def measure_ms(func: Callable[[], Any]) -> float:
     """
     Measure the execution time of a given function in ms.
     """
@@ -48,12 +48,13 @@ def measure_ms(func: Callable) -> float:
     return (time.time() - start) * 1000
 
 
-def wait_until_succeed(func: Callable, retries: int = 600) -> None:
+def wait_until_succeed(func: Callable[[], bool], retries: int = 600) -> None:
     """
     Waits for the command to succeed.
     After each failure, it waits 100ms.
 
-    :param func: Function that is expected to succeed.
+    :param func: Function that is expected to succeed. It must not throw
+           exceptions but translate its exceptions to True/False.
     :param retries: Amount of retries.
     """
     for _i in range(retries):
@@ -63,12 +64,13 @@ def wait_until_succeed(func: Callable, retries: int = 600) -> None:
     raise RuntimeError("function didn't succeed")
 
 
-def wait_until_fail(func: Callable, retries: int = 600) -> None:
+def wait_until_fail(func: Callable[[], bool], retries: int = 600) -> None:
     """
     Waits for the command to fail.
     After each success, it waits 100ms.
 
-    :param func: Function that is expected to succeed.
+    :param func: Function that is expected to fail. It must not throw
+           exceptions but translate its exceptions to True/False.
     :param retries: Amount of retries.
     """
     for i in range(retries):
@@ -170,6 +172,7 @@ def ssh(
     """
 
     # Check VM is still pingable and we didn't lose the network.
+    # This way, we prevent spammy logs.
     if ping_check:
         # One retry is fine as tests gracefully wait for pings+ssh before
         # calling this function.
