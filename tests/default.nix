@@ -24,6 +24,15 @@
     testScriptFile = ./testscript_migration_tests.py;
   };
 
+  hugepage = pkgs.callPackage ./libvirt-test.nix {
+    inherit
+      libvirt-src
+      nixos-image
+      chv-ovmf
+      ;
+    testScriptFile = ./testscript_hugepage_tests.py;
+  };
+
   long_migration_with_load = pkgs.callPackage ./libvirt-test.nix {
     inherit
       libvirt-src
