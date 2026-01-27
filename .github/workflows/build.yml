@@ -50,7 +50,5 @@ jobs:
           # Run all other flake-wide checks
           # TODO add once we have quicker CI runners
           # nix flake check
-      - name: Eval Default Test Suite
-        run: nix eval -L .#tests.x86_64-linux.default.driver
-      - name: Eval Long-Running Test Suite
-        run: nix eval -L .#tests.x86_64-linux.long_migration_with_load.driver
+      - name: Eval all test suites
+        run: nix eval -L .#tests.x86_64-linux.all
