@@ -363,9 +363,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             'grep -c "Spawned thread to send VM memory" /var/log/libvirt/ch/testvm.log'
         ).strip()
 
-        # CHV starts one thread less than the given parallel connections because
-        # the main thread also utilized
-        self.assertEqual(parallel_connections - 1, int(num_threads))
+        self.assertEqual(parallel_connections, int(num_threads))
 
     def test_live_migration_with_vcpu_pinning(self):
         """
@@ -573,7 +571,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                     .split("\n")
                 )
 
-                expected = parallel_connections if parallel else 1
+                expected = (parallel_connections + 1) if parallel else 1
                 server_hellos = len(server_hello)  # count ServerHellos
                 tcp_streams = len(
                     set(server_hello)
