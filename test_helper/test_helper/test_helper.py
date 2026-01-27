@@ -441,3 +441,61 @@ def assert_ip_in_local_192_168_net24(machine: Machine, ip: str) -> None:
         f"{out}"
     )
     raise RuntimeError(msg)
+
+
+def parse_devices_from_dom_def(machine: Machine, path: str) -> dict[str, str]:
+    """
+    Parses `devices` from a domain XML given by `path` on `machine` and returns them in a dict.
+
+    The dict returned contains the device PCI slot as keys and an identification string of a device as value. The string
+    differs between device types.
+
+    :param path: Location of the domain definition on `machine`
+    :param machine: Host on which the domain definition is located
+    :return: dict[str, str] = ['<PCI slot in hex>' : '<info:about:device>']
+
+    :raises RuntimeError: If we couldn't find the domain XML on the target machine
+    """
+    import xml.etree.ElementTree as ET
+
+    command = "cat " + path
+    status, cat_result = machine.execute(command)
+    if status != 0:
+        raise RuntimeError(
+            f"unable to retrieve domain config from {path} on machine {machine}"
+        )
+
+    root = ET.fromstring(cat_result)
+    result: dict[str, str] = dict()
+    # Use ".//devices" because in persistent conf, `devices` is direct child and in transient config it's one more level
+    # of nesting.
+    for device in root.find(".//devices") or []:
+        value = ""
+        value += device.tag
+        match device.tag:
+            case "disk":
+                source = device.find("source")
+                if source is not None:
+                    value += ":" + source.get("file", "").strip()
+                target = device.find("target")
+                if target is not None:
+                    value += ":" + target.get("dev", "").strip()
+            case "interface":
+                value += ":" + device.attrib.get("type", "")
+                mac = device.find("mac")
+                if mac is not None:
+                    value += ":" + mac.get("address", "")
+                target = device.find("target")
+                if target is not None:
+                    value += ":" + target.get("dev", "").strip()
+            case "rng":
+                backend = device.find("backend")
+                if backend is not None:
+                    value += ":" + (backend.text or "").strip()
+        address = device.find("address")
+        if address is not None:
+            if address.get("type") == "pci":
+                slot = address.get("slot") or ""
+                if slot != "":
+                    result[slot] = (value or "").strip()
+    return result
