@@ -1326,9 +1326,9 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             'grep -c "Spawned thread to send VM memory" /var/log/libvirt/ch/testvm.log'
         ).strip()
 
-        # CHV starts one thread less than the given parallel connections because
-        # the main thread also utilized
-        self.assertEqual(parallel_connections - 1, int(num_threads))
+        # The main thread does not send memory, thus CHV starts as many threads
+        # as given parallel connections.
+        self.assertEqual(parallel_connections, int(num_threads))
 
     def test_live_migration_with_vcpu_pinning(self):
         """
@@ -1536,7 +1536,11 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
                     .split("\n")
                 )
 
-                expected = parallel_connections if parallel else 1
+                # When using multiple connections to send memory, CHV creates
+                # as many additional threads as given parallel connections.
+                # Thus, together with the main thread, we should see
+                # (parallel connections + 1) TLS ServerHellos.
+                expected = (parallel_connections + 1) if parallel else 1
                 server_hellos = len(server_hello)  # count ServerHellos
                 tcp_streams = len(
                     set(server_hello)
