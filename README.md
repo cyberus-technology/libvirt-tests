@@ -29,14 +29,22 @@ It might happen that the integration test runs out of resources when the user's
 tmp directory space is too small. You can try to mitigate this by setting
 `XDG_RUNTIME_DIR=/tmp/libvirt` before invoking the test script.
 
-### Long-running Tests
+### Available Tests
 
-If you want to perform a long-running migration series with a VM that is under
-heavy memory load use:
+The libvirt-tests are divided into multiple tests suites, each leveraging the
+NixOS integration test framework. The NixOS tests are grouped by different
+factors, e.g. the longer running live migration tests are separated. Following
+test attributes are available. Each attribute can be run via
+`nix run -L .#tests.x86_64-linux.<attribute>.driver`.
 
-```bash
-$ nix run -L .#tests.x86_64-linux.long_migration_with_load.driver
-```
+- `default`
+  - default test suite containing most of the tests
+- `live_migration`
+  - live migration tests that usually take longer to run
+- `hugepage`
+  - tests that require hugepages in the host VM to be available
+- `long_migration_with_load`
+  - long-running migration series with a VM that is under heavy memory load
 
 ### Obtaining debug logs
 
