@@ -2156,8 +2156,8 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 def suite():
     # Test cases sorted by their need of hugepages and in alphabetical order.
     testcases = [
-        #LibvirtTests.test_live_migration_virsh_non_blocking,
-        LibvirtTests.test_live_migration,
+        LibvirtTests.test_live_migration_virsh_non_blocking,
+        # LibvirtTests.test_live_migration,
     ]
 
     suite = unittest.TestSuite()

@@ -3,18 +3,17 @@
     "cloud-hypervisor-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1768983650,
-        "narHash": "sha256-nqGlL3rqBEYhqEf5LdZUYKSjbCE4tJwxjAJW0VXhn7s=",
-        "owner": "cyberus-technology",
-        "repo": "cloud-hypervisor",
-        "rev": "bde41fb9b67d0c3ef9ffde6f31864e0b960d4e1f",
-        "type": "github"
+        "lastModified": 1769524933,
+        "narHash": "sha256-eEMWNT01MaweyqUmxXPeRm2T817PkC1HBh0JkJdSXBk=",
+        "ref": "refs/heads/poc-migration-statistics",
+        "rev": "7ee83341625eced09a33142ec077bda8317dec78",
+        "revCount": 9285,
+        "type": "git",
+        "url": "file:/home/pschuster/dev/cloud-hypervisor"
       },
       "original": {
-        "owner": "cyberus-technology",
-        "ref": "gardenlinux",
-        "repo": "cloud-hypervisor",
-        "type": "github"
+        "type": "git",
+        "url": "file:/home/pschuster/dev/cloud-hypervisor"
       }
     },
     "crane": {
@@ -90,20 +89,19 @@
     "libvirt-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1769089136,
-        "narHash": "sha256-2LcHuW3KRaDD6FdYy2w3/6ID2vHYXHN7c2scrxfw3zM=",
-        "ref": "gardenlinux",
-        "rev": "58478b8dd4c5576c20ad9fc05482a8e74fb649c3",
-        "revCount": 53586,
+        "lastModified": 1769506034,
+        "narHash": "sha256-416W974vWreJbQXh/B85/5aLYsqanb0onPCtEarB6cw=",
+        "ref": "refs/heads/poc-migration-statistics",
+        "rev": "b2e4b6ec45757c80930c4410dba406b738f03d3a",
+        "revCount": 53610,
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/cyberus-technology/libvirt"
+        "url": "file:/home/pschuster/dev/libvirt"
       },
       "original": {
-        "ref": "gardenlinux",
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/cyberus-technology/libvirt"
+        "url": "file:/home/pschuster/dev/libvirt"
       }
     },
     "nixpkgs": {
