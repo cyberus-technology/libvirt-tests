@@ -27,6 +27,7 @@ try:
         wait_for_ssh,
         wait_until_fail,
         wait_until_succeed,
+        parse_devices_from_dom_def,
     )
 except Exception:
     from test_helper import (
@@ -45,6 +46,7 @@ except Exception:
         wait_for_ssh,
         wait_until_fail,
         wait_until_succeed,
+        parse_devices_from_dom_def,
     )
 
 # pyright: reportPossiblyUnboundVariable=false
@@ -67,6 +69,10 @@ VIRTIO_ENTROPY_SOURCE = "1af4:1044"
 
 # The VM we migrate has 2GiB of memory: 1024 * 2 MiB to cover RAM
 NR_HUGEPAGES = 1024
+
+# Paths where we can find the libvirt domain configuration XML files
+DOMAIN_DEF_PERSISTENT_PATH = "/var/lib/libvirt/ch/testvm.xml"
+DOMAIN_DEF_TRANSIENT_PATH = "/var/run/libvirt/ch/testvm.xml"
 
 
 class SaveLogsOnErrorTestCase(unittest.TestCase):
@@ -1636,17 +1642,23 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
 
     def test_bdf_implicit_assignment(self):
         """
-        Test if all BDFs are correctly assigned in a scenario where some
-        are fixed in the XML and some are assigned by libvirt.
+        Test if all BDFs are correctly assigned in a scenario where some are
+        fixed in the XML and some are assigned by libvirt.
 
-        The domain XML we use here leaves a slot ID 0x03 free, but
-        allocates IDs 0x01, 0x02 and 0x04. 0x01 and 0x02 are dynamically
-        assigned by libvirt and not given in the domain XML. As 0x04 is
-        the first free ID, we expect this to be selected for the first
-        device we add to show that libvirt uses gaps. We add another
-        disk to show that all succeeding BDFs would be allocated
-        dynamically. Moreover, we show that all BDF assignments
-        survive live migration.
+        The domain XML we use here leaves a slot ID 0x03 free, but allocates IDs
+        0x01, 0x02 and 0x04. 0x01 and 0x02 are dynamically assigned by libvirt
+        and not given in the domain XML. As 0x04 is the first free ID, we expect
+        this to be selected for the first device we add to show that libvirt
+        uses gaps. We add another disk to show that all succeeding BDFs would be
+        allocated dynamically. Moreover, we show that all BDF assignments
+        survive live migration and freed BDFs can be reused when attaching new
+        devices.
+
+        Developer note: This test enforce that BDFs are assigned with the
+        numerical smallest free BDF first. If you alter this test because the
+        algorithm changed, you also have to adopt
+        `test_domain_defs_in_sync_after_transient_unplug`, else it could
+        generate false positive.
         """
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
@@ -1687,6 +1699,7 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         self.assertEqual(devices["00:06.0"], VIRTIO_BLOCK_DEVICE)
 
         # Check that we can reuse the same non-statically allocated BDF
+        # Have you read the developer note in the description?
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
         self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:05.0"))
@@ -1836,25 +1849,39 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
         devices_after = pci_devices_by_bdf(controllerVM)
         self.assertEqual(devices_after, devices_before)
 
-    def test_bdfs_dont_conflict_after_transient_unplug(self):
+    def test_bdf_domain_defs_in_sync_after_transient_unplug(self):
         """
         Test that BDFs that are handed out persistently are not freed by
         transient unplugs.
 
-        The persistent config needs to adopt the assigned BDF correctly
-        and when unplugging a device, the transient config has to
-        respect BDFs that are already reserved in the persistent config.
-        In other words, we test that BDFs are correctly synced between
-        persistent and transient config whenever both are affected and
-        that weird hot/-unplugging doesn't make both configs go out of
-        sync.
+        The persistent domain definition (XML) needs to adopt the assigned BDF
+        correctly and when unplugging a device, the transient domain definition
+        has to respect BDFs that are already reserved in the persistent domain
+        definition. In other words, we test that BDFs are correctly synced
+        between persistent and transient domain definition whenever both are
+        affected and that weird hot/-unplugging doesn't make both domain
+        definitions go out of sync.
+
+        Developer note: This test assumes that BDFs are handed out with the
+        first free numerical smallest BDF first and that freed BDFs can be
+        reused. Currently this is enforced by test
+        `test_bdf_implicit_assignment`. Without these constraints, this test
+        will not be able to detect a conflict. E.g. without BDFs being reused
+        and handing out BDFs in a round robin approach, could lead to some kind
+        of wrapping, that hands out the correct BDF by accident and doesn't
+        provoke the conflict we are checking for.
         """
         # Using define + start creates a "persistent" domain rather than a transient
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
 
-        # Add a persistent disk.
+        # Add a persistent disk. Note: If we would add a network device with <target dev = "vnet*">, then this test
+        # would fail. This is because libvirt uses "vnet*" as one of its prefixes for auto-generated names and
+        # clears any occurrence of such names from the config.
+        devices_persistent = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+        )
         controllerVM.succeed(
             "qemu-img create -f raw /var/lib/libvirt/storage-pools/nfs-share/vdb.img 5M"
         )
@@ -1862,18 +1889,55 @@ class LibvirtTests(SaveLogsOnErrorTestCase):
             controllerVM,
             "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img --persistent",
         )
-        # Remove transient. The device is removed from the transient config but not from the persistent one. The
-        # transient config has to mark the BDF as still in use nevertheless.
+        # Check that vdb is added to the same PCI slot in both definitions
+        devices_persistent_vdb_added = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+        )
+        devices_transient = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        new_bdf_vdb = list(
+            (set(devices_persistent_vdb_added.keys())).difference(
+                set(devices_persistent.keys())
+            )
+        )[0]
+        self.assertEqual(
+            devices_persistent_vdb_added.get(new_bdf_vdb),
+            devices_transient.get(new_bdf_vdb),
+        )
+        # Remove transient. The device is removed from the transient domain definition but not from the persistent
+        # one. The transient domain definition has to mark the BDF as still in use nevertheless.
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
-
-        # Attach another device persistently. If we did not respect in the transient config that the disk we
-        # detached before is still present in persistent config, then we now try to assign BDF 4 twice in the
-        # persistent config. In other words: Persistent and transient config's BDF management are out of sync if
-        # this command fails.
+        devices_transient = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        self.assertIsNone(devices_transient.get(new_bdf_vdb))
+        # Attach another device persistently. If we did not respect in the transient domain definition that the disk
+        # we detached before is still present in persistent domain definition, then we now try to assign
+        # `new_bdf_vdb` twice in the persistent domain definition. In other words: Persistent and transient domain
+        # definition's BDF management are out of sync if this command fails.
+        # Developer note: This assumption only holds as long as we hand out the first free BDF that is numerical the
+        # smallest and as long as the algorithm clear BDF for reuse. See the developer node in the documentation
+        # string of this test.
         hotplug(
             controllerVM,
             "virsh attach-device testvm /etc/new_interface.xml --persistent",
         )
+        # Find the new devices and their BDFs by comparing to older state
+        devices_persistent = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_PERSISTENT_PATH
+        )
+        bdf_new_devices = list(
+            (set(devices_persistent.keys())).difference(
+                set(devices_persistent_vdb_added.keys())
+            )
+        )
+        # Ensure the same device can be found with the same BDF in the transient definition
+        devices_transient = parse_devices_from_dom_def(
+            controllerVM, DOMAIN_DEF_TRANSIENT_PATH
+        )
+        for bdf in bdf_new_devices:
+            self.assertEqual(devices_transient.get(bdf), devices_persistent.get(bdf))
 
     def test_bdf_invalid_device_id(self):
         """
@@ -1984,11 +2048,11 @@ def suite():
         # Finally we free the hugepages on the controllerVM and execute the
         # remaining tests.
         LibvirtTests.free_hugepages_controller,
+        LibvirtTests.test_bdf_domain_defs_in_sync_after_transient_unplug,
         LibvirtTests.test_bdf_explicit_assignment,
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_bdf_invalid_device_id,
         LibvirtTests.test_bdf_valid_device_id_with_function_id,
-        LibvirtTests.test_bdfs_dont_conflict_after_transient_unplug,
         LibvirtTests.test_bdfs_implicitly_assigned_same_after_recreate,
         LibvirtTests.test_cirros_image,
         LibvirtTests.test_disk_is_locked,

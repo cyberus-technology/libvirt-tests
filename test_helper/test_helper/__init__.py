@@ -15,6 +15,7 @@ from .test_helper import (
     wait_for_ssh,
     wait_until_fail,
     wait_until_succeed,
+    parse_devices_from_dom_def,
 )
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "wait_for_ssh",
     "wait_until_fail",
     "wait_until_succeed",
+    "parse_devices_from_dom_def",
 ]
