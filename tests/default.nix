@@ -5,7 +5,7 @@
   chv-ovmf,
 }:
 
-{
+rec {
   default = pkgs.callPackage ./libvirt-test.nix {
     inherit
       libvirt-src
@@ -40,5 +40,17 @@
       chv-ovmf
       ;
     testScriptFile = ./testscript_long_migration_with_load.py;
+  };
+
+  # Convenience attribute containing all nixos test driver attributes mainly
+  # used for evaluation checks
+  all = pkgs.symlinkJoin {
+    name = "all-test-driver";
+    paths = [
+      default.driver
+      live_migration.driver
+      hugepage.driver
+      long_migration_with_load.driver
+    ];
   };
 }
