@@ -13,21 +13,13 @@
       # url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt?ref=managedsave-fix&submodules=1";
       flake = false;
     };
-    cloud-hypervisor-src = {
+    cloud-hypervisor = {
       # url = "git+file:<path/to/cloud-hypervisor>";
       url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
-      flake = false;
     };
     edk2-src = {
       url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
       flake = false;
-    };
-    # Nix tooling to build cloud-hypervisor.
-    crane.url = "github:ipetkov/crane/master";
-    # Get proper Rust toolchain, independent of pkgs.rustc.
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     fcntl-tool = {
       url = "github:phip1611/fcntl-tool";
@@ -61,25 +53,27 @@
       {
         self,
         # Keep list sorted:
-        cloud-hypervisor-src,
-        crane,
+        cloud-hypervisor,
         edk2-src,
         fcntl-tool,
         libvirt-src,
         nixpkgs,
-        rust-overlay,
         ...
       }:
       let
         pkgs = nixpkgs.legacyPackages.appendOverlays [
           (_final: prev: {
             fcntl-tool = fcntl-tool.packages.default;
-            cloud-hypervisor = pkgs.callPackage ./chv.nix {
-              inherit cloud-hypervisor-src;
-              craneLib = crane.mkLib pkgs;
-              rustToolchain = rust-bin.stable.latest.default;
-              cloud-hypervisor-meta = prev.cloud-hypervisor.meta;
-            };
+            # Debug optimized build, suited for quicker rebuilds with
+            # reasonable good performance.
+            cloud-hypervisor = cloud-hypervisor.packages.default.overrideAttrs (old: {
+              env = (old.env or { }) // {
+                CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS = "true";
+                CARGO_PROFILE_RELEASE_OPT_LEVEL = 2;
+                CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
+                CARGO_PROFILE_RELEASE_LTO = "thin";
+              };
+            });
             python3Packages = prev.python3Packages.overrideScope (
               _: _: {
                 inherit test-helper;
@@ -87,8 +81,6 @@
             );
           })
         ];
-
-        rust-bin = (rust-overlay.lib.mkRustBin { }) pkgs;
 
         chv-ovmf = pkgs.OVMF-cloud-hypervisor.overrideAttrs (_old: {
           version = "cbs";
@@ -231,6 +223,7 @@
               export PYTHONPATH=$PWD/test_helper/test_helper:$PYTHONPATH
             '';
         };
+        # We export all artifacts that we also have in the tests.
         packages = {
           # Export of the overlay'ed package
           inherit (pkgs) cloud-hypervisor;
