@@ -8,14 +8,14 @@
     # A local path can be used for developing or testing local changes. Make
     # sure the submodules in a local libvirt checkout are populated.
     libvirt-src = {
-      # url = "git+file:<path/to/libvirt>?submodules=1";
-      url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
-      # url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt?ref=managedsave-fix&submodules=1";
+      url = "git+file:/home/pschuster/dev/libvirt?submodules=1";
+      # url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
+      # url = "git+ssh://git@gitlab.cyberus-technology.de/pschuster/libvirt?ref=poc-migration-statistics&submodules=1";
       flake = false;
     };
     cloud-hypervisor-src = {
-      # url = "git+file:<path/to/cloud-hypervisor>";
-      url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
+      url = "git+file:/home/pschuster/dev/cloud-hypervisor";
+      # url = "github:phip1611/cloud-hypervisor?ref=poc-migration-statistics";
       flake = false;
     };
     edk2-src = {
