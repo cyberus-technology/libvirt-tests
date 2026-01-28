@@ -89,11 +89,11 @@
     "libvirt-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1769506034,
-        "narHash": "sha256-416W974vWreJbQXh/B85/5aLYsqanb0onPCtEarB6cw=",
+        "lastModified": 1769525400,
+        "narHash": "sha256-wElk2AXZ46l2NrV2WeVXTgR/4kAeLo7FjrzYQiH1sIM=",
         "ref": "refs/heads/poc-migration-statistics",
-        "rev": "b2e4b6ec45757c80930c4410dba406b738f03d3a",
-        "revCount": 53610,
+        "rev": "b9fe12fb5640629d8dee72f3255061f65d4428eb",
+        "revCount": 53611,
         "submodules": true,
         "type": "git",
         "url": "file:/home/pschuster/dev/libvirt"
