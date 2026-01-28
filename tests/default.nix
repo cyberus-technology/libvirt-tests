@@ -12,7 +12,7 @@ rec {
       nixos-image
       chv-ovmf
       ;
-    testScriptFile = ./testscript.py;
+    testScriptFile = ./testsuite_default.py;
   };
 
   live_migration = pkgs.callPackage ./libvirt-test.nix {
@@ -21,7 +21,7 @@ rec {
       nixos-image
       chv-ovmf
       ;
-    testScriptFile = ./testscript_migration_tests.py;
+    testScriptFile = ./testsuite_migration.py;
   };
 
   hugepage = pkgs.callPackage ./libvirt-test.nix {
@@ -30,7 +30,7 @@ rec {
       nixos-image
       chv-ovmf
       ;
-    testScriptFile = ./testscript_hugepage_tests.py;
+    testScriptFile = ./testsuite_hugepages.py;
   };
 
   long_migration_with_load = pkgs.callPackage ./libvirt-test.nix {
@@ -39,7 +39,7 @@ rec {
       nixos-image
       chv-ovmf
       ;
-    testScriptFile = ./testscript_long_migration_with_load.py;
+    testScriptFile = ./testsuite_long_migration_with_load.py;
   };
 
   # Convenience attribute containing all nixos test driver attributes mainly
