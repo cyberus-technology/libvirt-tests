@@ -22,7 +22,15 @@ please consider using the interactive mode. In interactive mode, you can type
 Build and run the default set of test cases:
 
 ```bash
-$ nix run -L .#tests.x86_64-linux.default.driver
+nix run -L .#tests.x86_64-linux.default.driver
+```
+
+Every test attribute also exposes a passthru attribute offering the test
+without enabling any port forwarding. This version is meant for the usage in
+the CI, where port forwarding could fail because of occupied ports.
+
+```bash
+nix run .\#tests.x86_64-linux.default.passthru.no_port_forwarding.driver
 ```
 
 It might happen that the integration test runs out of resources when the user's
