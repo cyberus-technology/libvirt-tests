@@ -844,6 +844,23 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
+    def test_live_migration_non_peer2peer_is_not_supported(self):
+        """
+        Test that an attempt to migrate without specifying --p2p fails. The
+        OpenStack driver always uses the P2P flag. As the migration functions
+        very different when P2P is specified, we drop the support for non P2P
+        migrations.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+
+        controllerVM.fail(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --parallel --parallel-connections 4"
+        )
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
@@ -853,6 +870,7 @@ def suite():
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
+        LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
         LibvirtTests.test_live_migration_parallel_connections,
         LibvirtTests.test_live_migration_tls,
         LibvirtTests.test_live_migration_tls_without_certificates,
