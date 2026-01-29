@@ -830,6 +830,20 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         devices_after_livemig = pci_devices_by_bdf(computeVM)
         self.assertEqual(devices_before_livemig, devices_after_livemig)
 
+    def test_live_migration_to_self_is_rejected(self):
+        """
+        Test that an attempt to migrate to yourself fails.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+
+        controllerVM.fail(
+            "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        )
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
@@ -842,6 +856,7 @@ def suite():
         LibvirtTests.test_live_migration_parallel_connections,
         LibvirtTests.test_live_migration_tls,
         LibvirtTests.test_live_migration_tls_without_certificates,
+        LibvirtTests.test_live_migration_to_self_is_rejected,
         LibvirtTests.test_live_migration_virsh_non_blocking,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
