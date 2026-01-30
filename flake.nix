@@ -7,24 +7,18 @@
 
     # A local path can be used for developing or testing local changes. Make
     # sure the submodules in a local libvirt checkout are populated.
-    libvirt-src = {
-      # url = "git+file:<path/to/libvirt>?submodules=1";
-      url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
-      # url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt?ref=managedsave-fix&submodules=1";
-      flake = false;
-    };
-    cloud-hypervisor = {
-      # url = "git+file:<path/to/cloud-hypervisor>";
-      url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
-    };
-    edk2-src = {
-      url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
-      flake = false;
-    };
-    fcntl-tool = {
-      url = "github:phip1611/fcntl-tool";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # libvirt-src.url = "git+file:<path/to/libvirt>?submodules=1";
+    libvirt-src.url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
+    libvirt-src.flake = false;
+
+    # cloud-hypervisor.url = "git+file:<path/to/cloud-hypervisor>";
+    cloud-hypervisor.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
+
+    edk2-src.url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
+    edk2-src.flake = false;
+
+    fcntl-tool.url = "github:phip1611/fcntl-tool";
+    fcntl-tool.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
