@@ -4,14 +4,14 @@
 
 {
   pkgs,
-  libvirt-src,
+  libvirt, # debug-optimized libvirt package
   nixos-image,
   chv-ovmf,
   testScriptFile,
   enablePortForwarding,
 }:
 let
-  common = import ./common.nix { inherit libvirt-src nixos-image chv-ovmf; };
+  common = import ./common.nix { inherit libvirt nixos-image chv-ovmf; };
 
   tls =
     let

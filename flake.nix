@@ -8,8 +8,9 @@
     # A local path can be used for developing or testing local changes. Make
     # sure the submodules in a local libvirt checkout are populated.
     # libvirt-src.url = "git+file:<path/to/libvirt>?submodules=1";
-    libvirt-src.url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
-    libvirt-src.flake = false;
+    libvirt.url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
+    libvirt.inputs.cloud-hypervisor.follows = "cloud-hypervisor";
+    libvirt.inputs.nixpkgs.follows = "nixpkgs";
 
     # cloud-hypervisor.url = "git+file:<path/to/cloud-hypervisor>";
     cloud-hypervisor.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
@@ -51,7 +52,7 @@
         cloud-hypervisor,
         edk2-src,
         fcntl-tool,
-        libvirt-src,
+        libvirt,
         nixpkgs,
         ...
       }:
@@ -230,10 +231,10 @@
         tests = import ./tests/default.nix {
           inherit
             pkgs
-            libvirt-src
             nixos-image
             chv-ovmf
             ;
+          libvirt = libvirt.packages.libvirt-debugoptimized;
         };
       }
     );
