@@ -29,7 +29,6 @@ pkgs.testers.nixosTest {
   extraPythonPackages =
     p: with p; [
       pytest
-      libvirt
       test-helper
     ];
 
