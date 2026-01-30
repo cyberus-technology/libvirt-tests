@@ -1,6 +1,6 @@
 {
   pkgs,
-  libvirt-src,
+  libvirt,
   nixos-image,
   chv-ovmf,
   enablePortForwarding ? true,
@@ -19,7 +19,7 @@ let
   tests = {
     default = pkgs.callPackage ./libvirt-test.nix {
       inherit
-        libvirt-src
+        libvirt
         nixos-image
         chv-ovmf
         enablePortForwarding
@@ -29,7 +29,7 @@ let
 
     live_migration = pkgs.callPackage ./libvirt-test.nix {
       inherit
-        libvirt-src
+        libvirt
         nixos-image
         chv-ovmf
         enablePortForwarding
@@ -39,7 +39,7 @@ let
 
     hugepage = pkgs.callPackage ./libvirt-test.nix {
       inherit
-        libvirt-src
+        libvirt
         nixos-image
         chv-ovmf
         enablePortForwarding
@@ -49,7 +49,7 @@ let
 
     long_migration_with_load = pkgs.callPackage ./libvirt-test.nix {
       inherit
-        libvirt-src
+        libvirt
         nixos-image
         chv-ovmf
         enablePortForwarding
