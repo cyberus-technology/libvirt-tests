@@ -7,7 +7,7 @@
 
     # A local path can be used for developing or testing local changes. Make
     # sure the submodules in a local libvirt checkout are populated.
-    # libvirt-src.url = "git+file:<path/to/libvirt>?submodules=1";
+    # libvirt.url = "git+file:<path/to/libvirt>?submodules=1";
     libvirt.url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
     libvirt.inputs.cloud-hypervisor.follows = "cloud-hypervisor";
     libvirt.inputs.nixpkgs.follows = "nixpkgs";
