@@ -64,6 +64,7 @@ nixpkgs.lib.nixosSystem {
         };
         environment.stub-ld.enable = false;
         environment.systemPackages = with pkgs; [
+          dmidecode
           screen
           stress
         ];

@@ -1020,6 +1020,65 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 domcapabilities_out,
             )
 
+    def test_list_smbios_biosinfo(self):
+        """
+        This test checks the SMBIOS BIOS Information fields `vendor` and
+        `version`. These are provided by Cloud Hypervisor and should be
+        present without any SMBIOS overrides.
+        """
+        expected_field_values = {
+            "bios-vendor": "cloud-hypervisor",
+            "bios-version": "0",
+        }
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        for dmi_string, expected in expected_field_values.items():
+            actual = ssh(
+                controllerVM,
+                f"dmidecode --string {dmi_string} | tr -d '\\n'",
+            )
+            self.assertEqual(expected, actual)
+
+    def test_list_smbios_sysinfo(self):
+        """
+        This test checks the SMBIOS System Information fields
+        `manufacturer`, `product name`, `version`, `serial number`, `uuid`,
+        `sku number`, `family`, and the `chassis asset` field.
+        These are overwritten using the specified libvirt XML configuration,
+        so the default values `Cloud Hypervisor` and `cloud-hypervisor`
+        should not appear.
+        """
+        expected_field_values = {
+            "system-manufacturer": "My Manufacturer",
+            "system-product-name": "My ProductName",
+            "system-version": "123456",
+            "system-serial-number": "123-123-123",
+            "system-uuid": "4eb6319a-4302-4407-9a56-802fc7e6a422",
+            "system-sku-number": "SKU-SKU-SKU",
+            "system-family": "My Family",
+            "chassis-asset-tag": "My AssetTag",
+        }
+
+        controllerVM.succeed("virsh define /etc/domain-chv-smbios.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        for dmi_string, expected in expected_field_values.items():
+            actual = ssh(
+                controllerVM,
+                f"dmidecode --string {dmi_string} | tr -d '\\n'",
+            )
+            self.assertEqual(expected, actual)
+
+        actual = ssh(
+            controllerVM,
+            "cat /sys/devices/virtual/dmi/id/chassis_asset_tag | tr -d '\\n'",
+        )
+        self.assertEqual(expected_field_values["chassis-asset-tag"], actual)
+
 
 def suite():
     # Test cases sorted in alphabetical order.
@@ -1034,10 +1093,12 @@ def suite():
         LibvirtTests.test_disk_resize_qcow2,
         LibvirtTests.test_disk_resize_raw,
         LibvirtTests.test_hotplug,
+        LibvirtTests.test_libvirt_default_net_prefix_triggers_desynchronizing,
         LibvirtTests.test_libvirt_event_stop_failed,
         LibvirtTests.test_libvirt_restart,
-        LibvirtTests.test_libvirt_default_net_prefix_triggers_desynchronizing,
         LibvirtTests.test_list_cpu_models,
+        LibvirtTests.test_list_smbios_biosinfo,
+        LibvirtTests.test_list_smbios_sysinfo,
         LibvirtTests.test_managedsave,
         LibvirtTests.test_network_hotplug_attach_detach_persistent,
         LibvirtTests.test_network_hotplug_attach_detach_transient,
