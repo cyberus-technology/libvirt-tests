@@ -29,7 +29,45 @@ let
       all_static_bdf ? false,
       # Whether we add a function ID to specific BDFs or not
       use_bdf_function ? false,
+      smbios ? {
+        chassis.asset = null;
+        system = {
+          family = null;
+          manufacturer = null;
+          product = null;
+          serial = null;
+          sku = null;
+          uuid = null;
+          version = null;
+        };
+      },
     }:
+    let
+      mkSmbiosEntries =
+        attrs:
+        lib.pipe attrs [
+          (lib.filterAttrs (_: v: v != null))
+          (lib.concatMapAttrsStringSep "\n" (n: v: "        <entry name='${n}'>${toString v}</entry>"))
+        ];
+
+      systemEntries = mkSmbiosEntries smbios.system;
+      chassisEntries = mkSmbiosEntries smbios.chassis;
+
+      sysinfoXml = ''
+            <sysinfo type='smbios'>
+              <system>
+        ${systemEntries}
+              </system>
+              <chassis>
+        ${chassisEntries}
+              </chassis>
+            </sysinfo>
+      '';
+
+      hasSmbios = systemEntries != "" || chassisEntries != "";
+      smbiosModeXml = lib.optionalString hasSmbios "    <smbios mode='sysinfo'/>\n";
+      sysinfoBlockXml = lib.optionalString hasSmbios sysinfoXml;
+    in
     ''
       <domain type='kvm' id='21050'>
         <name>testvm</name>
@@ -110,9 +148,11 @@ let
         }
         <os>
           <type arch='x86_64'>hvm</type>
+          ${smbiosModeXml}
           <kernel>/etc/CLOUDHV.fd</kernel>
           <boot dev='hd'/>
         </os>
+        ${sysinfoBlockXml}
         <clock offset='utc'/>
         <on_poweroff>destroy</on_poweroff>
         <on_reboot>restart</on_reboot>
@@ -570,6 +610,24 @@ in
             argument = "${pkgs.writeText "domain-chv-static-bdf-with-function.xml" (virsh_ch_xml {
               all_static_bdf = true;
               use_bdf_function = true;
+            })}";
+          };
+        };
+        "/etc/domain-chv-smbios.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-chv-smbios.xml" (virsh_ch_xml {
+              smbios = {
+                chassis.asset = "My AssetTag";
+                system = {
+                  family = "My Family";
+                  manufacturer = "My Manufacturer";
+                  product = "My ProductName";
+                  serial = "123-123-123";
+                  sku = "SKU-SKU-SKU";
+                  uuid = "4eb6319a-4302-4407-9a56-802fc7e6a422";
+                  version = "123456";
+                };
+              };
             })}";
           };
         };
