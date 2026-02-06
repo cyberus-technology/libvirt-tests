@@ -30,6 +30,10 @@ let
       # Whether we add a function ID to specific BDFs or not
       use_bdf_function ? false,
       smbios ? {
+        # For mode `host` all other fields except `uuid` will be ignored.
+        # For mode `sysinfo`, the other fields should be set as they are
+        # supported to appear in the guest, otherwise they are nulled.
+        mode = null;
         chassis.asset = null;
         system = {
           family = null;
@@ -43,6 +47,21 @@ let
       },
     }:
     let
+      defaultSmbios = {
+        chassis.asset = null;
+        mode = null;
+        system = {
+          family = null;
+          manufacturer = null;
+          product = null;
+          serial = null;
+          sku = null;
+          uuid = null;
+          version = null;
+        };
+      };
+      smbios' = lib.recursiveUpdate defaultSmbios smbios;
+
       mkSmbiosEntries =
         attrs:
         lib.pipe attrs [
@@ -50,10 +69,11 @@ let
           (lib.concatMapAttrsStringSep "\n" (n: v: "        <entry name='${n}'>${toString v}</entry>"))
         ];
 
-      systemEntries = mkSmbiosEntries smbios.system;
-      chassisEntries = mkSmbiosEntries smbios.chassis;
+      systemEntries = mkSmbiosEntries smbios'.system;
+      chassisEntries = mkSmbiosEntries smbios'.chassis;
+      hasSysinfoSmbios = systemEntries != "" || chassisEntries != "" || smbios'.mode != "";
 
-      sysinfoXml = ''
+      sysinfoXml = lib.optionalString hasSysinfoSmbios ''
             <sysinfo type='smbios'>
               <system>
         ${systemEntries}
@@ -64,9 +84,8 @@ let
             </sysinfo>
       '';
 
-      hasSmbios = systemEntries != "" || chassisEntries != "";
-      smbiosModeXml = lib.optionalString hasSmbios "    <smbios mode='sysinfo'/>\n";
-      sysinfoBlockXml = lib.optionalString hasSmbios sysinfoXml;
+      smbiosModeXml = lib.optionalString hasSysinfoSmbios "    <smbios mode='${toString smbios'.mode}'/>\n";
+      sysinfoBlockXml = lib.optionalString hasSysinfoSmbios sysinfoXml;
     in
     ''
       <domain type='kvm' id='21050'>
@@ -373,7 +392,10 @@ in
   systemd.services.virtstoraged.path = [ pkgs.mount ];
 
   systemd.services.virtchd.wantedBy = [ "multi-user.target" ];
-  systemd.services.virtchd.path = [ pkgs.openssh ];
+  systemd.services.virtchd.path = with pkgs; [
+    dmidecode
+    openssh
+  ];
   systemd.services.virtnetworkd.path = with pkgs; [
     dnsmasq
     iproute2
@@ -484,6 +506,7 @@ in
     bridge-utils
     btop
     cloud-hypervisor
+    dmidecode
     expect
     fcntl-tool
     gdb
@@ -618,6 +641,7 @@ in
             argument = "${pkgs.writeText "domain-chv-smbios.xml" (virsh_ch_xml {
               smbios = {
                 chassis.asset = "My AssetTag";
+                mode = "sysinfo";
                 system = {
                   family = "My Family";
                   manufacturer = "My Manufacturer";
@@ -627,6 +651,16 @@ in
                   uuid = "4eb6319a-4302-4407-9a56-802fc7e6a422";
                   version = "123456";
                 };
+              };
+            })}";
+          };
+        };
+        "/etc/domain-chv-smbios-host.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-chv-smbios-host.xml" (virsh_ch_xml {
+              smbios = {
+                mode = "host";
+                system.uuid = "4eb6319a-4302-4407-9a56-802fc7e6a422";
               };
             })}";
           };

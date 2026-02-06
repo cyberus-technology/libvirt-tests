@@ -1079,6 +1079,42 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         self.assertEqual(expected_field_values["chassis-asset-tag"], actual)
 
+    def test_list_smbios_host(self):
+        """
+        This test checks the SMBIOS System Information fields
+        `manufacturer`, `product name`, `version`, `serial number`, `uuid`,
+        `sku number`, `family`, and the `chassis asset` field.
+        These are propagated from the host, in this case from the QEMU VM.
+        We read the values from the host and validate them against the
+        CH guest.
+        """
+        expected_field_values = {}
+        for dmi_string in [
+            "system-manufacturer",
+            "system-product-name",
+            "system-version",
+            "system-serial-number",
+            "system-sku-number",
+            "system-family",
+        ]:
+            expected_field_values[dmi_string] = controllerVM.succeed(
+                f"dmidecode -s {dmi_string} | tr -d '\\n'",
+            )
+        # SMBIOS mode="host" copies Block 0/1 values except UUID; UUID must be
+        # manually propagated and is not taken from the host.
+        expected_field_values["system-uuid"] = "4eb6319a-4302-4407-9a56-802fc7e6a422"
+
+        controllerVM.succeed("virsh define /etc/domain-chv-smbios-host.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        for dmi_string, expected in expected_field_values.items():
+            actual = ssh(
+                controllerVM,
+                f"dmidecode --string {dmi_string} | tr -d '\\n'",
+            )
+            self.assertEqual(expected, actual)
+
 
 def suite():
     # Test cases sorted in alphabetical order.
@@ -1098,6 +1134,7 @@ def suite():
         LibvirtTests.test_libvirt_restart,
         LibvirtTests.test_list_cpu_models,
         LibvirtTests.test_list_smbios_biosinfo,
+        LibvirtTests.test_list_smbios_host,
         LibvirtTests.test_list_smbios_sysinfo,
         LibvirtTests.test_managedsave,
         LibvirtTests.test_network_hotplug_attach_detach_persistent,
