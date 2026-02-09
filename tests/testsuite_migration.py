@@ -328,8 +328,17 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             msg="Expect virsh shutdown execution to take longer",
         )
 
-        # Turn off the stress process to let the migration finish faster
-        ssh(controllerVM, "pkill screen")
+        try:
+            # Turn off the stress process to let the migration finish faster
+            ssh(
+                controllerVM,
+                "pkill screen",
+                extraSSHParams="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
+            )
+        except RuntimeError:
+            # The VM might already be migrated and SSH fails. This is no
+            # problem in this test scenario.
+            pass
 
         # Wait for migration in the screen session to finish
         def migration_finished():
