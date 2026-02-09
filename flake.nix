@@ -10,6 +10,8 @@
     # libvirt.url = "git+file:<path/to/libvirt>?submodules=1";
     libvirt.url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
     libvirt.inputs.cloud-hypervisor.follows = "cloud-hypervisor";
+    # Break the chain of cyclic dependencies:
+    libvirt.inputs.libvirt-tests.inputs.libvirt.follows = "libvirt";
     libvirt.inputs.nixpkgs.follows = "nixpkgs";
 
     # cloud-hypervisor.url = "git+file:<path/to/cloud-hypervisor>";
