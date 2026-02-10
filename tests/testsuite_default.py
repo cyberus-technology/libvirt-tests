@@ -1115,6 +1115,25 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             )
             self.assertEqual(expected, actual)
 
+    def test_list_smbios_oem_strings(self):
+        """
+        This test checks the SMBIOS OEM Strings (Type 11) entries.
+        These are overwritten using the specified libvirt XML configuration.
+        """
+        expected_oem_strings = [
+            "oem-7f3d9b23",
+            "oem-2c8a1e6f",
+            "oem-91d4c0aa",
+        ]
+
+        controllerVM.succeed("virsh define /etc/domain-chv-smbios-oem.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        oem_strings_out = ssh(controllerVM, "dmidecode -t 11 --quiet")
+        for expected in expected_oem_strings:
+            self.assertIn(expected, oem_strings_out)
+
 
 def suite():
     # Test cases sorted in alphabetical order.
@@ -1135,6 +1154,7 @@ def suite():
         LibvirtTests.test_list_cpu_models,
         LibvirtTests.test_list_smbios_biosinfo,
         LibvirtTests.test_list_smbios_host,
+        LibvirtTests.test_list_smbios_oem_strings,
         LibvirtTests.test_list_smbios_sysinfo,
         LibvirtTests.test_managedsave,
         LibvirtTests.test_network_hotplug_attach_detach_persistent,
