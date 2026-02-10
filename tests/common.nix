@@ -44,6 +44,7 @@ let
           uuid = null;
           version = null;
         };
+        oemStrings = [ ];
       },
     }:
     let
@@ -59,6 +60,7 @@ let
           uuid = null;
           version = null;
         };
+        oemStrings = [ ];
       };
       smbios' = lib.recursiveUpdate defaultSmbios smbios;
 
@@ -71,17 +73,27 @@ let
 
       systemEntries = mkSmbiosEntries smbios'.system;
       chassisEntries = mkSmbiosEntries smbios'.chassis;
-      hasSysinfoSmbios = systemEntries != "" || chassisEntries != "" || smbios'.mode != "";
+      oemStringsEntries = lib.concatMapStringsSep "\n" (
+        v: "        <entry>${toString v}</entry>"
+      ) smbios'.oemStrings;
+      oemStringsXml = lib.optionalString (oemStringsEntries != "") ''
+              <oemStrings>
+        ${oemStringsEntries}
+              </oemStrings>
+      '';
+      hasSysinfoSmbios =
+        systemEntries != "" || chassisEntries != "" || oemStringsEntries != "" || smbios'.mode != "";
 
       sysinfoXml = lib.optionalString hasSysinfoSmbios ''
-            <sysinfo type='smbios'>
-              <system>
-        ${systemEntries}
-              </system>
-              <chassis>
-        ${chassisEntries}
-              </chassis>
-            </sysinfo>
+              <sysinfo type='smbios'>
+                <system>
+          ${systemEntries}
+                </system>
+                <chassis>
+          ${chassisEntries}
+                </chassis>
+        ${oemStringsXml}
+              </sysinfo>
       '';
 
       smbiosModeXml = lib.optionalString hasSysinfoSmbios "    <smbios mode='${toString smbios'.mode}'/>\n";
@@ -661,6 +673,20 @@ in
               smbios = {
                 mode = "host";
                 system.uuid = "4eb6319a-4302-4407-9a56-802fc7e6a422";
+              };
+            })}";
+          };
+        };
+        "/etc/domain-chv-smbios-oem.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-chv-smbios-oem.xml" (virsh_ch_xml {
+              smbios = {
+                mode = "sysinfo";
+                oemStrings = [
+                  "oem-7f3d9b23"
+                  "oem-2c8a1e6f"
+                  "oem-91d4c0aa"
+                ];
               };
             })}";
           };
