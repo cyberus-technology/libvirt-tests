@@ -24,6 +24,7 @@ try:
         pci_devices_by_bdf,
         ssh,
         vcpu_affinity_checks,
+        wait_for_ping,
         wait_for_ssh,
         wait_until_fail,
         wait_until_succeed,
@@ -45,6 +46,7 @@ except Exception:
         pci_devices_by_bdf,
         ssh,
         vcpu_affinity_checks,
+        wait_for_ping,
         wait_for_ssh,
         wait_until_fail,
         wait_until_succeed,
@@ -1082,6 +1084,70 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "Should see no stats because we have not used --keep-completed previously",
         )
 
+    def test_live_migration_network_lost(self):
+        """
+        Test that a lost network connection during live migration is handled
+        gracefully. We do that by cutting the network connection of the receiver
+        during a live migration. The VM should continue running on the sender
+        side.
+        """
+
+        # Returns the IP of the given VM.
+        def get_ip(vm):
+            return {"controllerVM": "192.168.100.1", "computeVM": "192.168.100.2"}[
+                vm.name
+            ]
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        for parallel, sender, receiver in [
+            (True, controllerVM, computeVM),
+            (False, computeVM, controllerVM),
+        ]:
+            # Make sure the VM is running on the sender side.
+            wait_for_ssh(sender)
+
+            # Stress the VM in order to make the migration take longer
+            ssh(sender, "screen -dmS stress stress -m 4 --vm-bytes 400M")
+
+            # Build migration command
+            parallel_args = "--parallel --parallel-connections 4"
+            migration_command = f"virsh migrate --domain testvm --desturi ch+tcp://{receiver.name}/session --persistent --live --p2p {parallel_args if parallel else ''}"
+
+            # Do migration in a screen session and detach
+            sender.succeed(f"screen -dmS migrate {migration_command}")
+
+            # We wait for the first iteration of sending memory, then cut off the network on
+            # the computeVM.
+            sender.wait_until_succeeds(
+                "grep -qF 'iter=0' /var/log/libvirt/ch/testvm.log", 60
+            )
+            receiver.succeed("ip link set dev eth0 down")
+            receiver.succeed("ip link set dev eth1 down")
+
+            # Now we wait until the VM disappears on the receiver side, and appears as
+            # `running` on the sender side.
+            receiver.wait_until_fails("virsh list | grep testvm")
+            sender.wait_until_succeeds("virsh list | grep testvm")
+            sender.succeed("virsh list | grep 'running'")
+
+            # Wait until the send migration command terminates.
+            sender.wait_until_fails("screen -list | grep migrate")
+
+            # Make sure the VM is still good.
+            wait_for_ssh(sender)
+
+            # We now restore the network connection and check that the live migration still works.
+            receiver.succeed("ip link set dev eth0 up")
+            receiver.succeed("ip link set dev eth1 up")
+            wait_for_ping(sender, get_ip(receiver))
+
+            # We don't want to slow down the migration anymore, thus kill stress in screen session.
+            ssh(sender, "pkill screen")
+            sender.succeed(migration_command)
+            wait_for_ssh(receiver)
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
@@ -1091,6 +1157,7 @@ def suite():
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_after_failed_migration,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
+        LibvirtTests.test_live_migration_network_lost,
         LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
         LibvirtTests.test_live_migration_parallel_connections,
         LibvirtTests.test_live_migration_statistics,
