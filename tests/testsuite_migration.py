@@ -904,6 +904,71 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         wait_for_ssh(computeVM)
 
+    def test_live_migration_statistics(self):
+        """
+        Test if we can properly retrieve the migration statistics via 'virsh
+        domjobinfo' while a migration is running.
+        The statistics are only retrievable on the sender side, not the
+        receiver and only if the migration is ongoing.
+        We do not check if the statistics actually contain meaningful and
+        consistent data, but only for some chosen samples and entries.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        out = controllerVM.succeed("virsh domjobinfo --rawstats testvm")
+
+        # No actual stats when no migration is running
+        self.assertNotIn("memory_total:", out)
+
+        # Stress the CH VM in order to make the migration take longer
+        ssh(controllerVM, "screen -dmS stress stress -m 2 --vm-bytes 1000M")
+
+        # Do migration in a screen session and detach
+        controllerVM.succeed(
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        # Wait a moment to let the migration start
+        time.sleep(1)
+
+        out = controllerVM.succeed("virsh domjobinfo --rawstats testvm")
+
+        for entry in [
+            "downtime:",
+            "memory_iteration:",
+            "memory_total:",
+            "time_elapsed",
+        ]:
+            self.assertIn(entry, out)
+
+        # Receiving side does not offer statistics about the incoming migration
+        out = computeVM.succeed("virsh domjobinfo --rawstats testvm")
+
+        # No actual stats when no migration is running
+        self.assertNotIn("memory_total:", out)
+
+        try:
+            # Turn off the stress process to let the migration finish faster
+            ssh(
+                controllerVM,
+                "screen -S stress -X quit",
+                extraSSHParams="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
+            )
+        except RuntimeError:
+            # The VM might already be migrated and SSH fails. This is no
+            # problem in this test scenario.
+            pass
+
+        # Wait for migration in the screen session to finish
+        def migration_finished():
+            status, _ = controllerVM.execute("screen -ls | grep migrate")
+            return status != 0
+
+        wait_until_succeed(migration_finished)
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
@@ -915,6 +980,7 @@ def suite():
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
         LibvirtTests.test_live_migration_parallel_connections,
+        LibvirtTests.test_live_migration_statistics,
         LibvirtTests.test_live_migration_tls,
         LibvirtTests.test_live_migration_tls_without_certificates,
         LibvirtTests.test_live_migration_to_self_is_rejected,
