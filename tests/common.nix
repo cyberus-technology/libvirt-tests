@@ -670,10 +670,7 @@ in
         "/etc/domain-chv-smbios-host.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "domain-chv-smbios-host.xml" (virsh_ch_xml {
-              smbios = {
-                mode = "host";
-                system.uuid = "4eb6319a-4302-4407-9a56-802fc7e6a422";
-              };
+              smbios.mode = "host";
             })}";
           };
         };

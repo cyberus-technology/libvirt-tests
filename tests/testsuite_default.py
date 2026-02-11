@@ -1082,9 +1082,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
     def test_list_smbios_host(self):
         """
         This test checks the SMBIOS System Information fields
-        `manufacturer`, `product name`, `version`, `serial number`, `uuid`,
-        `sku number`, `family`, and the `chassis asset` field.
+        `manufacturer`, `product name`, `version`, `serial number`,
+        `sku number`, `family` field.
         These are propagated from the host, in this case from the QEMU VM.
+        One exception is the field `uuid` which is not propagated by libvirt
+        when the smbios mode is set to `host`.
         We read the values from the host and validate them against the
         CH guest.
         """
@@ -1100,9 +1102,6 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             expected_field_values[dmi_string] = controllerVM.succeed(
                 f"dmidecode -s {dmi_string} | tr -d '\\n'",
             )
-        # SMBIOS mode="host" copies Block 0/1 values except UUID; UUID must be
-        # manually propagated and is not taken from the host.
-        expected_field_values["system-uuid"] = "4eb6319a-4302-4407-9a56-802fc7e6a422"
 
         controllerVM.succeed("virsh define /etc/domain-chv-smbios-host.xml")
         controllerVM.succeed("virsh start testvm")
