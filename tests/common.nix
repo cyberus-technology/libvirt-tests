@@ -500,6 +500,10 @@ in
       PermitEmptyPasswords = "yes";
     };
   };
+  systemd.services.polkit.serviceConfig.LogFilterPatterns = [
+    "~Registered Authentication Agent"
+    "~Unregistered Authentication Agent"
+  ];
 
   # The following works around the infamous
   # `Bad owner or permissions on /nix/store/ymmaa926pv3f3wlgpw9y1aygdvqi1m7j-systemd-257.6/lib/systemd/ssh_config.d/20-systemd-ssh-proxy.conf`
