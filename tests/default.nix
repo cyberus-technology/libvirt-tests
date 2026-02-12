@@ -56,6 +56,17 @@ let
         ;
       testScriptFile = ./testsuite_long_migration_with_load.py;
     };
+
+    numa_hosts = pkgs.callPackage ./libvirt-test.nix {
+      inherit
+        libvirt
+        nixos-image
+        chv-ovmf
+        enablePortForwarding
+        ;
+      testScriptFile = ./testsuite_numa.py;
+      numaHosts = true;
+    };
   };
 
   # Convenience attribute containing all nixos test driver attributes mainly
@@ -67,6 +78,7 @@ let
       live_migration.driver
       hugepage.driver
       long_migration_with_load.driver
+      numa_hosts.driver
     ];
   };
 in
