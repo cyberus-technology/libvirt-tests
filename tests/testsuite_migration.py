@@ -148,7 +148,15 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         This test also checks that the destination host sends out RARP packets
         to announce its new location to the network.
+
+        We also include some negative-tests, such as migrating a non-existent VM
+        must result in a gracefully handled failure.
         """
+
+        # Test we cannot migrate a non-existent VM
+        controllerVM.fail(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
 
         controllerVM.succeed("virsh define /etc/domain-chv.xml")
         controllerVM.succeed("virsh start testvm")
@@ -194,6 +202,10 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             )
             wait_for_ssh(computeVM)
             stop_capture_and_count_packets(computeVM)
+            # Test we cannot migrate a VM that is already migrated
+            controllerVM.fail(
+                "virsh migrate --domain testvm --desturi ch+tcp://192.168.100.2/session --persistent --live --p2p"
+            )
 
             start_capture(controllerVM)
             computeVM.succeed(
@@ -201,6 +213,10 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             )
             wait_for_ssh(controllerVM)
             stop_capture_and_count_packets(controllerVM)
+            # Test we cannot migrate a VM that is already migrated
+            computeVM.fail(
+                "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
+            )
 
     def test_live_migration_with_hotplug(self):
         """
