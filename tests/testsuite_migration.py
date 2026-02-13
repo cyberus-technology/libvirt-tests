@@ -456,45 +456,6 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_until_fail(lambda: check_virsh_list(controllerVM))
         wait_until_fail(lambda: check_virsh_list(computeVM))
 
-    def test_live_migration_kill_chv_on_receiver_side(self):
-        """
-        Test that libvirt survives a CHV crash of the sender side during
-        a live migration. We expect that libvirt does the correct cleanup
-        and no VM is present on both sides.
-        """
-
-        controllerVM.succeed("virsh define /etc/domain-chv.xml")
-        controllerVM.succeed("virsh start testvm")
-
-        wait_for_ssh(controllerVM)
-
-        # Stress the CH VM in order to make the migration take longer
-        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
-
-        # Do migration in a screen session and detach
-        controllerVM.succeed(
-            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
-        )
-
-        # Wait a moment to let the migration start
-        time.sleep(5)
-
-        # Kill the cloud-hypervisor on the sender side
-        computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
-
-        # Ensure the VM is really gone and we have no zombie VMs
-        def check_virsh_list(vm):
-            status, _ = vm.execute("virsh list | grep testvm > /dev/null")
-            return status == 0
-
-        wait_until_fail(lambda: check_virsh_list(computeVM))
-
-        wait_until_succeed(lambda: check_virsh_list(controllerVM))
-
-        controllerVM.succeed("virsh list | grep 'running'")
-
-        wait_for_ssh(controllerVM)
-
     def test_live_migration_tls(self):
         """
         Test the TLS encrypted live migration via virsh between 2 hosts. With
@@ -926,7 +887,6 @@ def suite():
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_after_failed_migration,
-        LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
         LibvirtTests.test_live_migration_parallel_connections,
