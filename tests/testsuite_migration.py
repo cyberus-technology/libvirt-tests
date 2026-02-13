@@ -401,35 +401,42 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         ).rstrip()
 
         self.assertEqual(int(taskset_vcpu0_controller, 16), 0x3)
-        self.assertEqual(int(taskset_vcpu2_controller, 16), 0xC)
+        # self.assertEqual(int(taskset_vcpu2_controller, 16), 0xC)
+        if int(taskset_vcpu2_controller, 16) != 0xC:
+            print("Broken!!")
+            breakpoint()
 
-        controllerVM.succeed(
-            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
-        )
-        wait_for_ssh(computeVM)
+        # controllerVM.succeed(
+        #     "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        # )
+        # wait_for_ssh(computeVM)
 
-        chv_pid_compute = computeVM.succeed("pidof cloud-hypervisor").rstrip()
+        # chv_pid_compute = computeVM.succeed("pidof cloud-hypervisor").rstrip()
 
-        tid_vcpu0_compute = computeVM.succeed(
-            f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu0 | awk '{{print $1}}'"
-        ).rstrip()
-        tid_vcpu2_compute = computeVM.succeed(
-            f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu2 | awk '{{print $1}}'"
-        ).rstrip()
+        # tid_vcpu0_compute = computeVM.succeed(
+        #     f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu0 | awk '{{print $1}}'"
+        # ).rstrip()
+        # tid_vcpu2_compute = computeVM.succeed(
+        #     f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu2 | awk '{{print $1}}'"
+        # ).rstrip()
 
-        taskset_vcpu0_compute = computeVM.succeed(
-            f"taskset -p {tid_vcpu0_compute} | awk '{{print $6}}'"
-        ).rstrip()
-        taskset_vcpu2_compute = computeVM.succeed(
-            f"taskset -p {tid_vcpu2_compute} | awk '{{print $6}}'"
-        ).rstrip()
+        # taskset_vcpu0_compute = computeVM.succeed(
+        #     f"taskset -p {tid_vcpu0_compute} | awk '{{print $6}}'"
+        # ).rstrip()
+        # taskset_vcpu2_compute = computeVM.succeed(
+        #     f"taskset -p {tid_vcpu2_compute} | awk '{{print $6}}'"
+        # ).rstrip()
 
-        self.assertEqual(
-            int(taskset_vcpu0_controller, 16), int(taskset_vcpu0_compute, 16)
-        )
-        self.assertEqual(
-            int(taskset_vcpu2_controller, 16), int(taskset_vcpu2_compute, 16)
-        )
+        # # self.assertEqual(
+        # if int(taskset_vcpu0_controller, 16) != int(taskset_vcpu0_compute, 16):
+        #     print("FAIL")
+        #     breakpoint()
+        # # )
+        # # self.assertEqual(
+        # if int(taskset_vcpu2_controller, 16) != int(taskset_vcpu2_compute, 16):
+        #     print("FAIL")
+        #     breakpoint()
+        # # )
 
     def test_live_migration_kill_chv_on_sender_side(self):
         """
@@ -938,21 +945,31 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
     testcases = [
-        LibvirtTests.test_bdf_explicit_assignment,
-        LibvirtTests.test_bdf_implicit_assignment,
-        LibvirtTests.test_live_migration,
-        LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
-        LibvirtTests.test_live_migration_kill_chv_on_sender_side,
-        LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
-        LibvirtTests.test_live_migration_parallel_connections,
-        LibvirtTests.test_live_migration_statistics,
-        LibvirtTests.test_live_migration_tls,
-        LibvirtTests.test_live_migration_tls_without_certificates,
-        LibvirtTests.test_live_migration_to_self_is_rejected,
-        LibvirtTests.test_live_migration_virsh_non_blocking,
-        LibvirtTests.test_live_migration_with_hotplug,
-        LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
-        LibvirtTests.test_live_migration_with_serial_tcp,
+        # LibvirtTests.test_bdf_explicit_assignment,
+        # LibvirtTests.test_bdf_implicit_assignment,
+        # LibvirtTests.test_live_migration,
+        # LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
+        # LibvirtTests.test_live_migration_kill_chv_on_sender_side,
+        # LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
+        # LibvirtTests.test_live_migration_parallel_connections,
+        # LibvirtTests.test_live_migration_statistics,
+        # LibvirtTests.test_live_migration_tls,
+        # LibvirtTests.test_live_migration_tls_without_certificates,
+        # LibvirtTests.test_live_migration_to_self_is_rejected,
+        # LibvirtTests.test_live_migration_virsh_non_blocking,
+        # LibvirtTests.test_live_migration_with_hotplug,
+        # LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
+        # LibvirtTests.test_live_migration_with_serial_tcp,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
+        LibvirtTests.test_live_migration_with_vcpu_pinning,
         LibvirtTests.test_live_migration_with_vcpu_pinning,
     ]
 

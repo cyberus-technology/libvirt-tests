@@ -10,16 +10,16 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1770215234,
-        "narHash": "sha256-Nhol/EzUJGcPGUwBtdvOEF9fvRc1oSvMkiSPM41PDOo=",
-        "owner": "cyberus-technology",
+        "lastModified": 1770994121,
+        "narHash": "sha256-L1Q8GNPSVJnMkFc4T4bYoY+Wac+hvxRzZx8GtiSwLys=",
+        "owner": "phip1611",
         "repo": "cloud-hypervisor",
-        "rev": "332a4bc5d64bccab7eb87e45536bd22b7e4ed4b1",
+        "rev": "f64cc96d84a705ebe4957c37ced3f247a211c40a",
         "type": "github"
       },
       "original": {
-        "owner": "cyberus-technology",
-        "ref": "gardenlinux",
+        "owner": "phip1611",
+        "ref": "poc-migration-statistics",
         "repo": "cloud-hypervisor",
         "type": "github"
       }
@@ -193,20 +193,20 @@
         ]
       },
       "locked": {
-        "lastModified": 1770625785,
-        "narHash": "sha256-cgFg5Q2SejgCK9GKPs7ppoAqnvrpaibvlbRkhfpR/Ic=",
-        "ref": "gardenlinux",
-        "rev": "4c2c91ea939f009990db1b72e55bd6663bcfb764",
-        "revCount": 53615,
+        "lastModified": 1770991761,
+        "narHash": "sha256-jQH8NCBYhq/ftKwkbNGegYS5hFvqqkg/jlBnFa4VLYU=",
+        "ref": "migration-statistics-non-blocking-debugging",
+        "rev": "87f5d0ef072dcb82743ead4a2329e61de77a07bc",
+        "revCount": 53638,
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/cyberus-technology/libvirt"
+        "url": "ssh://git@gitlab.cyberus-technology.de/shertrampf/libvirt.git"
       },
       "original": {
-        "ref": "gardenlinux",
+        "ref": "migration-statistics-non-blocking-debugging",
         "submodules": true,
         "type": "git",
-        "url": "https://github.com/cyberus-technology/libvirt"
+        "url": "ssh://git@gitlab.cyberus-technology.de/shertrampf/libvirt.git"
       }
     },
     "libvirt-tests": {
@@ -227,16 +227,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1770623548,
-        "narHash": "sha256-5dVoRcGRLApPBfy6LejgrNPoK08y4TwUIl3bF4Tb4eU=",
+        "lastModified": 1770904983,
+        "narHash": "sha256-q0ruO3LwWGTfzX32YvU67m7VnCZ336vRdWXD3CPtDGw=",
         "owner": "cyberus-technology",
         "repo": "libvirt-tests",
-        "rev": "d983b95e2395a0a6481f5ca50bf0b585eda28ede",
+        "rev": "bdb500cc7d4ca1f9ff89abb1f643d65fecd04bad",
         "type": "github"
       },
       "original": {
         "owner": "cyberus-technology",
-        "ref": "main",
+        "ref": "live_migration_statistics",
         "repo": "libvirt-tests",
         "type": "github"
       }
