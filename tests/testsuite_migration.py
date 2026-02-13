@@ -456,45 +456,6 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_until_fail(lambda: check_virsh_list(controllerVM))
         wait_until_fail(lambda: check_virsh_list(computeVM))
 
-    def test_live_migration_kill_chv_on_receiver_side(self):
-        """
-        Test that libvirt survives a CHV crash of the sender side during
-        a live migration. We expect that libvirt does the correct cleanup
-        and no VM is present on both sides.
-        """
-
-        controllerVM.succeed("virsh define /etc/domain-chv.xml")
-        controllerVM.succeed("virsh start testvm")
-
-        wait_for_ssh(controllerVM)
-
-        # Stress the CH VM in order to make the migration take longer
-        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
-
-        # Do migration in a screen session and detach
-        controllerVM.succeed(
-            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
-        )
-
-        # Wait a moment to let the migration start
-        time.sleep(5)
-
-        # Kill the cloud-hypervisor on the sender side
-        computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
-
-        # Ensure the VM is really gone and we have no zombie VMs
-        def check_virsh_list(vm):
-            status, _ = vm.execute("virsh list | grep testvm > /dev/null")
-            return status == 0
-
-        wait_until_fail(lambda: check_virsh_list(computeVM))
-
-        wait_until_succeed(lambda: check_virsh_list(controllerVM))
-
-        controllerVM.succeed("virsh list | grep 'running'")
-
-        wait_for_ssh(controllerVM)
-
     def test_live_migration_tls(self):
         """
         Test the TLS encrypted live migration via virsh between 2 hosts. With
@@ -861,6 +822,63 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --parallel --parallel-connections 4"
         )
 
+    def test_live_migration_after_failed_migration(self):
+        """
+        Test that a live migration can fail, that the VM is still usable, and
+        that a new migration can succeed afterwards.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        # Stress the CH VM in order to make the migration take longer
+        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
+
+        # Next, we attempt multiple times to migrate a VM but each fails with a
+        # certain variance in timing. After each failed migration, the VM must
+        # still be usable and the VMM in operational state.
+        times = 10
+        for i in range(times):
+            print(f"Attempt {i + 1}/{times}")
+            # Ensure there is no Cloud Hypervisor running
+            computeVM.fail("ps aux | grep -E '[c]loud-hypervisor'")
+            # We use non-parallel transport to avoid timing issues.
+            controllerVM.succeed(
+                "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            )
+            # Wait for receiving VMM to come up
+            wait_until_succeed(
+                lambda: computeVM.execute("ps aux | grep -E '[c]loud-hypervisor'")[0]
+                == 0
+            )
+
+            # Wait some time to interrupt the migration at some point
+            time.sleep(i)
+
+            # Check VM is still responsive
+            out = ssh(controllerVM, "echo -n Hello Cyberus!")
+            self.assertEqual(out, "Hello Cyberus!")
+
+            computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
+            # Wait until `virsh migrate` returns (finished its cleanup)
+            wait_until_fail(
+                lambda: controllerVM.execute("screen -ls | grep migrate")[0] == 0
+            )
+
+            # Check VM is still responsive
+            out = ssh(controllerVM, "echo -n Hello Cyberus!")
+            self.assertEqual(out, "Hello Cyberus!")
+
+        # Ensure migration can now continue quickly
+        ssh(controllerVM, "screen -S stress -X quit")
+
+        # Test that a new migration indeed works
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        )
+        wait_for_ssh(computeVM)
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
@@ -868,7 +886,7 @@ def suite():
         LibvirtTests.test_bdf_explicit_assignment,
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_live_migration,
-        LibvirtTests.test_live_migration_kill_chv_on_receiver_side,
+        LibvirtTests.test_live_migration_after_failed_migration,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
         LibvirtTests.test_live_migration_parallel_connections,
