@@ -53,6 +53,8 @@ test attributes are available. Each attribute can be run via
   - tests that require hugepages in the host VM to be available
 - `long_migration_with_load`
   - long-running migration series with a VM that is under heavy memory load
+- `numa_hosts`
+  - tests that check migrations between hosts with different NUMA configurations
 
 ### Obtaining debug logs
 
