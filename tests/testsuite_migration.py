@@ -348,7 +348,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # Turn off the stress process to let the migration finish faster
             ssh(
                 controllerVM,
-                "pkill screen",
+                "screen -S migrate -X quit",
                 extraSSHParams="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
             )
         except RuntimeError:
