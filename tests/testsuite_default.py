@@ -1133,6 +1133,28 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         for expected in expected_oem_strings:
             self.assertIn(expected, oem_strings_out)
 
+    def test_suspend_resume(self):
+        """
+        Tests suspend and resume.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("virsh suspend testvm")
+        out = controllerVM.succeed(
+            "virsh list --all | grep testvm | awk '{print $3}'"
+        ).strip()
+        self.assertEqual(out, "paused")
+
+        controllerVM.succeed("virsh resume testvm")
+        out = controllerVM.succeed(
+            "virsh list --all | grep testvm | awk '{print $3}'"
+        ).strip()
+        self.assertEqual(out, "running")
+        wait_for_ssh(controllerVM)
+
 
 def suite():
     # Test cases sorted in alphabetical order.
@@ -1165,6 +1187,7 @@ def suite():
         LibvirtTests.test_serial_file_output,
         LibvirtTests.test_serial_tcp,
         LibvirtTests.test_shutdown,
+        LibvirtTests.test_suspend_resume,
         LibvirtTests.test_virsh_console_works_with_pty,
     ]
 
