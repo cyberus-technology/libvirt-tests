@@ -348,7 +348,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # Turn off the stress process to let the migration finish faster
             ssh(
                 controllerVM,
-                "pkill screen",
+                "pkill -9 screen",
                 extraSSHParams="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
             )
         except RuntimeError:
@@ -896,7 +896,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             self.assertEqual(out, "Hello Cyberus!")
 
         # Ensure migration can now continue quickly
-        ssh(controllerVM, "screen -S stress -X quit")
+        ssh(controllerVM, "pkill -9 screen")
 
         # Test that a new migration indeed works
         controllerVM.succeed(
@@ -954,7 +954,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # Turn off the stress process to let the migration finish faster
             ssh(
                 controllerVM,
-                "screen -S stress -X quit",
+                "pkill -9 screen",
                 extraSSHParams="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
             )
         except RuntimeError:
