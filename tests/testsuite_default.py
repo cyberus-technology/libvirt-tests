@@ -19,10 +19,11 @@ try:
         parse_devices_from_dom_def,
         pci_devices_by_bdf,
         ssh,
+        vcpu_affinity_checks,
+        vm_unresponsive,
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
         wait_until_succeed,
-        vm_unresponsive,
     )
 except Exception:
     from test_helper import (
@@ -36,10 +37,11 @@ except Exception:
         parse_devices_from_dom_def,
         pci_devices_by_bdf,
         ssh,
+        vcpu_affinity_checks,
+        vm_unresponsive,
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
         wait_until_succeed,
-        vm_unresponsive,
     )
 
 # pyright: reportPossiblyUnboundVariable=false
@@ -1229,12 +1231,15 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
     def test_reboot_guestinduced(self):
         """
-        Performs a guest-induced VM reboot.
+        Performs a guest-induced VM reboot and checks the CPU pinning (affinity)
+        is set properly at all stages.
         """
 
         controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
+
+        vcpu_affinity_checks(self, controllerVM, context="before guest-induced reboot")
 
         try:
             ssh(controllerVM, "reboot now")
@@ -1248,15 +1253,21 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         # Wait for reboot to finish
         wait_for_ssh(controllerVM)
+        vcpu_affinity_checks(self, controllerVM, context="after guest-induced reboot")
 
     def test_reboot_externallytriggered(self):
         """
-        Performs an externally triggered VM reboot.
+        Performs an externally triggered VM reboot and checks the CPU pinning
+        (affinity) is set properly at all stages.
         """
 
         controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
+
+        vcpu_affinity_checks(
+            self, controllerVM, context="before externally-triggered guest reboot"
+        )
 
         controllerVM.succeed("virsh reboot testvm")
 
@@ -1265,6 +1276,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         # Wait for reboot to finish
         wait_for_ssh(controllerVM)
+        vcpu_affinity_checks(
+            self, controllerVM, context="after externally-triggered guest reboot"
+        )
 
 
 def suite():
