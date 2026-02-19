@@ -22,6 +22,7 @@ try:
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
         wait_until_succeed,
+        vm_unresponsive,
     )
 except Exception:
     from test_helper import (
@@ -38,6 +39,7 @@ except Exception:
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
         wait_until_succeed,
+        vm_unresponsive,
     )
 
 # pyright: reportPossiblyUnboundVariable=false
@@ -1155,6 +1157,45 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         self.assertEqual(out, "running")
         wait_for_ssh(controllerVM)
 
+    def test_reboot_guestinduced(self):
+        """
+        Performs a guest-induced VM reboot.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        try:
+            ssh(controllerVM, "reboot now")
+        except RuntimeError:
+            # Reboots may happen so fast that the SSH session never properly
+            # returns.
+            pass
+
+        # Check VM is actually rebooting
+        wait_until_succeed(lambda: vm_unresponsive(controllerVM), retries=20)
+
+        # Wait for reboot to finish
+        wait_for_ssh(controllerVM)
+
+    def test_reboot_externallytriggered(self):
+        """
+        Performs an externally triggered VM reboot.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-numa.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        controllerVM.succeed("virsh reboot testvm")
+
+        # Check VM is actually rebooting
+        wait_until_succeed(lambda: vm_unresponsive(controllerVM), retries=20)
+
+        # Wait for reboot to finish
+        wait_for_ssh(controllerVM)
+
 
 def suite():
     # Test cases sorted in alphabetical order.
@@ -1184,6 +1225,8 @@ def suite():
         LibvirtTests.test_network_hotplug_persistent_vm_restart,
         LibvirtTests.test_network_hotplug_transient_vm_restart,
         LibvirtTests.test_numa_topology,
+        LibvirtTests.test_reboot_externallytriggered,
+        LibvirtTests.test_reboot_guestinduced,
         LibvirtTests.test_serial_file_output,
         LibvirtTests.test_serial_tcp,
         LibvirtTests.test_shutdown,
