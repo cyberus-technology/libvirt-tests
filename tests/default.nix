@@ -58,6 +58,11 @@ let
       testScriptFile = ./testsuite_numa.py;
       numaHosts = true;
     };
+
+    cpu_profiles = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_cpu_profiles.py;
+    };
   };
 
   # Convenience attribute containing all nixos test driver attributes mainly
