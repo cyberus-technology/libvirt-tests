@@ -9,9 +9,9 @@ try:
     from ..test_helper.test_helper import (  # type: ignore
         LibvirtTestsBase,
         allocate_hugepages,
-        number_of_free_hugepages,
-        initialControllerVMSetup,
         initialComputeVMSetup,
+        initialControllerVMSetup,
+        number_of_free_hugepages,
         ssh,
         wait_for_ssh,
     )
@@ -19,9 +19,9 @@ except Exception:
     from test_helper import (
         LibvirtTestsBase,
         allocate_hugepages,
-        number_of_free_hugepages,
-        initialControllerVMSetup,
         initialComputeVMSetup,
+        initialControllerVMSetup,
+        number_of_free_hugepages,
         ssh,
         wait_for_ssh,
     )

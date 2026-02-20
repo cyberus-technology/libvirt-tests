@@ -8,15 +8,15 @@ import unittest
 try:
     from ..test_helper.test_helper import (  # type: ignore
         LibvirtTestsBase,
-        initialControllerVMSetup,
         initialComputeVMSetup,
+        initialControllerVMSetup,
         wait_for_ssh,
     )
 except Exception:
     from test_helper import (
         LibvirtTestsBase,
-        initialControllerVMSetup,
         initialComputeVMSetup,
+        initialControllerVMSetup,
         wait_for_ssh,
     )
 
