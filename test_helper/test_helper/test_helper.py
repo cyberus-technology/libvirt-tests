@@ -4,6 +4,7 @@ import os
 import time
 import unittest
 import weakref
+from unittest import TestCase
 
 try:
     from .nixos_test_stubs import Machine  # type: ignore
@@ -820,3 +821,39 @@ def vm_unresponsive(machine: Machine) -> bool:
         return False
     except RuntimeError:
         return True
+
+
+def vcpu_affinity_checks(testcase: TestCase, machine: Machine, context: str = ""):
+    """
+    Asserts that vCPU thread CPU affinity matches the pinning defined in
+    /etc/domain-chv-numa.xml.
+
+    :param testcase: Testcase
+    :param machine: VM host
+    :param context: Additional context for logs
+    """
+
+    chv_pid_controller = int(machine.succeed("pidof cloud-hypervisor").strip())
+
+    if context != "":
+        print(f"Checks {context}:")
+    tid_vcpu0_controller = machine.succeed(
+        f"ps -Lo tid,comm --pid {chv_pid_controller} | grep vcpu0 | awk '{{print $1}}'"
+    ).rstrip()
+    tid_vcpu2_controller = machine.succeed(
+        f"ps -Lo tid,comm --pid {chv_pid_controller} | grep vcpu2 | awk '{{print $1}}'"
+    ).rstrip()
+
+    taskset_vcpu0_controller = machine.succeed(
+        f"taskset -p {tid_vcpu0_controller} | awk '{{print $6}}'"
+    ).rstrip()
+    taskset_vcpu2_controller = machine.succeed(
+        f"taskset -p {tid_vcpu2_controller} | awk '{{print $6}}'"
+    ).rstrip()
+
+    testcase.assertEqual(
+        int(taskset_vcpu0_controller, 16), 0x3, "vCPU taskset should match"
+    )
+    testcase.assertEqual(
+        int(taskset_vcpu2_controller, 16), 0xC, "vCPU taskset should match"
+    )

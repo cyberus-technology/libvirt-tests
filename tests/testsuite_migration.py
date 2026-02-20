@@ -23,6 +23,7 @@ try:
         number_of_storage_devices,
         pci_devices_by_bdf,
         ssh,
+        vcpu_affinity_checks,
         wait_for_ssh,
         wait_until_fail,
         wait_until_succeed,
@@ -43,6 +44,7 @@ except Exception:
         number_of_storage_devices,
         pci_devices_by_bdf,
         ssh,
+        vcpu_affinity_checks,
         wait_for_ssh,
         wait_until_fail,
         wait_until_succeed,
@@ -430,60 +432,14 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
 
-        chv_pid_controller = controllerVM.succeed("pidof cloud-hypervisor").rstrip()
-
-        tid_vcpu0_controller = controllerVM.succeed(
-            f"ps -Lo tid,comm --pid {chv_pid_controller} | grep vcpu0 | awk '{{print $1}}'"
-        ).rstrip()
-        tid_vcpu2_controller = controllerVM.succeed(
-            f"ps -Lo tid,comm --pid {chv_pid_controller} | grep vcpu2 | awk '{{print $1}}'"
-        ).rstrip()
-
-        taskset_vcpu0_controller = controllerVM.succeed(
-            f"taskset -p {tid_vcpu0_controller} | awk '{{print $6}}'"
-        ).rstrip()
-        taskset_vcpu2_controller = controllerVM.succeed(
-            f"taskset -p {tid_vcpu2_controller} | awk '{{print $6}}'"
-        ).rstrip()
-
-        self.assertEqual(
-            int(taskset_vcpu0_controller, 16), 0x3, "vCPU taskset should match"
-        )
-        self.assertEqual(
-            int(taskset_vcpu2_controller, 16), 0xC, "vCPU taskset should match"
-        )
+        vcpu_affinity_checks(self, controllerVM, context="before live migration")
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
         wait_for_ssh(computeVM)
 
-        chv_pid_compute = computeVM.succeed("pidof cloud-hypervisor").rstrip()
-
-        tid_vcpu0_compute = computeVM.succeed(
-            f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu0 | awk '{{print $1}}'"
-        ).rstrip()
-        tid_vcpu2_compute = computeVM.succeed(
-            f"ps -Lo tid,comm --pid {chv_pid_compute} | grep vcpu2 | awk '{{print $1}}'"
-        ).rstrip()
-
-        taskset_vcpu0_compute = computeVM.succeed(
-            f"taskset -p {tid_vcpu0_compute} | awk '{{print $6}}'"
-        ).rstrip()
-        taskset_vcpu2_compute = computeVM.succeed(
-            f"taskset -p {tid_vcpu2_compute} | awk '{{print $6}}'"
-        ).rstrip()
-
-        self.assertEqual(
-            int(taskset_vcpu0_controller, 16),
-            int(taskset_vcpu0_compute, 16),
-            "vCPU taskset should match",
-        )
-        self.assertEqual(
-            int(taskset_vcpu2_controller, 16),
-            int(taskset_vcpu2_compute, 16),
-            "vCPU taskset should match",
-        )
+        vcpu_affinity_checks(self, computeVM, context="after live migration")
 
     def test_live_migration_kill_chv_on_sender_side(self):
         """
