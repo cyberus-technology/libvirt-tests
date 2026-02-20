@@ -4,6 +4,7 @@ from .test_helper import (
     VIRTIO_BLOCK_DEVICE,
     VIRTIO_ENTROPY_SOURCE,
     VIRTIO_NETWORK_DEVICE,
+    vcpu_affinity_checks,
     allocate_hugepages,
     hotplug,
     hotplug_fail,
@@ -22,11 +23,11 @@ from .test_helper import (
     ssh,
     teardownTestComputeVM,
     teardownTestControllerVM,
+    vm_unresponsive,
     wait_for_guest_pci_device_enumeration,
     wait_for_ssh,
     wait_until_fail,
     wait_until_succeed,
-    vm_unresponsive,
 )
 
 __all__ = [
@@ -53,9 +54,10 @@ __all__ = [
     "ssh",
     "teardownTestComputeVM",
     "teardownTestControllerVM",
+    "vcpu_affinity_checks",
+    "vm_unresponsive",
     "wait_for_guest_pci_device_enumeration",
     "wait_for_ssh",
     "wait_until_fail",
     "wait_until_succeed",
-    "vm_unresponsive",
 ]
