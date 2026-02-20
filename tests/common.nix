@@ -46,6 +46,7 @@ let
         };
         oemStrings = [ ];
       },
+      cpuModel ? "",
     }:
     let
       defaultSmbios = {
@@ -154,6 +155,11 @@ let
             ''
           else
             ''
+              ${lib.optionalString (cpuModel != "") ''
+                <cpu mode='custom' match='exact' check='full'>
+                  <model fallback='forbid'>${cpuModel}</model>
+                </cpu>
+              ''}
               <vcpu placement='static'>2</vcpu>
               ${
                 if hugepages then
@@ -689,6 +695,13 @@ in
                   "oem-91d4c0aa"
                 ];
               };
+            })}";
+          };
+        };
+        "/etc/domain-chv-cpu-skylake.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros-skylake.xml" (virsh_ch_xml {
+              cpuModel = "skylake";
             })}";
           };
         };
