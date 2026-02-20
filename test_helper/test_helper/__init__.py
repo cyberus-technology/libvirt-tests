@@ -26,6 +26,7 @@ from .test_helper import (
     wait_for_ssh,
     wait_until_fail,
     wait_until_succeed,
+    vm_unresponsive,
 )
 
 __all__ = [
@@ -56,4 +57,5 @@ __all__ = [
     "wait_for_ssh",
     "wait_until_fail",
     "wait_until_succeed",
+    "vm_unresponsive",
 ]

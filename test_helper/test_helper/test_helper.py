@@ -809,3 +809,14 @@ def parse_devices_from_dom_def(machine: Machine, path: str) -> dict[str, str]:
                 if slot != "":
                     result[slot] = (value or "").strip()
     return result
+
+
+def vm_unresponsive(machine: Machine) -> bool:
+    """
+    Tells whether the VM is unresponsive.
+    """
+    try:
+        ssh(machine, "echo hi")
+        return False
+    except RuntimeError:
+        return True
