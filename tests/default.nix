@@ -14,6 +14,7 @@ let
     {
       testScriptFile,
       enablePortForwarding,
+      # List of NixOS modules
       extraControllerConfig ? [ ],
       extraComputeConfig ? [ ],
     }:
@@ -96,6 +97,39 @@ let
                 "-numa node,nodeid=1,cpus=1,memdev=m1"
                 "-numa node,nodeid=2,cpus=2,memdev=m2"
                 "-numa node,nodeid=3,cpus=3,memdev=m3"
+              ];
+          }
+        )
+      ];
+    };
+
+    # The test requires a host with a recent Intel processor. The test is not
+    # enabled in our generic CI because of these hardware restrictions.
+    cpu_profiles = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_cpu_profiles.py;
+      extraControllerConfig = [
+        (
+          { ... }:
+          {
+            virtualisation.qemu.options =
+
+              [
+                "-cpu"
+                "Cascadelake-Server-v5,+vmx"
+              ];
+          }
+        )
+      ];
+      extraComputeConfig = [
+        (
+          { ... }:
+          {
+            virtualisation.qemu.options =
+
+              [
+                "-cpu"
+                "Icelake-Server-v7,+vmx"
               ];
           }
         )
