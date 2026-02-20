@@ -349,7 +349,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             ssh(
                 controllerVM,
                 "pkill -9 screen",
-                extraSSHParams="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
+                extra_ssh_params="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
             )
         except RuntimeError:
             # The VM might already be migrated and SSH fails. This is no
@@ -955,7 +955,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             ssh(
                 controllerVM,
                 "pkill -9 screen",
-                extraSSHParams="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
+                extra_ssh_params="-o ConnectTimeout=3 -o TCPKeepAlive=yes -o ServerAliveInterval=2 -o ServerAliveCountMax=3",
             )
         except RuntimeError:
             # The VM might already be migrated and SSH fails. This is no
