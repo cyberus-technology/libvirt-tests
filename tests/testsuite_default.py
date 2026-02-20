@@ -12,32 +12,32 @@ try:
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
+        initialComputeVMSetup,
+        initialControllerVMSetup,
         number_of_devices,
         number_of_network_devices,
+        parse_devices_from_dom_def,
         pci_devices_by_bdf,
-        initialControllerVMSetup,
-        initialComputeVMSetup,
         ssh,
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
         wait_until_succeed,
-        parse_devices_from_dom_def,
     )
 except Exception:
     from test_helper import (
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
+        initialComputeVMSetup,
+        initialControllerVMSetup,
         number_of_devices,
         number_of_network_devices,
+        parse_devices_from_dom_def,
         pci_devices_by_bdf,
-        initialControllerVMSetup,
-        initialComputeVMSetup,
         ssh,
         wait_for_guest_pci_device_enumeration,
         wait_for_ssh,
         wait_until_succeed,
-        parse_devices_from_dom_def,
     )
 
 # pyright: reportPossiblyUnboundVariable=false

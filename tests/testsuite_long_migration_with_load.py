@@ -6,16 +6,16 @@
 try:
     from ..test_helper.test_helper import (  # type: ignore
         LibvirtTestsBase,
-        initialControllerVMSetup,
         initialComputeVMSetup,
+        initialControllerVMSetup,
         ssh,
         wait_for_ssh,
     )
 except Exception:
     from test_helper import (
         LibvirtTestsBase,
-        initialControllerVMSetup,
         initialComputeVMSetup,
+        initialControllerVMSetup,
         ssh,
         wait_for_ssh,
     )
