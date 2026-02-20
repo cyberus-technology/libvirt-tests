@@ -471,7 +471,7 @@ def ssh(
     password: str = "root",
     ip: str = "192.168.1.2",
     ping_check: bool = True,
-    extraSSHParams: str = "",
+    extra_ssh_params: str = "",
 ) -> str:
     """
     Runs the specified command in the Cloud Hypervisor VM via SSH.
@@ -485,6 +485,7 @@ def ssh(
     :param ip: SSH host to log into
     :param ping_check: whether the function should check first if the VM is
            pingable
+    :param extra_ssh_params: extra SSH params
     """
 
     # Check VM is still pingable and we didn't lose the network.
@@ -496,7 +497,7 @@ def ssh(
 
     # And here we check if the guest also responds via SSH.
     status, out = machine.execute(
-        f"sshpass -p {password} ssh {extraSSHParams} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
+        f"sshpass -p {password} ssh {extra_ssh_params} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no {user}@{ip} {cmd}"
     )
     if status != 0:
         raise RuntimeError(f"failed to execute cmd in VM: `{cmd}`")
