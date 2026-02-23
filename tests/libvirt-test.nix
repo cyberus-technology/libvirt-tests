@@ -9,15 +9,11 @@
   chv-ovmf,
   testScriptFile,
   enablePortForwarding,
-  numaHosts ? false,
+  extraControllerConfig ? [ ],
+  extraComputeConfig ? [ ],
 }:
 let
   common = import ./common.nix { inherit libvirt nixos-image chv-ovmf; };
-  numaConf = import ./numa-domain-xml.nix {
-    inherit nixos-image;
-    inherit (pkgs) writeText;
-  };
-
   tls =
     let
       c = pkgs.callPackage ./certificates.nix { };
@@ -44,7 +40,7 @@ pkgs.testers.nixosTest {
         common
         ../modules/nfs-host.nix
       ]
-      ++ (lib.optional numaHosts numaConf);
+      ++ extraControllerConfig;
 
       virtualisation = {
         cores = 4;
@@ -94,18 +90,6 @@ pkgs.testers.nixosTest {
         "/var/lib/libvirt/ch/pki/server-cert.pem"."C+".argument = "${tls.controller}/server-cert.pem";
         "/var/lib/libvirt/ch/pki/server-key.pem"."C+".argument = "${tls.controller}/server-key.pem";
       };
-
-      virtualisation.qemu.options = lib.optionals numaHosts [
-        "-smp 4,sockets=4,cores=1,threads=1"
-        "-object memory-backend-ram,size=1G,id=m0"
-        "-object memory-backend-ram,size=1G,id=m1"
-        "-object memory-backend-ram,size=1G,id=m2"
-        "-object memory-backend-ram,size=1G,id=m3"
-        "-numa node,nodeid=0,cpus=0,memdev=m0"
-        "-numa node,nodeid=1,cpus=1,memdev=m1"
-        "-numa node,nodeid=2,cpus=2,memdev=m2"
-        "-numa node,nodeid=3,cpus=3,memdev=m3"
-      ];
     };
 
   nodes.computeVM =
@@ -115,7 +99,7 @@ pkgs.testers.nixosTest {
         common
         ../modules/nfs-client.nix
       ]
-      ++ (lib.optional numaHosts numaConf);
+      ++ extraComputeConfig;
 
       networking.extraHosts = ''
         192.168.100.1 controllerVM controllerVM.local
@@ -167,14 +151,6 @@ pkgs.testers.nixosTest {
         "/var/lib/libvirt/ch/pki/server-cert.pem"."C+".argument = "${tls.compute}/server-cert.pem";
         "/var/lib/libvirt/ch/pki/server-key.pem"."C+".argument = "${tls.compute}/server-key.pem";
       };
-
-      virtualisation.qemu.options = lib.optionals numaHosts [
-        "-smp 4,sockets=2,cores=2,threads=1"
-        "-object memory-backend-ram,size=2G,id=m0"
-        "-object memory-backend-ram,size=2G,id=m1"
-        "-numa node,nodeid=0,cpus=0-1,memdev=m0"
-        "-numa node,nodeid=1,cpus=2-3,memdev=m1"
-      ];
     };
 
   testScript = { ... }: builtins.readFile testScriptFile;
