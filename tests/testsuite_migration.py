@@ -88,10 +88,14 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
 
         num_devices_controller = number_of_network_devices(controllerVM)
-        self.assertEqual(num_devices_controller, 2)
+        self.assertEqual(
+            num_devices_controller, 2, "number of network devices should match"
+        )
 
         num_disk_controller = number_of_storage_devices(controllerVM)
-        self.assertEqual(num_disk_controller, 1)
+        self.assertEqual(
+            num_disk_controller, 1, "number of storage devices should match"
+        )
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -100,7 +104,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_for_ssh(computeVM)
 
         num_devices_compute = number_of_network_devices(computeVM)
-        self.assertEqual(num_devices_compute, 2)
+        self.assertEqual(
+            num_devices_compute, 2, "number of network devices should match"
+        )
 
         controllerVM.succeed("systemctl restart virtchd")
         computeVM.succeed("systemctl restart virtchd")
@@ -115,10 +121,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
 
         num_devices_compute = number_of_network_devices(computeVM)
-        self.assertEqual(num_devices_compute, 1)
+        self.assertEqual(
+            num_devices_compute, 1, "number of network devices should match"
+        )
 
         num_disk_compute = number_of_storage_devices(computeVM)
-        self.assertEqual(num_disk_compute, 2)
+        self.assertEqual(num_disk_compute, 2, "number of storage devices should match")
 
         computeVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -135,7 +143,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
         num_disk_compute = number_of_storage_devices(controllerVM)
-        self.assertEqual(num_disk_compute, 1)
+        self.assertEqual(num_disk_compute, 1, "number of storage devices should match")
 
     def test_live_migration(self):
         """
@@ -192,7 +200,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
             # We only check whether we got rarp packets for both NICs, by
             # looking at the source MAC addresses.
-            self.assertEqual(len(set(rarps)), 2)
+            self.assertEqual(len(set(rarps)), 2, "number of rarp packets should match")
 
         for _ in range(2):
             start_capture(computeVM)
@@ -237,7 +245,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
 
         num_devices_controller = number_of_network_devices(controllerVM)
-        self.assertEqual(num_devices_controller, 2)
+        self.assertEqual(
+            num_devices_controller, 2, "number of network devices should match"
+        )
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -246,22 +256,38 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_for_ssh(computeVM)
 
         num_devices_compute = number_of_network_devices(computeVM)
-        self.assertEqual(num_devices_controller, num_devices_compute)
+        self.assertEqual(
+            num_devices_controller,
+            num_devices_compute,
+            "number of network devices should match",
+        )
         hotplug(computeVM, "virsh detach-device testvm /etc/new_interface.xml")
-        self.assertEqual(number_of_network_devices(computeVM), 1)
+        self.assertEqual(
+            number_of_network_devices(computeVM),
+            1,
+            "number of network devices should match",
+        )
 
         computeVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
 
         wait_for_ssh(controllerVM)
-        self.assertEqual(number_of_network_devices(controllerVM), 1)
+        self.assertEqual(
+            number_of_network_devices(controllerVM),
+            1,
+            "number of network devices should match",
+        )
 
         controllerVM.succeed("virsh destroy testvm")
 
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
-        self.assertEqual(number_of_network_devices(controllerVM), 2)
+        self.assertEqual(
+            number_of_network_devices(controllerVM),
+            2,
+            "number of network devices should match",
+        )
 
     def test_live_migration_with_serial_tcp(self):
         """
@@ -388,7 +414,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             'grep -c "Spawned thread to send VM memory" /var/log/libvirt/ch/testvm.log'
         ).strip()
 
-        self.assertEqual(parallel_connections, int(num_threads))
+        self.assertEqual(
+            parallel_connections,
+            int(num_threads),
+            "number of parallel connections should match threads",
+        )
 
     def test_live_migration_with_vcpu_pinning(self):
         """
@@ -416,8 +446,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             f"taskset -p {tid_vcpu2_controller} | awk '{{print $6}}'"
         ).rstrip()
 
-        self.assertEqual(int(taskset_vcpu0_controller, 16), 0x3)
-        self.assertEqual(int(taskset_vcpu2_controller, 16), 0xC)
+        self.assertEqual(
+            int(taskset_vcpu0_controller, 16), 0x3, "vCPU taskset should match"
+        )
+        self.assertEqual(
+            int(taskset_vcpu2_controller, 16), 0xC, "vCPU taskset should match"
+        )
 
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
@@ -441,10 +475,14 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         ).rstrip()
 
         self.assertEqual(
-            int(taskset_vcpu0_controller, 16), int(taskset_vcpu0_compute, 16)
+            int(taskset_vcpu0_controller, 16),
+            int(taskset_vcpu0_compute, 16),
+            "vCPU taskset should match",
         )
         self.assertEqual(
-            int(taskset_vcpu2_controller, 16), int(taskset_vcpu2_compute, 16)
+            int(taskset_vcpu2_controller, 16),
+            int(taskset_vcpu2_compute, 16),
+            "vCPU taskset should match",
         )
 
     def test_live_migration_kill_chv_on_sender_side(self):
@@ -563,8 +601,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                     set(server_hello)
                 )  # creating a set will discard duplicates.
 
-                self.assertEqual(server_hellos, expected)
-                self.assertEqual(tcp_streams, expected)
+                self.assertEqual(
+                    server_hellos, expected, "number of server_hellos should match"
+                )
+                self.assertEqual(
+                    tcp_streams, expected, "number of tcp_streams should match"
+                )
                 wait_for_ssh(dst)
 
     def test_live_migration_tls_without_certificates(self):
@@ -701,28 +743,57 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         devices = pci_devices_by_bdf(controllerVM)
         # Implicitly added fixed to 0x01
-        self.assertEqual(devices["00:01.0"], VIRTIO_ENTROPY_SOURCE)
+        self.assertEqual(
+            devices["00:01.0"],
+            VIRTIO_ENTROPY_SOURCE,
+            "device type at BDF 00:01.0 should match",
+        )
         # Added by XML; dynamic BDF
-        self.assertEqual(devices["00:02.0"], VIRTIO_NETWORK_DEVICE)
+        self.assertEqual(
+            devices["00:02.0"],
+            VIRTIO_NETWORK_DEVICE,
+            "device type at BDF 00:02.0 should match",
+        )
         # Add through XML
-        self.assertEqual(devices["00:03.0"], VIRTIO_BLOCK_DEVICE)
+        self.assertEqual(
+            devices["00:03.0"],
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:03.0 should match",
+        )
         # Defined fixed BDF in XML; Hotplugged
-        self.assertEqual(devices["00:04.0"], VIRTIO_NETWORK_DEVICE)
+        self.assertEqual(
+            devices["00:04.0"],
+            VIRTIO_NETWORK_DEVICE,
+            "device type at BDF 00:04.0 should match",
+        )
         # Hotplugged by this test (vdb)
-        self.assertEqual(devices["00:05.0"], VIRTIO_BLOCK_DEVICE)
+        self.assertEqual(
+            devices["00:05.0"],
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:05.0 should match",
+        )
         # Hotplugged by this test (vdc)
-        self.assertEqual(devices["00:06.0"], VIRTIO_BLOCK_DEVICE)
+        self.assertEqual(
+            devices["00:06.0"],
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:06.0 should match",
+        )
 
         # Check that we can reuse the same non-statically allocated BDF
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
 
-        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:05.0"))
+        self.assertIsNone(
+            pci_devices_by_bdf(controllerVM).get("00:05.0"),
+            "no device should exist at BDF 00:05.0",
+        )
         hotplug(
             controllerVM,
             "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
         self.assertEqual(
-            pci_devices_by_bdf(controllerVM).get("00:05.0"), VIRTIO_BLOCK_DEVICE
+            pci_devices_by_bdf(controllerVM).get("00:05.0"),
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:05.0 should match",
         )
 
         # We free slot 4 and 5 ...
@@ -731,8 +802,14 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
         )
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
-        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:04.0"))
-        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:05.0"))
+        self.assertIsNone(
+            pci_devices_by_bdf(controllerVM).get("00:04.0"),
+            "no device should exist at BDF 00:04.0",
+        )
+        self.assertIsNone(
+            pci_devices_by_bdf(controllerVM).get("00:05.0"),
+            "no device should exist at BDF 00:05.0",
+        )
         # ...and expect the same disk that was formerly attached non-statically to slot 5 now to pop up in slot 4
         # through implicit BDF allocation.
         hotplug(
@@ -740,7 +817,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/vdb.img",
         )
         self.assertEqual(
-            pci_devices_by_bdf(controllerVM).get("00:04.0"), VIRTIO_BLOCK_DEVICE
+            pci_devices_by_bdf(controllerVM).get("00:04.0"),
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:04.0 should match",
         )
 
         # Check that BDFs stay the same after migration
@@ -750,7 +829,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         wait_for_ssh(computeVM)
         devices_after_livemig = pci_devices_by_bdf(computeVM)
-        self.assertEqual(devices_before_livemig, devices_after_livemig)
+        self.assertEqual(
+            devices_before_livemig,
+            devices_after_livemig,
+            "devices before and after migration should match",
+        )
 
     def test_bdf_explicit_assignment(self):
         """
@@ -779,13 +862,37 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
 
         devices = pci_devices_by_bdf(controllerVM)
-        self.assertEqual(devices["00:01.0"], VIRTIO_BLOCK_DEVICE)
-        self.assertEqual(devices["00:02.0"], VIRTIO_NETWORK_DEVICE)
-        self.assertIsNone(devices.get("00:03.0"))
-        self.assertEqual(devices["00:04.0"], VIRTIO_NETWORK_DEVICE)
-        self.assertEqual(devices["00:05.0"], VIRTIO_ENTROPY_SOURCE)
-        self.assertIsNone(devices.get("00:06.0"))
-        self.assertEqual(devices["00:17.0"], VIRTIO_BLOCK_DEVICE)
+        self.assertEqual(
+            devices["00:01.0"],
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:01.0 should match",
+        )
+        self.assertEqual(
+            devices["00:02.0"],
+            VIRTIO_NETWORK_DEVICE,
+            "device type at BDF 00:02.0 should match",
+        )
+        self.assertIsNone(
+            devices.get("00:03.0"), "no device should exist at BDF 00:03.0"
+        )
+        self.assertEqual(
+            devices["00:04.0"],
+            VIRTIO_NETWORK_DEVICE,
+            "device type at BDF 00:04.0 should match",
+        )
+        self.assertEqual(
+            devices["00:05.0"],
+            VIRTIO_ENTROPY_SOURCE,
+            "device type at BDF 00:05.0 should match",
+        )
+        self.assertIsNone(
+            devices.get("00:06.0"), "no device should exist at BDF 00:06.0"
+        )
+        self.assertEqual(
+            devices["00:17.0"],
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:17.0 should match",
+        )
 
         # Check that BDF is freed and can be reallocated when de-/attaching a (entirely different) device
         hotplug(
@@ -793,14 +900,24 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "virsh detach-device testvm /etc/new_interface_explicit_bdf.xml",
         )
         hotplug(controllerVM, "virsh detach-disk --domain testvm --target vdb")
-        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:04.0"))
-        self.assertIsNone(pci_devices_by_bdf(controllerVM).get("00:17.0"))
+        self.assertIsNone(
+            pci_devices_by_bdf(controllerVM).get("00:04.0"),
+            "no device should exist at BDF 00:04.0",
+        )
+        self.assertIsNone(
+            pci_devices_by_bdf(controllerVM).get("00:17.0"),
+            "no device should exist at BDF 00:17.0",
+        )
         hotplug(
             controllerVM,
             "virsh attach-disk --domain testvm --target vdb --source /var/lib/libvirt/storage-pools/nfs-share/cirros.img --address pci:0.0.04.0",
         )
         devices_before_livemig = pci_devices_by_bdf(controllerVM)
-        self.assertEqual(devices_before_livemig["00:04.0"], VIRTIO_BLOCK_DEVICE)
+        self.assertEqual(
+            devices_before_livemig["00:04.0"],
+            VIRTIO_BLOCK_DEVICE,
+            "device type at BDF 00:04.0 should match",
+        )
 
         # Adding to the same bdf twice fails
         hotplug_fail(
@@ -814,7 +931,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         wait_for_ssh(computeVM)
         devices_after_livemig = pci_devices_by_bdf(computeVM)
-        self.assertEqual(devices_before_livemig, devices_after_livemig)
+        self.assertEqual(
+            devices_before_livemig,
+            devices_after_livemig,
+            "devices before and after migration should match",
+        )
 
     def test_live_migration_to_self_is_rejected(self):
         """
@@ -883,7 +1004,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
             # Check VM is still responsive
             out = ssh(controllerVM, "echo -n Hello Cyberus!")
-            self.assertEqual(out, "Hello Cyberus!")
+            self.assertEqual(out, "Hello Cyberus!", "VM should still be responsive")
 
             computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
             # Wait until `virsh migrate` returns (finished its cleanup)
@@ -893,7 +1014,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
             # Check VM is still responsive
             out = ssh(controllerVM, "echo -n Hello Cyberus!")
-            self.assertEqual(out, "Hello Cyberus!")
+            self.assertEqual(out, "Hello Cyberus!", "VM should still be responsive")
 
         # Ensure migration can now continue quickly
         ssh(controllerVM, "pkill -9 screen")
@@ -921,7 +1042,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         out = controllerVM.succeed("virsh domjobinfo --rawstats testvm")
 
         # No actual stats when no migration is running
-        self.assertNotIn("memory_total:", out)
+        self.assertNotIn(
+            "memory_total:",
+            out,
+            "should not have domjobinfo metric when no migration is outgoing",
+        )
 
         # Stress the CH VM in order to make the migration take longer
         ssh(controllerVM, "screen -dmS stress stress -m 2 --vm-bytes 1000M")
@@ -942,13 +1067,17 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "memory_total:",
             "time_elapsed",
         ]:
-            self.assertIn(entry, out)
+            self.assertIn(entry, out, "should have domjobinfo metric")
 
         # Receiving side does not offer statistics about the incoming migration
         out = computeVM.succeed("virsh domjobinfo --rawstats testvm")
 
         # No actual stats when no migration is running
-        self.assertNotIn("memory_total:", out)
+        self.assertNotIn(
+            "memory_total:",
+            out,
+            "should not have domjobinfo metric when no migration is outgoing",
+        )
 
         try:
             # Turn off the stress process to let the migration finish faster

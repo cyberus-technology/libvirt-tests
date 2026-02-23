@@ -92,7 +92,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
-        self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_old)
+        self.assertEqual(
+            number_of_network_devices(controllerVM),
+            num_net_devices_old,
+            "number of network devices should match",
+        )
 
     def test_network_hotplug_persistent_vm_restart(self):
         """
@@ -120,7 +124,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
         self.assertEqual(
-            number_of_network_devices(controllerVM), num_net_devices_old + 1
+            number_of_network_devices(controllerVM),
+            num_net_devices_old + 1,
+            "number of network devices should match",
         )
 
     def test_network_hotplug_persistent_transient_detach_vm_restart(self):
@@ -145,16 +151,28 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
 
         num_net_devices_new = number_of_network_devices(controllerVM)
-        self.assertEqual(num_net_devices_new, num_net_devices_old + 1)
+        self.assertEqual(
+            num_net_devices_new,
+            num_net_devices_old + 1,
+            "number of network devices should match",
+        )
 
         # Transiently detach the device. It should re-appear when the VM is restarted.
         hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
-        self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_old)
+        self.assertEqual(
+            number_of_network_devices(controllerVM),
+            num_net_devices_old,
+            "number of network devices should match",
+        )
 
         controllerVM.succeed("virsh destroy testvm")
         controllerVM.succeed("virsh start testvm")
         wait_for_ssh(controllerVM)
-        self.assertEqual(number_of_network_devices(controllerVM), num_net_devices_new)
+        self.assertEqual(
+            number_of_network_devices(controllerVM),
+            num_net_devices_new,
+            "number of network devices should match",
+        )
 
     def test_network_hotplug_attach_detach_transient(self):
         """
@@ -172,7 +190,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         hotplug(controllerVM, "virsh attach-device testvm /etc/new_interface.xml")
         hotplug(controllerVM, "virsh detach-device testvm /etc/new_interface.xml")
-        self.assertEqual(number_of_network_devices(controllerVM), num_devices_old)
+        self.assertEqual(
+            number_of_network_devices(controllerVM),
+            num_devices_old,
+            "number of network devices should match",
+        )
 
     def test_network_hotplug_attach_detach_persistent(self):
         """
@@ -196,7 +218,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             controllerVM,
             "virsh detach-device --persistent testvm /etc/new_interface.xml",
         )
-        self.assertEqual(number_of_network_devices(controllerVM), num_devices_old)
+        self.assertEqual(
+            number_of_network_devices(controllerVM),
+            num_devices_old,
+            "number of network devices should match",
+        )
 
     def test_hotplug(self):
         """
@@ -557,8 +583,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
-        self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
+        self.assertEqual(
+            int(disk_size_guest), disk_size_bytes_100M, "guest disk size should match"
+        )
+        self.assertEqual(
+            int(disk_size_host), disk_size_bytes_100M, "host disk size should match"
+        )
 
         # Use full file path instead of virtual device name here because both should work with --path
         controllerVM.succeed(
@@ -570,8 +600,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(int(disk_size_guest), disk_size_bytes_10M)
-        self.assertEqual(int(disk_size_host), disk_size_bytes_10M)
+        self.assertEqual(
+            int(disk_size_guest), disk_size_bytes_10M, "guest disk size should match"
+        )
+        self.assertEqual(
+            int(disk_size_host), disk_size_bytes_10M, "host disk size should match"
+        )
 
         # Use virtual device name as --path
         controllerVM.succeed(
@@ -583,8 +617,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(int(disk_size_guest), disk_size_bytes_200M)
-        self.assertEqual(int(disk_size_host), disk_size_bytes_200M)
+        self.assertEqual(
+            int(disk_size_guest), disk_size_bytes_200M, "guest disk size should match"
+        )
+        self.assertEqual(
+            int(disk_size_host), disk_size_bytes_200M, "host disk size should match"
+        )
 
         # Use bytes instead of KiB
         controllerVM.succeed(
@@ -596,8 +634,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
-        self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
+        self.assertEqual(
+            int(disk_size_guest), disk_size_bytes_100M, "guest disk size should match"
+        )
+        self.assertEqual(
+            int(disk_size_host), disk_size_bytes_100M, "host disk size should match"
+        )
 
         # Changing to capacity must fail and not change the disk size because it
         # is not supported for file-based disk images.
@@ -608,8 +650,12 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         disk_size_host = controllerVM.succeed("ls /tmp/disk.img -l | awk '{print $5}'")
 
-        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
-        self.assertEqual(int(disk_size_host), disk_size_bytes_100M)
+        self.assertEqual(
+            int(disk_size_guest), disk_size_bytes_100M, "guest disk size should match"
+        )
+        self.assertEqual(
+            int(disk_size_host), disk_size_bytes_100M, "host disk size should match"
+        )
 
     def test_disk_is_locked(self):
         """
@@ -668,7 +714,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             controllerVM, "lsblk --raw -b /dev/vdb | awk '{print $4}' | tail -n1"
         )
 
-        self.assertEqual(int(disk_size_guest), disk_size_bytes_100M)
+        self.assertEqual(
+            int(disk_size_guest), disk_size_bytes_100M, "guest disk size should match"
+        )
 
         controllerVM.fail(
             f"virsh blockresize --domain testvm --path vdb --size {disk_size_bytes_10M // 1024}"
@@ -719,7 +767,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_for_ssh(controllerVM)
 
         devices_after = pci_devices_by_bdf(controllerVM)
-        self.assertEqual(devices_after, devices_before)
+        self.assertEqual(
+            devices_after,
+            devices_before,
+            "devices should match after detach and restart",
+        )
 
     def test_bdf_domain_defs_in_sync_after_transient_unplug(self):
         """
@@ -776,6 +828,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         self.assertEqual(
             devices_persistent_vdb_added.get(new_bdf_vdb),
             devices_transient.get(new_bdf_vdb),
+            f"device at BDF {new_bdf_vdb} should match in transient and persistent config",
         )
         # Remove transient. The device is removed from the transient domain definition but not from the persistent
         # one. The transient domain definition has to mark the BDF as still in use nevertheless.
@@ -783,7 +836,10 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         devices_transient = parse_devices_from_dom_def(
             controllerVM, DOMAIN_DEF_TRANSIENT_PATH
         )
-        self.assertIsNone(devices_transient.get(new_bdf_vdb))
+        self.assertIsNone(
+            devices_transient.get(new_bdf_vdb),
+            f"no device should exist at BDF {new_bdf_vdb}",
+        )
         # Attach another device persistently. If we did not respect in the transient domain definition that the disk
         # we detached before is still present in persistent domain definition, then we now try to assign
         # `new_bdf_vdb` twice in the persistent domain definition. In other words: Persistent and transient domain
@@ -809,7 +865,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             controllerVM, DOMAIN_DEF_TRANSIENT_PATH
         )
         for bdf in bdf_new_devices:
-            self.assertEqual(devices_transient.get(bdf), devices_persistent.get(bdf))
+            self.assertEqual(
+                devices_transient.get(bdf),
+                devices_persistent.get(bdf),
+                "devices should match in transient and persistent config",
+            )
 
     def test_bdf_domain_defs_in_sync_after_transient_hotplug(self):
         """
@@ -854,7 +914,10 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 set(devices_transient_before.keys())
             )
         )[0]
-        self.assertIsNone(devices_persistent.get(new_bdf_transient))
+        self.assertIsNone(
+            devices_persistent.get(new_bdf_transient),
+            f"no device should exist at BDF {new_bdf_transient}",
+        )
 
         # Attach another device persistently. If we did not respect in the persistent definition that the disk we
         # attached before is still present in transient definition, then we now try to assign the BDF of the disk
@@ -888,7 +951,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         # And make sure that the exact same devices share the same BDF in transient and persistent definitions
         for bdf in bdf_new_devices:
             self.assertEqual(
-                devices_transient_end.get(bdf), devices_persistent_end.get(bdf)
+                devices_transient_end.get(bdf),
+                devices_persistent_end.get(bdf),
+                "devices should match in transient and persistent config",
             )
 
     def test_libvirt_default_net_prefix_triggers_desynchronizing(self):
@@ -1016,10 +1081,11 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         domcapabilities_out = controllerVM.succeed("virsh domcapabilities")
 
         for model in expected_cpu_models:
-            self.assertIn(model, cpu_models_out)
+            self.assertIn(model, cpu_models_out, "should report supported CPU model")
             self.assertIn(
                 f"<model usable='yes' vendor='Intel' canonical='{model}'>{model}</model>",
                 domcapabilities_out,
+                "should report supported CPU model",
             )
 
     def test_list_smbios_biosinfo(self):
@@ -1042,7 +1108,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 controllerVM,
                 f"dmidecode --string {dmi_string} | tr -d '\\n'",
             )
-            self.assertEqual(expected, actual)
+            self.assertEqual(expected, actual, "smbios biosinfo should match")
 
     def test_list_smbios_sysinfo(self):
         """
@@ -1073,13 +1139,17 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 controllerVM,
                 f"dmidecode --string {dmi_string} | tr -d '\\n'",
             )
-            self.assertEqual(expected, actual)
+            self.assertEqual(expected, actual, "smbios sysinfo should match")
 
         actual = ssh(
             controllerVM,
             "cat /sys/devices/virtual/dmi/id/chassis_asset_tag | tr -d '\\n'",
         )
-        self.assertEqual(expected_field_values["chassis-asset-tag"], actual)
+        self.assertEqual(
+            expected_field_values["chassis-asset-tag"],
+            actual,
+            "smbios chassis should match",
+        )
 
     def test_list_smbios_host(self):
         """
@@ -1114,7 +1184,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 controllerVM,
                 f"dmidecode --string {dmi_string} | tr -d '\\n'",
             )
-            self.assertEqual(expected, actual)
+            self.assertEqual(expected, actual, "smbios string should match")
 
     def test_list_smbios_oem_strings(self):
         """
@@ -1133,7 +1203,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         oem_strings_out = ssh(controllerVM, "dmidecode -t 11 --quiet")
         for expected in expected_oem_strings:
-            self.assertIn(expected, oem_strings_out)
+            self.assertIn(expected, oem_strings_out, "should have smbios OEM string")
 
     def test_suspend_resume(self):
         """
@@ -1148,13 +1218,13 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         out = controllerVM.succeed(
             "virsh list --all | grep testvm | awk '{print $3}'"
         ).strip()
-        self.assertEqual(out, "paused")
+        self.assertEqual(out, "paused", "domain state should match")
 
         controllerVM.succeed("virsh resume testvm")
         out = controllerVM.succeed(
             "virsh list --all | grep testvm | awk '{print $3}'"
         ).strip()
-        self.assertEqual(out, "running")
+        self.assertEqual(out, "running", "domain state should match")
         wait_for_ssh(controllerVM)
 
     def test_reboot_guestinduced(self):
