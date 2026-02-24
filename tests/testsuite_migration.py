@@ -1054,6 +1054,34 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         wait_until_succeed(migration_finished)
 
+        # Test that combinations of 'virsh domjobinfo --completed --keep-completed' work as expected
+
+        self.assertIn(
+            "Job type: 0",
+            controllerVM.succeed("virsh domjobinfo testvm --rawstats"),
+            "Should have no stats when no migration is running",
+        )
+
+        self.assertIn(
+            "Job type: 2",
+            controllerVM.succeed(
+                "virsh domjobinfo testvm --rawstats --completed --keep-completed"
+            ),
+            "Should see a migration job when using --completed",
+        )
+
+        self.assertIn(
+            "Job type: 2",
+            controllerVM.succeed("virsh domjobinfo testvm --rawstats --completed"),
+            "Should see a migration job because we used --keep-completed previously",
+        )
+
+        self.assertIn(
+            "Job type: 0",
+            controllerVM.succeed("virsh domjobinfo testvm --rawstats --completed"),
+            "Should see no stats because we have not used --keep-completed previously",
+        )
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
