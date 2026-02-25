@@ -630,7 +630,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 wait_for_ssh(controllerVM)
 
                 controllerVM.succeed("virsh list | grep 'testvm'")
-                computeVM.fail("virsh list | grep 'testvm'")
+                computeVM.wait_until_fails("virsh list | grep 'testvm'")
 
             check_certificates(controllerVM)
             check_certificates(computeVM)
@@ -644,7 +644,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 wait_for_ssh(controllerVM)
 
                 controllerVM.succeed("virsh list | grep 'testvm'")
-                computeVM.fail("virsh list | grep 'testvm'")
+                computeVM.wait_until_fails("virsh list | grep 'testvm'")
 
             check_certificates(controllerVM)
 
@@ -657,7 +657,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 wait_for_ssh(controllerVM)
 
                 controllerVM.succeed("virsh list | grep 'testvm'")
-                computeVM.fail("virsh list | grep 'testvm'")
+                computeVM.wait_until_fails("virsh list | grep 'testvm'")
 
             check_certificates(computeVM)
 
