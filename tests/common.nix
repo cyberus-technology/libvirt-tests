@@ -365,8 +365,7 @@ let
       "-Dselinux=disabled"
       "-Dsecdriver_apparmor=disabled"
       "-Dsecdriver_selinux=disabled"
-      "-Db_sanitize=leak"
-      "-Db_sanitize=address,undefined"
+      "-Db_sanitize=leak,address,undefined"
       # Enabling the sanitizers has led to warnings about inlining macro
       # generated cleanup methods of the glib which spam the build log.
       # Ignoring and suppressing the warnings seems like the only option.
