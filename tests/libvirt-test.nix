@@ -38,7 +38,7 @@ pkgs.testers.nixosTest {
     ];
 
   nodes.controllerVM =
-    { lib, ... }:
+    { lib, config, ... }:
     {
       imports = [
         common
@@ -47,10 +47,6 @@ pkgs.testers.nixosTest {
       ++ (lib.optional numaHosts numaConf);
 
       virtualisation = {
-        cores = 4;
-        memorySize = 4096;
-        interfaces.eth1.vlan = 1;
-        diskSize = 8192;
         forwardPorts =
           # Port forwarding prevents us from executing the nixos tests in
           # parallel in the CI, as they run in the same context and ports are
@@ -95,21 +91,29 @@ pkgs.testers.nixosTest {
         "/var/lib/libvirt/ch/pki/server-key.pem"."C+".argument = "${tls.controller}/server-key.pem";
       };
 
-      virtualisation.qemu.options = lib.optionals numaHosts [
-        "-smp 4,sockets=4,cores=1,threads=1"
-        "-object memory-backend-ram,size=1G,id=m0"
-        "-object memory-backend-ram,size=1G,id=m1"
-        "-object memory-backend-ram,size=1G,id=m2"
-        "-object memory-backend-ram,size=1G,id=m3"
-        "-numa node,nodeid=0,cpus=0,memdev=m0"
-        "-numa node,nodeid=1,cpus=1,memdev=m1"
-        "-numa node,nodeid=2,cpus=2,memdev=m2"
-        "-numa node,nodeid=3,cpus=3,memdev=m3"
-      ];
+      # We distribute 4G over 6 sockets (NUMA nodes). We use slightly more than
+      # 4G so that the number is dividable by 6.
+      virtualisation.memorySize = lib.mkForce 4098;
+
+      virtualisation.qemu.options =
+        let
+          c = config.virtualisation.cores;
+        in
+        lib.optionals numaHosts [
+          # Attention: Keep in sync with vCPU count in common-vm-host.nix!
+          "-smp ${toString c},sockets=${toString c},cores=1,threads=1"
+        ]
+        ++ (lib.genList (
+          x:
+          "-object memory-backend-ram,size=${
+            toString (config.virtualisation.memorySize / c)
+          }M,id=m${toString x}"
+        ) c)
+        ++ (lib.genList (x: "-numa node,nodeid=${toString x},cpus=${toString x},memdev=m${toString x}") c);
     };
 
   nodes.computeVM =
-    { lib, ... }:
+    { lib, config, ... }:
     {
       imports = [
         common
@@ -122,10 +126,6 @@ pkgs.testers.nixosTest {
       '';
 
       virtualisation = {
-        cores = 4;
-        memorySize = 4096;
-        interfaces.eth1.vlan = 1;
-        diskSize = 2048;
         forwardPorts =
           # Port forwarding prevents us from executing the nixos tests in
           # parallel in the CI, as they run in the same context and ports are
@@ -169,11 +169,12 @@ pkgs.testers.nixosTest {
       };
 
       virtualisation.qemu.options = lib.optionals numaHosts [
-        "-smp 4,sockets=2,cores=2,threads=1"
+        # Attention: Keep in sync with vCPU count in common-vm-host.nix!
+        "-smp 6,sockets=2,cores=3,threads=1"
         "-object memory-backend-ram,size=2G,id=m0"
         "-object memory-backend-ram,size=2G,id=m1"
-        "-numa node,nodeid=0,cpus=0-1,memdev=m0"
-        "-numa node,nodeid=1,cpus=2-3,memdev=m1"
+        "-numa node,nodeid=0,cpus=0-2,memdev=m0"
+        "-numa node,nodeid=1,cpus=3-5,memdev=m1"
       ];
     };
 
