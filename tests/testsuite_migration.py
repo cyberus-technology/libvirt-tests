@@ -263,6 +263,114 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
             )
 
+    def test_live_migration_cancel_basic(self):
+        """
+        Test to cancel (abort) a migration.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        controllerVM.fail("virsh domjobabort testvm")
+        computeVM.fail("virsh domjobabort testvm")
+
+        # Stress the VM to make the migration take longer
+        ssh(controllerVM, "screen -dmS stress stress -m 4 --vm-bytes 400M")
+
+        def migrate_and_cancel(parallel: int = 1):
+            print(f"Testing with {parallel} connections:")
+
+            controllerVM.succeed(
+                f"screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections {parallel}"
+            )
+            # We wait for the first iteration of sending memory
+            controllerVM.wait_until_succeeds(
+                "grep -qF 'iter=0' /var/log/libvirt/ch/testvm.log", 60
+            )
+
+            # Can only abort outgoing live-migrations, not incoming
+            computeVM.fail("virsh domjobabort testvm")
+            controllerVM.succeed("virsh domjobabort testvm")  # blocking
+            controllerVM.fail("screen -ls | grep migrate")  # assert migration is dead
+
+            # virsh domjobabort on the src side is not synchronized with the
+            # dst side: To prevent test errors, we gracefully wait for the
+            # migration failure cleanup to finish before we start a new
+            # migration.
+            computeVM.wait_until_fails("virsh list | grep testvm")
+
+            ssh(controllerVM, "echo VM still usable")
+
+        migrate_and_cancel(1)  # single connection
+        migrate_and_cancel(4)  # multiple TCP connections
+
+        # Kill workload (migration will be faster)
+        ssh(controllerVM, "pkill screen")
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        )
+        wait_for_ssh(computeVM)
+
+    def test_live_migration_cancel_complex(self):
+        """
+        Performs multiple migrations and cancels a few of them.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        def migrate_cancel_migrate(src: Machine, dst: Machine):
+            """
+            Performs a migration roundtrip between both VM hosts. Each migration
+            is canceled before it is supposed to succeed.
+            """
+            # Stress the VM to make the migration take longer
+            ssh(src, "screen -dmS stress stress -m 4 --vm-bytes 400M")
+
+            # Start migration in background
+            src.succeed(
+                f"screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://{dst.name}/session --persistent --live --p2p --parallel --parallel-connections 4"
+            )
+            # We wait for the first iteration of sending memory
+            src.wait_until_succeeds(
+                "grep -qF 'iter=0' /var/log/libvirt/ch/testvm.log", 60
+            )
+
+            # Check migration is running and didn't crash
+            src.succeed("screen -ls | grep migrate")
+
+            # Cancel migration + checks
+            dst.fail("virsh domjobabort testvm")  # can't be canceled on receiver
+            src.succeed("virsh domjobabort testvm")  # blocking
+            src.fail("screen -ls | grep migrate")
+            ssh(src, "echo VM still usable")
+
+            # Sanity checks before the next iteration
+            #
+            # virsh domjobabort on the src side is not synchronized with the
+            # dst side: To prevent test errors, we gracefully wait for the
+            # migration failure cleanup to finish before we start a new
+            # migration.
+            dst.wait_until_fails("virsh list | grep testvm")
+
+            # Kill workload (migration will be faster)
+            ssh(src, "pkill screen")
+
+            # Restart + finish migration
+            src.succeed(
+                f"virsh migrate --domain testvm --desturi ch+tcp://{dst.name}/session --persistent --live --p2p --parallel --parallel-connections 4"
+            )
+            wait_for_ssh(dst)
+
+            # Must fail as there is no job to abort
+            src.fail("virsh domjobabort testvm")
+            dst.fail("virsh domjobabort testvm")
+
+        migrate_cancel_migrate(controllerVM, computeVM)
+        migrate_cancel_migrate(computeVM, controllerVM)
+
     def test_live_migration_with_hotplug(self):
         """
         Test that transient and persistent devices are correctly handled during live migrations.
@@ -1321,6 +1429,8 @@ def suite():
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_after_failed_migration,
+        LibvirtTests.test_live_migration_cancel_basic,
+        LibvirtTests.test_live_migration_cancel_complex,
         LibvirtTests.test_live_migration_failure_with_guest_reboot,
         LibvirtTests.test_live_migration_failure_with_guest_shutdown,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
