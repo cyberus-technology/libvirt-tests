@@ -60,10 +60,43 @@ except Exception:
 # in order to allow the IDE to lint the python code successfully.
 if "start_all" not in globals():
     from ..test_helper.test_helper.nixos_test_stubs import (  # type: ignore
+        Machine,
         computeVM,
         controllerVM,
         start_all,
     )
+
+
+def guest_boot_id(machine: Machine) -> str:
+    return ssh(machine, "cat /proc/sys/kernel/random/boot_id").strip()
+
+
+def assert_domain_running(machine: Machine) -> None:
+    machine.succeed("virsh domstate testvm | grep -q running")
+
+
+def assert_domain_shutoff(machine: Machine) -> None:
+    machine.succeed("virsh domstate testvm | grep -q 'shut off'")
+
+
+def assert_domain_absent(machine: Machine) -> None:
+    machine.fail("virsh list --all | grep -q testvm")
+
+
+def wait_for_guest_boot_id_change(
+    machine: Machine, old_boot_id: str, retries: int = 300
+) -> None:
+    def boot_id_changed() -> bool:
+        try:
+            return guest_boot_id(machine) != old_boot_id
+        except Exception:
+            return False
+
+    wait_until_succeed(boot_id_changed, retries=retries)
+
+
+def wait_for_migration_screen_to_finish(machine: Machine) -> None:
+    wait_until_fail(lambda: machine.execute("screen -ls | grep migrate")[0] == 0)
 
 
 class LibvirtTests(LibvirtTestsBase):  # type: ignore
@@ -394,6 +427,134 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_until_succeed(migration_finished)
 
         computeVM.succeed("virsh list | grep testvm | grep running")
+
+    def test_live_migration_with_guest_reboot(self):
+        """
+        Test that a guest-initiated reboot during P2P live migration leaves the
+        source without a running domain and the destination with the rebooted
+        guest.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+        old_boot_id = guest_boot_id(controllerVM)
+
+        ssh(controllerVM, "screen -dmS stress stress -m 2 --vm-bytes 400M")
+        ssh(controllerVM, "systemd-run --on-active=7s --unit=test-reboot reboot")
+
+        migration_ms = measure_ms(
+            lambda: controllerVM.succeed(
+                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            )
+        )
+        self.assertGreater(
+            migration_ms, 7000, msg=f"migration was too fast: {migration_ms} ms"
+        )
+
+        wait_for_ssh(computeVM)
+        wait_for_guest_boot_id_change(computeVM, old_boot_id)
+
+        assert_domain_shutoff(controllerVM)
+        assert_domain_running(computeVM)
+
+    def test_live_migration_with_guest_shutdown(self):
+        """
+        Test that a guest-initiated shutdown during P2P live migration leaves
+        the domain shut off after migration completes.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+
+        ssh(controllerVM, "screen -dmS stress stress -m 2 --vm-bytes 400M")
+        ssh(
+            controllerVM,
+            "systemd-run --on-active=7s --unit=test-shutdown shutdown now",
+        )
+
+        migration_ms = measure_ms(
+            lambda: controllerVM.succeed(
+                "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+            )
+        )
+        self.assertGreater(
+            migration_ms, 7000, msg=f"migration was too fast: {migration_ms} ms"
+        )
+
+        wait_until_succeed(
+            lambda: computeVM.execute("virsh domstate testvm | grep -q 'shut off'")[0]
+            == 0
+        )
+
+        assert_domain_shutoff(controllerVM)
+        assert_domain_shutoff(computeVM)
+
+    def test_live_migration_failure_with_guest_reboot(self):
+        """
+        Test that when P2P live migration fails after a guest-initiated reboot,
+        the rebooted guest remains on the source and the destination has no
+        domain instance.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+        old_boot_id = guest_boot_id(controllerVM)
+
+        ssh(controllerVM, "screen -dmS stress stress -m 2 --vm-bytes 400M")
+
+        controllerVM.succeed(
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+        ssh(controllerVM, "systemd-run --on-active=5s --unit=test-reboot reboot")
+        time.sleep(6)
+        computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
+        wait_for_migration_screen_to_finish(controllerVM)
+        wait_for_guest_boot_id_change(controllerVM, old_boot_id)
+
+        assert_domain_running(controllerVM)
+        assert_domain_absent(computeVM)
+
+    def test_live_migration_failure_with_guest_shutdown(self):
+        """
+        Test that when P2P live migration fails after a guest-initiated
+        shutdown, the source domain is shut off and the destination has no
+        domain instance.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+        ssh(controllerVM, "screen -dmS stress stress -m 2 --vm-bytes 400M")
+
+        controllerVM.succeed(
+            "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p"
+        )
+
+        ssh(
+            controllerVM,
+            "systemd-run --on-active=2s --unit=test-shutdown shutdown now",
+        )
+        time.sleep(6)
+
+        computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
+        wait_for_migration_screen_to_finish(controllerVM)
+
+        wait_until_succeed(
+            lambda: controllerVM.execute("virsh domstate testvm | grep -q 'shut off'")[
+                0
+            ]
+            == 0
+        )
+
+        assert_domain_shutoff(controllerVM)
+        assert_domain_absent(computeVM)
 
     def test_live_migration_parallel_connections(self):
         """
@@ -1160,6 +1321,8 @@ def suite():
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_after_failed_migration,
+        LibvirtTests.test_live_migration_failure_with_guest_reboot,
+        LibvirtTests.test_live_migration_failure_with_guest_shutdown,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_network_lost,
         LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
@@ -1169,6 +1332,8 @@ def suite():
         LibvirtTests.test_live_migration_tls_without_certificates,
         LibvirtTests.test_live_migration_to_self_is_rejected,
         LibvirtTests.test_live_migration_virsh_non_blocking,
+        LibvirtTests.test_live_migration_with_guest_reboot,
+        LibvirtTests.test_live_migration_with_guest_shutdown,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
         LibvirtTests.test_live_migration_with_serial_tcp,
