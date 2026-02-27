@@ -108,6 +108,7 @@ let
         ${
           if numa then
             ''
+              <!-- Keep in sync with QEMU VM vCPUs. -->
               <vcpu placement='static'>4</vcpu>
               <cputune>
                 <vcpupin vcpu='0' cpuset='0-1'/>
@@ -154,6 +155,7 @@ let
             ''
           else
             ''
+              <!-- Keep in sync with QEMU VM vCPUs. -->
               <vcpu placement='static'>2</vcpu>
               ${
                 if hugepages then
@@ -399,6 +401,20 @@ in
     enable = true;
     sshProxy = false;
     package = libvirtCh;
+  };
+
+  virtualisation = {
+    # We allocate up to four cores to each Cloud Hypervisor VM. To guarantee
+    # forward progress of the QEMU host VM and the test script - even when the
+    # Cloud Hypervisor VM is under 100% load - we provision two additional vCPUs
+    # to each QEMU VM.
+    #
+    # The additional overhead is negligible to the systems running the test, as
+    # the QEMU threads will be mostly idling.
+    cores = 6;
+    memorySize = 4096;
+    interfaces.eth1.vlan = 1;
+    diskSize = 8192;
   };
 
   systemd.services.virtstoraged.path = [ pkgs.mount ];

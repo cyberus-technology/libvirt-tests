@@ -21,6 +21,7 @@ let
         <uuid>4eb6319a-4302-4407-9a56-802fc7e6a422</uuid>
         <memory unit='MiB'>512</memory>
         <currentMemory unit='MiB'>512</currentMemory>
+        <!-- Keep in sync with QEMU VM vCPUs. -->
         <vcpu placement='static'>2</vcpu>
         <cputune>
         ${
