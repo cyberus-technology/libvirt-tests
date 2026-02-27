@@ -1,3 +1,5 @@
+from time import sleep
+
 from functools import partial
 import time
 import unittest
@@ -229,6 +231,61 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             computeVM.fail(
                 "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
             )
+
+    def test_live_migration_cancel(self):
+        """
+        Test to cancel (abort) a migration.
+
+        Specifically, this performs multiple migrations and cancels a few of
+        them to model a somewhat realistic scenario.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        def migrate(controller_to_compute: bool):
+            """
+            Performs a migration roundtrip between both VM hosts.
+            Each migration is cancelled once before it retried.
+
+            :param controller_to_compute:
+            :return:
+            """
+            machine_src = controllerVM if controller_to_compute else computeVM
+            machine_dst = computeVM if controller_to_compute else controllerVM
+            machine_dst_hostname = (
+                "computeVM" if controller_to_compute else "controllerVM"
+            )
+
+            # Step 0: Must fail as there is no job to abort
+            machine_src.fail("virsh domjobabort testvm")
+            machine_dst.fail("virsh domjobabort testvm")
+
+            # Step 1: Start migration in background
+            machine_src.succeed(
+                f"screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://{machine_dst_hostname}/session --persistent --live --p2p --parallel --parallel-connections 4"
+            )
+            sleep(3)
+
+            # Step 2: Cancel migration + checks
+            machine_dst.fail("virsh domjobabort testvm")
+            machine_src.succeed("virsh domjobabort testvm")
+            machine_src.fail("screen -ls | grep migrate")
+            ssh(machine_src, "echo VM still usable")
+
+            # Step 3: Restart migration
+            machine_src.succeed(
+                f"virsh migrate --domain testvm --desturi ch+tcp://{machine_dst_hostname}/session --persistent --live --p2p --parallel --parallel-connections 4"
+            )
+            wait_for_ssh(machine_dst)
+
+            # Must fail as there is no job to abort
+            machine_src.fail("virsh domjobabort testvm")
+            machine_dst.fail("virsh domjobabort testvm")
+
+        migrate(True)
+        migrate(False)
 
     def test_live_migration_with_hotplug(self):
         """
@@ -1156,6 +1213,7 @@ def suite():
         LibvirtTests.test_bdf_implicit_assignment,
         LibvirtTests.test_live_migration,
         LibvirtTests.test_live_migration_after_failed_migration,
+        LibvirtTests.test_live_migration_cancel,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
         LibvirtTests.test_live_migration_network_lost,
         LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
