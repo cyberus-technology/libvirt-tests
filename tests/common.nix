@@ -365,8 +365,7 @@ let
       "-Dselinux=disabled"
       "-Dsecdriver_apparmor=disabled"
       "-Dsecdriver_selinux=disabled"
-      "-Db_sanitize=leak"
-      "-Db_sanitize=address,undefined"
+      "-Db_sanitize=leak,address,undefined"
       # Enabling the sanitizers has led to warnings about inlining macro
       # generated cleanup methods of the glib which spam the build log.
       # Ignoring and suppressing the warnings seems like the only option.
@@ -383,6 +382,7 @@ in
   systemd.services.virtchd = {
     environment.ASAN_OPTIONS = "detect_leaks=1:fast_unwind_on_malloc=0:halt_on_error=1:symbolize=1";
     environment.LSAN_OPTIONS = "report_objects=1";
+    environment.UBSAN_OPTIONS = "halt_on_error=1:print_stacktrace=1";
   };
 
   nixpkgs.overlays = [
