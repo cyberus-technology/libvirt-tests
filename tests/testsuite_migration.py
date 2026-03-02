@@ -1135,13 +1135,17 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # Wait until the send migration command terminates.
             sender.wait_until_fails("screen -list | grep migrate")
 
-            # Make sure the VM is still good.
-            wait_for_ssh(sender)
+            # Note: it is important not to interact with the VM here. Since we disabled the network,
+            # we also disabled NFS. If we do something with the VM that causes disk-io, the VM will
+            # block and our test will fail.
 
             # We now restore the network connection and check that the live migration still works.
             receiver.succeed("ip link set dev eth0 up")
             receiver.succeed("ip link set dev eth1 up")
             wait_for_ping(sender, get_ip(receiver))
+
+            # Make sure the VM is still good.
+            wait_for_ssh(sender)
 
             # We don't want to slow down the migration anymore, thus kill stress in screen session.
             ssh(sender, "pkill screen")
