@@ -88,11 +88,11 @@
     "edk2-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1768399783,
-        "narHash": "sha256-AyKYmRGgRMgFJTxEYh3jcmCcbeXHvAhnTymXbx3khPM=",
+        "lastModified": 1772632652,
+        "narHash": "sha256-cuU4f9U4zAj03cDhirjru4XSVM5WjpW59wEiiR3Qa/Q=",
         "ref": "gardenlinux",
-        "rev": "0417bca8caed638502f7575be937359878eac683",
-        "revCount": 34309,
+        "rev": "1d892a18e3c6b0e4ead9ab26c9a4f648bbf31476",
+        "revCount": 35525,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/cyberus-technology/edk2"
