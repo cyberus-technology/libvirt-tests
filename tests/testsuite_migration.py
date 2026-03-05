@@ -292,7 +292,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # Can only abort outgoing live-migrations, not incoming
             computeVM.fail("virsh domjobabort testvm")
             controllerVM.succeed("virsh domjobabort testvm")  # blocking
-            controllerVM.fail("screen -ls | grep migrate")  # assert migration is dead
+            controllerVM.wait_until_fails(
+                "screen -ls | grep migrate", timeout=10
+            )  # assert migration is dead
 
             # virsh domjobabort on the src side is not synchronized with the
             # dst side: To prevent test errors, we gracefully wait for the
@@ -344,7 +346,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # Cancel migration + checks
             dst.fail("virsh domjobabort testvm")  # can't be canceled on receiver
             src.succeed("virsh domjobabort testvm")  # blocking
-            src.fail("screen -ls | grep migrate")
+            src.wait_until_fails(
+                "screen -ls | grep migrate", timeout=10
+            )  # assert migration is dead
             ssh(src, "echo VM still usable")
 
             # Sanity checks before the next iteration
