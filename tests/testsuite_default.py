@@ -1280,6 +1280,45 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             self, controllerVM, context="after externally-triggered guest reboot"
         )
 
+    def test_raw_image_is_properly_attached(self):
+        """
+        Attaches a disk once with "file_type=raw" and once without. If the file
+        type is not set, writing to sector 0 should fail.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM)
+
+        image = "/tmp/disk.raw"
+        controllerVM.succeed(f"qemu-img create -f raw {image} 100M")
+
+        # Hotplug device without device type, dd should fail
+        hotplug(
+            controllerVM,
+            f"virsh attach-disk testvm {image} vdb --targetbus virtio --sourcetype file",
+        )
+        try:
+            ssh(
+                controllerVM,
+                "dd if=/dev/random of=/dev/vdb bs=512 count=1 oflag=direct",
+            )
+            self.fail("dd did not fail, but should have!")
+        except RuntimeError:
+            pass
+
+        hotplug(controllerVM, "virsh detach-disk testvm vdb")
+
+        # Hotplug device with device type, this time dd should succeed
+        hotplug(
+            controllerVM,
+            f"virsh attach-disk testvm {image} vdb --targetbus virtio --sourcetype file --subdriver raw",
+        )
+        ssh(controllerVM, "dd if=/dev/random of=/dev/vdb bs=512 count=1 oflag=direct")
+        hotplug(controllerVM, "virsh detach-disk testvm vdb")
+
+        controllerVM.succeed(f"rm {image}")
+
 
 def suite():
     # Test cases sorted in alphabetical order.
@@ -1309,6 +1348,7 @@ def suite():
         LibvirtTests.test_network_hotplug_persistent_vm_restart,
         LibvirtTests.test_network_hotplug_transient_vm_restart,
         LibvirtTests.test_numa_topology,
+        LibvirtTests.test_raw_image_is_properly_attached,
         LibvirtTests.test_reboot_externallytriggered,
         LibvirtTests.test_reboot_guestinduced,
         LibvirtTests.test_serial_file_output,
