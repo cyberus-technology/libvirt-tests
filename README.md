@@ -73,7 +73,7 @@ in the `DBG_LOG_DIR`.
 To test against a specific version or local build, you should update your
 `flake.nix` to refer to the new input, for example:
 
-`libvirt-src.url = "git+file:/home/pschuster/dev/libvirt?submodules=1";`
+`libvirt.url = "git+file:/home/pschuster/dev/libvirt?submodules=1";`
 
 
 ### SSH into the VMs
