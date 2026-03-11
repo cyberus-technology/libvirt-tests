@@ -105,8 +105,10 @@ def wait_for_guest_boot_id_change(
     wait_until_succeed(boot_id_changed, retries=retries)
 
 
-def wait_for_migration_screen_to_finish(machine: Machine) -> None:
-    wait_until_fail(lambda: machine.execute("screen -ls | grep migrate")[0] == 0)
+def wait_for_migration_screen_to_finish(
+    machine: Machine, screen_name: str = "migrate"
+) -> None:
+    wait_until_succeed(lambda: screen_disappeared(machine, screen_name))
 
 
 class LibvirtTests(LibvirtTestsBase):  # type: ignore
@@ -541,12 +543,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # problem in this test scenario.
             pass
 
-        # Wait for migration in the screen session to finish
-        def migration_finished():
-            status, _ = controllerVM.execute("screen -ls | grep migrate")
-            return status != 0
-
-        wait_until_succeed(migration_finished)
+        wait_for_migration_screen_to_finish(controllerVM)
 
         computeVM.succeed("virsh list | grep testvm | grep running")
 
@@ -1249,9 +1246,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
             computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
             # Wait until `virsh migrate` returns (finished its cleanup)
-            wait_until_fail(
-                lambda: controllerVM.execute("screen -ls | grep migrate")[0] == 0
-            )
+            wait_for_migration_screen_to_finish(controllerVM)
 
             # Check VM is still responsive
             out = ssh(controllerVM, "echo -n Hello Cyberus!")
@@ -1370,12 +1365,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # problem in this test scenario.
             pass
 
-        # Wait for migration in the screen session to finish
-        def migration_finished():
-            status, _ = controllerVM.execute("screen -ls | grep migrate")
-            return status != 0
-
-        wait_until_succeed(migration_finished)
+        wait_for_migration_screen_to_finish(controllerVM)
 
         # Test that combinations of 'virsh domjobinfo --completed --keep-completed' work as expected
 
