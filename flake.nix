@@ -9,14 +9,14 @@
     # sure the submodules in a local libvirt checkout are populated.
     # libvirt.url = "git+file:<path/to/libvirt>?submodules=1";
     # libvirt.url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt.git?ref=gardenlinux&submodules=1";
-    libvirt.url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
+    libvirt.url = "git+ssh://git@gitlab.cyberus-technology.de/oliver.anderson/libvirt.git?ref=cpu-profiles-msr&submodules=1";
     libvirt.inputs.cloud-hypervisor.follows = "cloud-hypervisor";
     # Break the chain of cyclic dependencies:
     libvirt.inputs.libvirt-tests.inputs.libvirt.follows = "libvirt";
     libvirt.inputs.nixpkgs.follows = "nixpkgs";
 
     # cloud-hypervisor.url = "git+file:<path/to/cloud-hypervisor>";
-    cloud-hypervisor.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
+    cloud-hypervisor.url = "github:olivereanderson/cloud-hypervisor?ref=cpu-profiles-msr-v51";
     cloud-hypervisor.inputs.nixpkgs.follows = "nixpkgs";
 
     edk2-src.url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
