@@ -83,6 +83,12 @@ def assert_domain_absent(machine: Machine) -> None:
     machine.fail("virsh list --all | grep -q testvm")
 
 
+def screen_disappeared(
+    machine: Machine = controllerVM, screen_name: str = "migrate"
+) -> bool:
+    return machine.execute(f"screen -ls | grep {screen_name}")[0] != 0
+
+
 def wait_for_guest_boot_id_change(
     machine: Machine, old_boot_id: str, retries: int = 300
 ) -> None:
@@ -95,8 +101,10 @@ def wait_for_guest_boot_id_change(
     wait_until_succeed(boot_id_changed, retries=retries)
 
 
-def wait_for_migration_screen_to_finish(machine: Machine) -> None:
-    wait_until_fail(lambda: machine.execute("screen -ls | grep migrate")[0] == 0)
+def wait_for_migration_screen_to_finish(
+    machine: Machine, screen_name: str = "migrate"
+) -> None:
+    wait_until_succeed(lambda: screen_disappeared(machine, screen_name))
 
 
 class LibvirtTests(LibvirtTestsBase):  # type: ignore
@@ -531,12 +539,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # problem in this test scenario.
             pass
 
-        # Wait for migration in the screen session to finish
-        def migration_finished():
-            status, _ = controllerVM.execute("screen -ls | grep migrate")
-            return status != 0
-
-        wait_until_succeed(migration_finished)
+        wait_for_migration_screen_to_finish(controllerVM)
 
         computeVM.succeed("virsh list | grep testvm | grep running")
 
@@ -1239,9 +1242,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
             computeVM.succeed("kill -9 $(pidof cloud-hypervisor)")
             # Wait until `virsh migrate` returns (finished its cleanup)
-            wait_until_fail(
-                lambda: controllerVM.execute("screen -ls | grep migrate")[0] == 0
-            )
+            wait_for_migration_screen_to_finish(controllerVM)
 
             # Check VM is still responsive
             out = ssh(controllerVM, "echo -n Hello Cyberus!")
@@ -1255,6 +1256,60 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
         )
         wait_for_ssh(computeVM)
+
+    def test_live_migration_during_boot(self):
+        """
+        Start a live migration while the guest is still booting and check
+        that the guest becomes reachable on the destination host.
+
+        The migration runs in a detached screen session. The test waits
+        until the migration finishes or Cloud Hypervisor reports a fatal
+        migration error. After that, the guest must be reachable via SSH
+        on computeVM and must no longer be running on controllerVM.
+        """
+
+        def cleanup_iteration(machine: Machine) -> None:
+            machine.execute("screen -S migrate -X quit || true")
+            machine.execute("virsh destroy testvm || true")
+            machine.execute("virsh undefine testvm || true")
+
+        iterations = 2
+        for i in range(1, iterations + 1):
+            print(f"run {i}/{iterations}")
+            with (
+                CommandGuard(cleanup_iteration, controllerVM),
+                CommandGuard(cleanup_iteration, computeVM),
+            ):
+                controllerVM.succeed("virsh define /etc/domain-chv.xml")
+                controllerVM.succeed("virsh start testvm")
+
+                # Start migration shortly after boot begins.
+                time.sleep(1)
+                controllerVM.succeed(
+                    "screen -dmS migrate virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+                )
+
+                def migration_failed_in_logs() -> bool:
+                    for machine in (controllerVM, computeVM):
+                        for pattern in (
+                            "Pause(Error signalling vCPUs: Timeout when waiting for signal to be acknowledged",
+                            "panicked",
+                        ):
+                            status, _ = machine.execute(
+                                f"grep -qF '{pattern}' /var/log/libvirt/ch/testvm.log"
+                            )
+                            if status == 0:
+                                return True
+                    return False
+
+                wait_until_succeed(
+                    lambda: migration_failed_in_logs() or screen_disappeared(),
+                    retries=1200,
+                )
+
+                wait_for_ssh(computeVM, retries=150)
+                assert_domain_running(computeVM)
+                assert_domain_shutoff(controllerVM)
 
     def test_live_migration_statistics(self):
         """
@@ -1322,12 +1377,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # problem in this test scenario.
             pass
 
-        # Wait for migration in the screen session to finish
-        def migration_finished():
-            status, _ = controllerVM.execute("screen -ls | grep migrate")
-            return status != 0
-
-        wait_until_succeed(migration_finished)
+        wait_for_migration_screen_to_finish(controllerVM)
 
         # Test that combinations of 'virsh domjobinfo --completed --keep-completed' work as expected
 
@@ -1435,6 +1485,7 @@ def suite():
         LibvirtTests.test_live_migration_after_failed_migration,
         LibvirtTests.test_live_migration_cancel_basic,
         LibvirtTests.test_live_migration_cancel_complex,
+        LibvirtTests.test_live_migration_during_boot,
         LibvirtTests.test_live_migration_failure_with_guest_reboot,
         LibvirtTests.test_live_migration_failure_with_guest_shutdown,
         LibvirtTests.test_live_migration_kill_chv_on_sender_side,
