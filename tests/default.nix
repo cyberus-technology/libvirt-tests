@@ -116,7 +116,7 @@ let
 
               [
                 "-cpu"
-                "Cascadelake-Server-v5,+vmx"
+                "host,+vmx"
               ];
           }
         )
@@ -129,7 +129,7 @@ let
 
               [
                 "-cpu"
-                "Icelake-Server-v7,+vmx"
+                "host,+vmx"
               ];
           }
         )
