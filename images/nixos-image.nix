@@ -27,7 +27,7 @@ nixpkgs.lib.nixosSystem {
           "virtio_blk"
           "virtio_pci"
         ];
-        boot.initrd.kernelModules = [ "virtio_net" ];
+        boot.initrd.kernelModules = [ "msr" "virtio_net" ];
         boot.initrd.systemd.enable = false;
         boot.kernelParams = [
           "console=ttyS0"
@@ -67,6 +67,7 @@ nixpkgs.lib.nixosSystem {
           dmidecode
           screen
           stress
+          msr
         ];
 
         isoImage.makeUsbBootable = true;
