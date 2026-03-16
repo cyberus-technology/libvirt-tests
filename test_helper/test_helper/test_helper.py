@@ -93,6 +93,7 @@ class LibvirtTestsBase(unittest.TestCase):
             )
             self.save_machine_log(machine, "/var/log/libvirt/ch/testvm.log", dst_path)
             self.save_machine_log(machine, "/var/log/libvirt/libvirtd.log", dst_path)
+            self.save_machine_log(machine, "/tmp/vm_serial.log", dst_path)
 
 
 def initialControllerVMSetup(controllerVM: Machine) -> None:
