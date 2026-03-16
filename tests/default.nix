@@ -116,7 +116,7 @@ let
 
               [
                 "-cpu"
-                "Cascadelake-Server-v5,+vmx"
+                "Cascadelake-Server-v5,+vmx,+stibp,+md-clear,+flush-l1d,+gds-no,+vmx-tsc-scaling"
               ];
           }
         )
@@ -129,7 +129,7 @@ let
 
               [
                 "-cpu"
-                "Icelake-Server-v7,+vmx"
+                "Icelake-Server-v7,+vmx,+stibp,+md-clear,+flush-l1d,+gds-no,+vmx-tsc-scaling"
               ];
           }
         )
