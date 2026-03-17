@@ -35,7 +35,7 @@ let
             ''
               <vcpupin vcpu='0' cpuset='2'/>
               <vcpupin vcpu='1' cpuset='3'/>
-              <emulatorpin cpuset='0-1'/>
+              <emulatorpin cpuset='2-3'/>
             ''
         }
         </cputune>
