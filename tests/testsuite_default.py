@@ -1315,6 +1315,14 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             f"virsh attach-disk testvm {image} vdb --targetbus virtio --sourcetype file --subdriver raw",
         )
         ssh(controllerVM, "dd if=/dev/random of=/dev/vdb bs=512 count=1 oflag=direct")
+
+        # By default, Cloud Hypervisor sets sparse=on for raw images which we set to false in our libvirt
+        # driver to prevent overcommitting of storage backends.
+        controllerVM.succeed(
+            "ch-remote --api-socket /run/libvirt/ch/testvm-socket info \
+                              | jq -e '.config.disks[1].sparse == false' > /dev/null"
+        )
+
         hotplug(controllerVM, "virsh detach-disk testvm vdb")
 
         controllerVM.succeed(f"rm {image}")
