@@ -823,6 +823,52 @@ def vm_unresponsive(machine: Machine) -> bool:
         return True
 
 
+def tid_of(machine: Machine, thread_name: str) -> int:
+    """
+    Returns the tid of a given thread name of the first Cloud Hypervisor
+    process found.
+    """
+    chv_pid_controller = int(machine.succeed("pidof cloud-hypervisor").strip())
+    # We use grep -w internally to match only whole words, e.g. thread_name=vmm
+    # will match to thread vmm but not thread vmm_signal_handler.
+    tid = int(
+        machine.succeed(
+            f"ps -Lo tid,comm --pid {chv_pid_controller} | grep -w {thread_name} | awk '{{print $1}}'"
+        ).rstrip()
+    )
+
+    return tid
+
+
+def taskset_of(machine: Machine, tid: int) -> str:
+    taskset = machine.succeed(f"taskset -p {tid} | awk '{{print $6}}'").rstrip()
+
+    return taskset
+
+
+def validate_pinning(machine: Machine, expected_pinning: dict[str, str]):
+    """
+    Check that the pinning of the Cloud Hypervisor threads are as expected.
+
+    :param machine: The machine where the Cloud Hypervisor process is
+                    running
+    :param expected_pinning: A dict mapping thread names to expected
+                             taskset string values
+    :raises RuntimeError: If an actual taskset of a thread is not as expected
+    """
+
+    for thread_name, expected_taskset in expected_pinning.items():
+        tid = tid_of(machine, thread_name)
+        taskset = taskset_of(machine, tid)
+
+        if taskset != expected_taskset:
+            raise RuntimeError(
+                f"Unexpected Taskset of thread: {thread_name} "
+                f"TID: {tid} Taskset: {taskset} "
+                f"Expected Taskset: {expected_taskset}"
+            )
+
+
 def vcpu_affinity_checks(testcase: TestCase, machine: Machine, context: str = ""):
     """
     Asserts that vCPU thread CPU affinity matches the pinning defined in
