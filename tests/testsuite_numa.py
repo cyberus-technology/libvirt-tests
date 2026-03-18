@@ -10,6 +10,7 @@ try:
         LibvirtTestsBase,
         initialComputeVMSetup,
         initialControllerVMSetup,
+        validate_pinning,
         wait_for_ssh,
     )
 except Exception:
@@ -17,6 +18,7 @@ except Exception:
         LibvirtTestsBase,
         initialComputeVMSetup,
         initialControllerVMSetup,
+        validate_pinning,
         wait_for_ssh,
     )
 
@@ -47,7 +49,9 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
     def test_live_migration_between_different_numa_host_configs(self):
         """
         Test that we can update the pinning of memory when migrating to a host
-        on which a certain numa node is not available.
+        on which a certain numa node is not available. In addition, we check
+        that the vCPU and emulator thread pinning is as expected before and
+        after the migration. Both pinnings are changed during the migration.
 
         The actual magic is using the `--xml` option of `virsh migrate` and to
         provide a domain configuration with a different numa pinning along with
@@ -69,11 +73,30 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         # Check that the VM is still running on the sender side and that there are no zombi VMs on the sender side
         controllerVM.succeed("virsh list | grep 'testvm' | grep 'running'")
         computeVM.fail("virsh list | grep 'testvm'")
+
+        # Mapping from thread names to expected tasksets
+        expected_pinning_before_migration = {
+            "cloud-hyperviso": "3",
+            "vmm": "3",
+            "vcpu0": "1",
+            "vcpu1": "2",
+        }
+        validate_pinning(controllerVM, expected_pinning_before_migration)
+
         # Now we try to migrate with a compatible NUMA configuration. As we failed gracefully before, this migration
         # should succeed.
         controllerVM.succeed(
             "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --live --p2p --xml /etc/domain-numa-update.xml"
         )
+
+        expected_pinning_after_migration = {
+            "cloud-hyperviso": "c",
+            "vmm": "c",
+            "vcpu0": "4",
+            "vcpu1": "8",
+        }
+        validate_pinning(computeVM, expected_pinning_after_migration)
+
         # Check that the VM is running on the receiver side and that there are no zombi VMs on the sender side
         controllerVM.fail("virsh list | grep 'testvm'")
         computeVM.succeed("virsh list | grep 'testvm' | grep 'running'")
