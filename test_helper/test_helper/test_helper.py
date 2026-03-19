@@ -150,6 +150,12 @@ def initialComputeVMSetup(computeVM: Machine) -> None:
     computeVM.succeed("virsh pool-start nfs-share")
 
 
+def assert_domain_running(machine: Machine) -> None:
+    state = machine.succeed("virsh domstate testvm")
+    if "running" not in state:
+        raise AssertionError(f"expected 'testvm' to be running, got {state!r}")
+
+
 def setupTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> None:
     if controllerVM.name != "controllerVM":
         raise RuntimeError(

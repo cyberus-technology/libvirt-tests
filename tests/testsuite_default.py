@@ -9,6 +9,7 @@ import unittest
 # additional IDE configuration.
 try:
     from ..test_helper.test_helper import (  # type: ignore
+        assert_domain_running,
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
@@ -27,6 +28,7 @@ try:
     )
 except Exception:
     from test_helper import (
+        assert_domain_running,
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
@@ -353,6 +355,23 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             # interfaces.
             retries=350,
         )
+
+    def test_save_restore_during_boot(self):
+        """
+        Test save and restore while the VM is in early boot.
+        """
+        save_file = "/tmp/testvm.save"
+
+        controllerVM.succeed("virsh define /etc/domain-chv-serial-file.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        time.sleep(1)
+
+        # Trigger save while the guest is still in early boot.
+        controllerVM.succeed(f"virsh save testvm {save_file}")
+        controllerVM.succeed(f"virsh restore {save_file}")
+        assert_domain_running(controllerVM)
+        wait_for_ssh(controllerVM)
 
     def test_serial_file_output(self):
         """
@@ -1359,6 +1378,7 @@ def suite():
         LibvirtTests.test_raw_image_is_properly_attached,
         LibvirtTests.test_reboot_externallytriggered,
         LibvirtTests.test_reboot_guestinduced,
+        LibvirtTests.test_save_restore_during_boot,
         LibvirtTests.test_serial_file_output,
         LibvirtTests.test_serial_tcp,
         LibvirtTests.test_shutdown,
