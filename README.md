@@ -65,6 +65,9 @@ test attributes are available. Each attribute can be run via
   - long-running migration series with a VM that is under heavy memory load
 - `numa_hosts`
   - tests that check migrations between hosts with different NUMA configurations
+- `cpu_profiles`
+  - tests that run on hosts with different CPU profiles, including migration tests
+  - need to run an a CPU compatible with CPU profile used in the respective test
 
 ### Obtaining debug logs
 
