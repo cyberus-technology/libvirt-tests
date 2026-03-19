@@ -9,6 +9,7 @@ import unittest
 # additional IDE configuration.
 try:
     from ..test_helper.test_helper import (  # type: ignore
+        assert_domain_running,
         CommandGuard,
         LibvirtTestsBase,
         VIRTIO_BLOCK_DEVICE,
@@ -31,6 +32,7 @@ try:
     )
 except Exception:
     from test_helper import (
+        assert_domain_running,
         CommandGuard,
         LibvirtTestsBase,
         VIRTIO_BLOCK_DEVICE,
@@ -69,10 +71,6 @@ if "start_all" not in globals():
 
 def guest_boot_id(machine: Machine) -> str:
     return ssh(machine, "cat /proc/sys/kernel/random/boot_id").strip()
-
-
-def assert_domain_running(machine: Machine) -> None:
-    machine.succeed("virsh domstate testvm | grep -q running")
 
 
 def domain_is_running(machine: Machine) -> bool:
