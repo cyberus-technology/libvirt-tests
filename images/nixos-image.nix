@@ -35,6 +35,10 @@ nixpkgs.lib.nixosSystem {
         ];
         boot.loader.timeout = lib.mkForce 0;
 
+        # Set the log level to `KERN_DEBUG`. This increases the log output and
+        # thus helps debugging.
+        boot.consoleLogLevel = lib.mkForce 7;
+
         documentation = {
           enable = false;
           doc.enable = false;
