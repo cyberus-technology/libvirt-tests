@@ -135,6 +135,10 @@ let
         )
       ];
     };
+    cpu_profiles_host = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_cpu_profiles_host.py;
+    };
   };
 
   # Convenience attribute containing all nixos test driver attributes mainly
