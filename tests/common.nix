@@ -604,6 +604,14 @@ in
             })}";
           };
         };
+        "/etc/domain-chv-cirros-sapphire-rapids.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-cirros-sapphire-rapids.xml" (virsh_ch_xml {
+              image = "/var/lib/libvirt/storage-pools/nfs-share/cirros.img";
+              cpuModel = "sapphire-rapids";
+            })}";
+          };
+        };
         "/etc/domain-chv-hugepages.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "cirros.xml" (virsh_ch_xml {
