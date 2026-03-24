@@ -71,11 +71,23 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             retries=350,
         )
 
+    def test_ubuntu_with_cpu_profiles(self):
+        controllerVM.succeed("virsh define /etc/domain-chv-ubuntu-sapphire-rapids.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(
+            controllerVM,
+            user="ubuntu",
+            password="ubuntu",
+            retries=350,
+        )
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
     testcases = [
         LibvirtTests.test_cirros_with_cpu_profiles,
+        LibvirtTests.test_ubuntu_with_cpu_profiles,
     ]
 
     suite = unittest.TestSuite()
