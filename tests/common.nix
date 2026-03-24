@@ -18,9 +18,45 @@ let
     ${pkgs.qemu-utils}/bin/qemu-img convert -O raw ${cirros_qcow} $out
   '';
 
+  ubuntu_img = pkgs.fetchurl {
+    url = "https://cloud-images.ubuntu.com/jammy/20260320/jammy-server-cloudimg-amd64.img";
+    hash = "sha256-6oWxb4Gz9qpToSYJEtP5kfwz4OD8HXPwuMnJYkfkL9s=";
+  };
+
+  ubuntu_raw = pkgs.runCommand "ubuntu_raw" { } ''
+    ${pkgs.qemu-utils}/bin/qemu-img convert -f qcow2 -O raw ${ubuntu_img} $out
+  '';
+
+  # Seed image for the Ubuntu cloud image used in the tests. It creates an
+  # `ubuntu` user with password `ubuntu` and the fixed guest network expected
+  # by the test topology.
+  ubuntu_cloud_init =
+    pkgs.runCommand "ubuntu_cloud_init"
+      {
+        nativeBuildInputs = with pkgs; [
+          cloud-utils
+          cloud-init
+          mkpasswd
+        ];
+      }
+      ''
+        password_hash="$(mkpasswd --method=SHA-512 ubuntu)"
+
+        substitute ${./cloud-init/user-data.yaml.in} user-data \
+          --subst-var-by password_hash "$password_hash"
+
+        cp ${./cloud-init/meta-data.yaml} meta-data
+        cp ${./cloud-init/network-config.yaml} network-config
+
+        cloud-init schema --config-file user-data
+        cloud-localds -N network-config "$out" user-data meta-data
+      '';
+
   virsh_ch_xml =
     {
       image ? "/var/lib/libvirt/storage-pools/nfs-share/nixos.img",
+      # If cloud init is used, provide the path to the cloud init image here.
+      cloudInit ? null,
       numa ? false,
       hugepages ? false,
       prefault ? false,
@@ -227,6 +263,18 @@ let
                 ""
             }
           </disk>
+          ${
+            if !(builtins.isNull cloudInit) then
+              ''
+                <disk type='file' device='disk'>
+                  <source file='${cloudInit}'/>
+                  <target dev='vdb' bus='virtio'/>
+                  <readonly/>
+                </disk>
+              ''
+            else
+              ""
+          }
           <interface type='ethernet'>
             <mac address='52:54:00:e5:b8:01'/>
             <target dev='tap1'/>
@@ -578,6 +626,16 @@ in
             argument = "${cirros_raw}";
           };
         };
+        "/etc/ubuntu.raw" = {
+          "L+" = {
+            argument = "${ubuntu_raw}";
+          };
+        };
+        "/etc/ubuntu-seed.iso" = {
+          "L+" = {
+            argument = "${ubuntu_cloud_init}";
+          };
+        };
         "/etc/domain-chv.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "domain.xml" (virsh_ch_xml { })}";
@@ -608,6 +666,15 @@ in
           "C+" = {
             argument = "${pkgs.writeText "domain-cirros-sapphire-rapids.xml" (virsh_ch_xml {
               image = "/var/lib/libvirt/storage-pools/nfs-share/cirros.img";
+              cpuModel = "sapphire-rapids";
+            })}";
+          };
+        };
+        "/etc/domain-chv-ubuntu-sapphire-rapids.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-ubuntu-sapphire-rapids.xml" (virsh_ch_xml {
+              image = "/var/lib/libvirt/storage-pools/nfs-share/ubuntu.raw";
+              cloudInit = "/var/lib/libvirt/storage-pools/nfs-share/ubuntu-seed.iso";
               cpuModel = "sapphire-rapids";
             })}";
           };

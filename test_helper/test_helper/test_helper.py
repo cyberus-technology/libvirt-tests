@@ -114,6 +114,10 @@ def initialControllerVMSetup(controllerVM: Machine) -> None:
     controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
     controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
     controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
+    controllerVM.succeed("cp /etc/ubuntu.raw /nfs-root/")
+    controllerVM.succeed("chmod 0666 /nfs-root/ubuntu.raw")
+    controllerVM.succeed("cp /etc/ubuntu-seed.iso /nfs-root/")
+    controllerVM.succeed("chmod 0666 /nfs-root/ubuntu-seed.iso")
 
     controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
 
