@@ -19,6 +19,10 @@
     cloud-hypervisor.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux";
     cloud-hypervisor.inputs.nixpkgs.follows = "nixpkgs";
 
+    # Previous release of cloud-hypervisor for migration testing with different versions.
+    cloud-hypervisor-prev.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux-release-26-03-26";
+    cloud-hypervisor-prev.inputs.nixpkgs.follows = "nixpkgs";
+
     edk2-src.url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
     edk2-src.flake = false;
 
@@ -53,6 +57,7 @@
         self,
         # Keep list sorted:
         cloud-hypervisor,
+        cloud-hypervisor-prev,
         edk2-src,
         fcntl-tool,
         libvirt,
@@ -72,6 +77,16 @@
                 CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
                 CARGO_PROFILE_RELEASE_LTO = "thin";
               };
+            });
+            cloud-hypervisor-prev = cloud-hypervisor-prev.packages.default.overrideAttrs (old: {
+              env = (old.env or { }) // {
+                CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS = "true";
+                CARGO_PROFILE_RELEASE_OPT_LEVEL = 2;
+                CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
+                CARGO_PROFILE_RELEASE_LTO = "thin";
+              };
+              version = "prev";
+              __intentionallyOverridingVersion = true;
             });
             python3Packages = prev.python3Packages.overrideScope (
               _: _: {
@@ -225,7 +240,7 @@
         # We export all artifacts that we also have in the tests.
         packages = {
           # Export of the overlay'ed package
-          inherit (pkgs) cloud-hypervisor;
+          inherit (pkgs) cloud-hypervisor cloud-hypervisor-prev;
           inherit nixos-image;
           chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
             cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
