@@ -1293,6 +1293,46 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
                 wait_for_ssh(computeVM)
                 assert_domain_domstate(controllerVM, "shut off")
 
+    def test_live_migration_with_multiqueue_and_guest_reboot(self):
+        """
+        Pause and resume a guest with activated virtio multi-queues, then
+        live-migrate it while triggering a guest reboot.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-virtio-multiqueue.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        # Exercise pause/resume while the guest is still in early boot.
+        time.sleep(1)
+
+        controllerVM.succeed("virsh suspend testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "paused")
+
+        controllerVM.succeed("virsh resume testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "running")
+
+        wait_for_ssh(controllerVM, retries=200)
+
+        # Capture the current boot so we can verify the guest reboot later.
+        old_boot_id = guest_boot_id(controllerVM)
+
+        controllerVM.succeed(
+            "screen -dmS migrate virsh migrate --domain testvm "
+            "--desturi ch+tcp://computeVM/session "
+            "--persistent --live --p2p --parallel --parallel-connections 4"
+        )
+
+        # Schedule the reboot inside the guest so it can overlap with migration.
+        ssh(controllerVM, "systemd-run --on-active=2s --unit=test-reboot reboot")
+
+        wait_for_migration_screen_to_finish(controllerVM)
+        wait_until_succeed(lambda: domain_is_running(computeVM))
+        wait_for_guest_boot_id_change(computeVM, old_boot_id)
+        wait_for_ssh(computeVM)
+
+        assert_domain_domstate(controllerVM, "shut off")
+        assert_domain_domstate(computeVM, "running")
+
     def test_live_migration_statistics(self):
         """
         Test if we can properly retrieve the migration statistics via 'virsh
@@ -1483,6 +1523,7 @@ def suite():
         LibvirtTests.test_live_migration_with_guest_shutdown,
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
+        LibvirtTests.test_live_migration_with_multiqueue_and_guest_reboot,
         LibvirtTests.test_live_migration_with_serial_tcp,
         LibvirtTests.test_live_migration_with_vcpu_pinning,
     ]
