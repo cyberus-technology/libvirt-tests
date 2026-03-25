@@ -25,6 +25,10 @@ let
       hugepages ? false,
       prefault ? false,
       serial ? "pty",
+      memoryMiB ? 2048,
+      vcpuCount ? (if numa then 4 else 2),
+      diskQueues ? 1,
+      netQueues ? 1,
       # Whether all device will be assigned a static BDF through the XML or only some
       all_static_bdf ? false,
       # Whether we add a function ID to specific BDFs or not
@@ -104,8 +108,8 @@ let
       <domain type='kvm' id='21050'>
         <name>testvm</name>
         <uuid>4eb6319a-4302-4407-9a56-802fc7e6a422</uuid>
-        <memory unit='KiB'>2097152</memory>
-        <currentMemory unit='KiB'>2097152</currentMemory>
+        <memory unit='KiB'>${toString (memoryMiB * 1024)}</memory>
+        <currentMemory unit='KiB'>${toString (memoryMiB * 1024)}</currentMemory>
         ${
           if numa then
             ''
@@ -160,7 +164,7 @@ let
                   <model fallback='forbid'>${cpuModel}</model>
                 </cpu>
               ''}
-              <vcpu placement='static'>2</vcpu>
+              <vcpu placement='static'>${toString vcpuCount}</vcpu>
               ${
                 if hugepages then
                   ''
@@ -212,6 +216,7 @@ let
           <disk type='file' device='disk'>
             <source file='${image}'/>
             <target dev='vda' bus='virtio'/>
+            <driver queues='${toString diskQueues}'/>
             ${
               # Assign a fixed BDF that would normally be acquired by the implicit RNG device
               if all_static_bdf then
@@ -231,7 +236,7 @@ let
             <mac address='52:54:00:e5:b8:01'/>
             <target dev='tap1'/>
             <model type='virtio'/>
-            <driver queues='1'/>
+            <driver queues='${toString netQueues}'/>
             <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
           </interface>
           ${
