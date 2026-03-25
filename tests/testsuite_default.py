@@ -9,7 +9,7 @@ import unittest
 # additional IDE configuration.
 try:
     from ..test_helper.test_helper import (  # type: ignore
-        assert_domain_running,
+        assert_domain_domstate,
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
@@ -28,7 +28,7 @@ try:
     )
 except Exception:
     from test_helper import (
-        assert_domain_running,
+        assert_domain_domstate,
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
@@ -370,7 +370,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         # Trigger save while the guest is still in early boot.
         controllerVM.succeed(f"virsh save testvm {save_file}")
         controllerVM.succeed(f"virsh restore {save_file}")
-        assert_domain_running(controllerVM)
+        assert_domain_domstate(controllerVM, "running")
         wait_for_ssh(controllerVM)
 
     def test_serial_file_output(self):
