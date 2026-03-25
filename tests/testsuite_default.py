@@ -1256,16 +1256,10 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_for_ssh(controllerVM)
 
         controllerVM.succeed("virsh suspend testvm")
-        out = controllerVM.succeed(
-            "virsh list --all | grep testvm | awk '{print $3}'"
-        ).strip()
-        self.assertEqual(out, "paused", "domain state should match")
+        assert_domain_domstate(controllerVM, "paused")
 
         controllerVM.succeed("virsh resume testvm")
-        out = controllerVM.succeed(
-            "virsh list --all | grep testvm | awk '{print $3}'"
-        ).strip()
-        self.assertEqual(out, "running", "domain state should match")
+        assert_domain_domstate(controllerVM, "running")
         wait_for_ssh(controllerVM)
 
     def test_reboot_guestinduced(self):
