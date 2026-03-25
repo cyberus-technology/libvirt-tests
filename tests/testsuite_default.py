@@ -388,6 +388,26 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         status, out = controllerVM.execute("grep 'Welcome to NixOS' /tmp/vm_serial.log")
 
+    def test_pause_resume_during_boot(self):
+        """
+        Execute suspend/resume while the VM is still booting with
+        multi-queue virtio block and network devices.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-virtio-multiqueue.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        # Keep the guest in its early boot phase where the failure was
+        # observed, but still give the VMM time to initialize the domain.
+        time.sleep(3)
+
+        controllerVM.succeed("virsh suspend testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "paused")
+
+        controllerVM.succeed("virsh resume testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "running")
+        wait_for_ssh(controllerVM, retries=200)
+
     def test_managedsave(self):
         """
         Test that the managedsave call results in a state file. Further, we
@@ -1375,6 +1395,7 @@ def suite():
         LibvirtTests.test_network_hotplug_persistent_vm_restart,
         LibvirtTests.test_network_hotplug_transient_vm_restart,
         LibvirtTests.test_numa_topology,
+        LibvirtTests.test_pause_resume_during_boot,
         LibvirtTests.test_raw_image_is_properly_attached,
         LibvirtTests.test_reboot_externallytriggered,
         LibvirtTests.test_reboot_guestinduced,
