@@ -12,12 +12,15 @@ except ImportError:
     pass
 
 from test_driver.machine import Machine  # type: ignore
-from typing import Callable, List, Any
+from typing import Any, Callable, List, Literal
 
 # VIRTIO PCI constants
 VIRTIO_NETWORK_DEVICE = "1af4:1041"
 VIRTIO_BLOCK_DEVICE = "1af4:1042"
 VIRTIO_ENTROPY_SOURCE = "1af4:1044"
+COMMAND_TIMEOUT_EXIT_CODES = {124, 125}
+VIRTCHD_RESTART_TIMEOUT_SEC = 15
+CLOUD_HYPERVISOR_EXIT_RETRIES = 50
 
 
 class LibvirtTestsBase(unittest.TestCase):
@@ -150,10 +153,75 @@ def initialComputeVMSetup(computeVM: Machine) -> None:
     computeVM.succeed("virsh pool-start nfs-share")
 
 
-def assert_domain_running(machine: Machine) -> None:
-    state = machine.succeed("virsh domstate testvm")
-    if "running" not in state:
-        raise AssertionError(f"expected 'testvm' to be running, got {state!r}")
+def assert_domain_domstate(
+    machine: Machine,
+    expected_state: Literal["running", "paused", "shut off"],
+    vm_name: str = "testvm",
+) -> None:
+    actual_state = machine.succeed(f"virsh domstate {vm_name}")
+
+    if expected_state not in actual_state:
+        raise AssertionError(
+            f"expected {vm_name!r} to be {expected_state!r}, got {actual_state!r}"
+        )
+
+
+def _restart_virtchd(
+    machine: Machine, timeout_sec: int = VIRTCHD_RESTART_TIMEOUT_SEC
+) -> tuple[int, str]:
+    return machine.execute("systemctl restart virtchd", timeout=timeout_sec)
+
+
+def _is_timeout_status(status: int) -> bool:
+    return status in COMMAND_TIMEOUT_EXIT_CODES
+
+
+def _kill_cloud_hypervisor(machine: Machine) -> str | None:
+    status, out = machine.execute("pidof cloud-hypervisor")
+    if status != 0:
+        return None
+
+    machine.execute("kill -9 $(pidof cloud-hypervisor)")
+    wait_until_succeed(
+        lambda: machine.execute("pidof cloud-hypervisor")[0] != 0,
+        retries=CLOUD_HYPERVISOR_EXIT_RETRIES,
+    )
+    return out.strip()
+
+
+def restart_virtchd(
+    machine: Machine, timeout_sec: int = VIRTCHD_RESTART_TIMEOUT_SEC
+) -> None:
+    """
+    Restart virtchd during teardown.
+
+    If the restart times out, kill a still-running cloud-hypervisor process and
+    retry once.
+
+    :param machine: machine object used to run the command
+    :param timeout_sec: maximum runtime of a single restart attempt
+    :raises AssertionError: If the restart still fails after killing CHV
+    """
+    status, out = _restart_virtchd(machine, timeout_sec)
+    if status == 0:
+        return
+
+    if not _is_timeout_status(status):
+        raise AssertionError(
+            f"systemctl restart virtchd failed\nstatus={status}\noutput:\n{out}"
+        )
+
+    killed_chv_pids = _kill_cloud_hypervisor(machine)
+    retry_status, retry_out = _restart_virtchd(machine, timeout_sec)
+    if retry_status != 0:
+        raise AssertionError(
+            "systemctl restart virtchd failed after killing cloud-hypervisor\n"
+            f"initial_status={status}\n"
+            f"initial_output:\n{out}\n"
+            f"cloud_hypervisor_pids={killed_chv_pids or '<none>'}\n"
+            f"retry_status={retry_status}\n"
+            f"retry_output:\n{retry_out}"
+        )
 
 
 def setupTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> None:
@@ -226,7 +294,7 @@ def teardownTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> 
 
     # Trigger output of the sanitizers. At least the leak sanitizer output
     # is only triggered if the program under inspection terminates.
-    controllerVM.execute("systemctl restart virtchd")
+    restart_virtchd(controllerVM)
 
     # Make sure there are no reports of the sanitizers. We retrieve the
     # journal for only the recent test run, by looking for the test run
@@ -275,7 +343,7 @@ def teardownTestComputeVM(computeVM: Machine, test: unittest.TestCase) -> None:
 
     # Trigger output of the sanitizers. At least the leak sanitizer output
     # is only triggered if the program under inspection terminates.
-    computeVM.execute("systemctl restart virtchd")
+    restart_virtchd(computeVM)
 
     # Make sure there are no reports of the sanitizers. We retrieve the
     # journal for only the recent test run, by looking for the test run
