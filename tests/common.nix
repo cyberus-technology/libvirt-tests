@@ -602,6 +602,16 @@ in
             })}";
           };
         };
+        "/etc/domain-chv-virtio-multiqueue.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "domain-virtio-multiqueue.xml" (virsh_ch_xml {
+              diskQueues = 4;
+              netQueues = 4;
+              serial = "file";
+              vcpuCount = 4;
+            })}";
+          };
+        };
         "/etc/domain-chv-cirros.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "domain-cirros.xml" (virsh_ch_xml {
