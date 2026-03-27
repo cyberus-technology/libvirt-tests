@@ -33,6 +33,12 @@ from .test_helper import (
     wait_until_succeed,
 )
 
+from .msrs import (
+    FORBIDDEN_ARCHITECTURAL_MSRS,
+    FORBIDDEN_NON_ARCHITECTURAL_MSRS,
+    BENIGN_FORBIDDEN_MSRS,
+)
+
 __all__ = [
     "assert_domain_running",
     "CommandGuard",
@@ -40,6 +46,9 @@ __all__ = [
     "VIRTIO_BLOCK_DEVICE",
     "VIRTIO_ENTROPY_SOURCE",
     "VIRTIO_NETWORK_DEVICE",
+    "FORBIDDEN_ARCHITECTURAL_MSRS",
+    "FORBIDDEN_NON_ARCHITECTURAL_MSRS",
+    "BENIGN_FORBIDDEN_MSRS",
     "allocate_hugepages",
     "hotplug",
     "hotplug_fail",
