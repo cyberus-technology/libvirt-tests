@@ -50,6 +50,24 @@ let
       testScriptFile = ././testsuite_migration.py;
     };
 
+    version_migration = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_migration.py;
+      extraControllerConfig = [
+        (
+          { ... }:
+          {
+            nixpkgs.overlays = [
+              (_final: _prev: {
+                # Overwrite the default cloud-hypervisor version.
+                cloud-hypervisor = pkgs.cloud-hypervisor-prev;
+              })
+            ];
+          }
+        )
+      ];
+    };
+
     hugepage = createTestSuite {
       inherit enablePortForwarding;
       testScriptFile = ./testsuite_hugepages.py;
