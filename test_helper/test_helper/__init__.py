@@ -1,5 +1,5 @@
 from .test_helper import (
-    assert_domain_running,
+    assert_domain_domstate,
     CommandGuard,
     LibvirtTestsBase,
     VIRTIO_BLOCK_DEVICE,
@@ -34,7 +34,7 @@ from .test_helper import (
 )
 
 __all__ = [
-    "assert_domain_running",
+    "assert_domain_domstate",
     "CommandGuard",
     "LibvirtTestsBase",
     "VIRTIO_BLOCK_DEVICE",

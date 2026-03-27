@@ -9,7 +9,7 @@ import unittest
 # additional IDE configuration.
 try:
     from ..test_helper.test_helper import (  # type: ignore
-        assert_domain_running,
+        assert_domain_domstate,
         CommandGuard,
         LibvirtTestsBase,
         VIRTIO_BLOCK_DEVICE,
@@ -32,7 +32,7 @@ try:
     )
 except Exception:
     from test_helper import (
-        assert_domain_running,
+        assert_domain_domstate,
         CommandGuard,
         LibvirtTestsBase,
         VIRTIO_BLOCK_DEVICE,
@@ -75,10 +75,6 @@ def guest_boot_id(machine: Machine) -> str:
 
 def domain_is_running(machine: Machine) -> bool:
     return machine.execute("virsh domstate testvm | grep -q running")[0] == 0
-
-
-def assert_domain_shutoff(machine: Machine) -> None:
-    machine.succeed("virsh domstate testvm | grep -q 'shut off'")
 
 
 def assert_domain_absent(machine: Machine) -> None:
@@ -573,8 +569,8 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_for_ssh(computeVM)
         wait_for_guest_boot_id_change(computeVM, old_boot_id)
 
-        assert_domain_shutoff(controllerVM)
-        assert_domain_running(computeVM)
+        assert_domain_domstate(controllerVM, "shut off")
+        assert_domain_domstate(computeVM, "running")
 
     def test_live_migration_with_guest_shutdown(self):
         """
@@ -607,8 +603,8 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             == 0
         )
 
-        assert_domain_shutoff(controllerVM)
-        assert_domain_shutoff(computeVM)
+        assert_domain_domstate(controllerVM, "shut off")
+        assert_domain_domstate(computeVM, "shut off")
 
     def test_live_migration_failure_with_guest_reboot(self):
         """
@@ -634,7 +630,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_for_migration_screen_to_finish(controllerVM)
         wait_for_guest_boot_id_change(controllerVM, old_boot_id)
 
-        assert_domain_running(controllerVM)
+        assert_domain_domstate(controllerVM, "running")
         assert_domain_absent(computeVM)
 
     def test_live_migration_failure_with_guest_shutdown(self):
@@ -670,7 +666,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             == 0
         )
 
-        assert_domain_shutoff(controllerVM)
+        assert_domain_domstate(controllerVM, "shut off")
         assert_domain_absent(computeVM)
 
     def test_live_migration_parallel_connections(self):
@@ -1295,7 +1291,47 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
                 wait_until_succeed(lambda: domain_is_running(computeVM))
                 wait_for_ssh(computeVM)
-                assert_domain_shutoff(controllerVM)
+                assert_domain_domstate(controllerVM, "shut off")
+
+    def test_live_migration_with_multiqueue_and_guest_reboot(self):
+        """
+        Pause and resume a guest with activated virtio multi-queues, then
+        live-migrate it while triggering a guest reboot.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-virtio-multiqueue.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        # Exercise pause/resume while the guest is still in early boot.
+        time.sleep(1)
+
+        controllerVM.succeed("virsh suspend testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "paused")
+
+        controllerVM.succeed("virsh resume testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "running")
+
+        wait_for_ssh(controllerVM, retries=200)
+
+        # Capture the current boot so we can verify the guest reboot later.
+        old_boot_id = guest_boot_id(controllerVM)
+
+        controllerVM.succeed(
+            "screen -dmS migrate virsh migrate --domain testvm "
+            "--desturi ch+tcp://computeVM/session "
+            "--persistent --live --p2p --parallel --parallel-connections 4"
+        )
+
+        # Schedule the reboot inside the guest so it can overlap with migration.
+        ssh(controllerVM, "systemd-run --on-active=2s --unit=test-reboot reboot")
+
+        wait_for_migration_screen_to_finish(controllerVM)
+        wait_until_succeed(lambda: domain_is_running(computeVM))
+        wait_for_guest_boot_id_change(computeVM, old_boot_id)
+        wait_for_ssh(computeVM)
+
+        assert_domain_domstate(controllerVM, "shut off")
+        assert_domain_domstate(computeVM, "running")
 
     def test_live_migration_statistics(self):
         """
@@ -1488,6 +1524,7 @@ def suite():
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
         LibvirtTests.test_live_migration_with_serial_tcp,
+        LibvirtTests.test_live_migration_with_multiqueue_and_guest_reboot,
         LibvirtTests.test_live_migration_with_vcpu_pinning,
     ]
 

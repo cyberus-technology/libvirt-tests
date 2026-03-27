@@ -9,7 +9,7 @@ import unittest
 # additional IDE configuration.
 try:
     from ..test_helper.test_helper import (  # type: ignore
-        assert_domain_running,
+        assert_domain_domstate,
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
@@ -28,7 +28,7 @@ try:
     )
 except Exception:
     from test_helper import (
-        assert_domain_running,
+        assert_domain_domstate,
         LibvirtTestsBase,
         hotplug,
         hotplug_fail,
@@ -370,7 +370,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         # Trigger save while the guest is still in early boot.
         controllerVM.succeed(f"virsh save testvm {save_file}")
         controllerVM.succeed(f"virsh restore {save_file}")
-        assert_domain_running(controllerVM)
+        assert_domain_domstate(controllerVM, "running")
         wait_for_ssh(controllerVM)
 
     def test_serial_file_output(self):
@@ -387,6 +387,26 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         self.assertGreater(int(out), 50, "no serial log output")
 
         status, out = controllerVM.execute("grep 'Welcome to NixOS' /tmp/vm_serial.log")
+
+    def test_pause_resume_during_boot(self):
+        """
+        Execute suspend/resume while the VM is still booting with
+        multi-queue virtio block and network devices.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-virtio-multiqueue.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        # Keep the guest in its early boot phase where the failure was
+        # observed, but still give the VMM time to initialize the domain.
+        time.sleep(3)
+
+        controllerVM.succeed("virsh suspend testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "paused")
+
+        controllerVM.succeed("virsh resume testvm", timeout=15)
+        assert_domain_domstate(controllerVM, "running")
+        wait_for_ssh(controllerVM, retries=200)
 
     def test_managedsave(self):
         """
@@ -1236,16 +1256,10 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         wait_for_ssh(controllerVM)
 
         controllerVM.succeed("virsh suspend testvm")
-        out = controllerVM.succeed(
-            "virsh list --all | grep testvm | awk '{print $3}'"
-        ).strip()
-        self.assertEqual(out, "paused", "domain state should match")
+        assert_domain_domstate(controllerVM, "paused")
 
         controllerVM.succeed("virsh resume testvm")
-        out = controllerVM.succeed(
-            "virsh list --all | grep testvm | awk '{print $3}'"
-        ).strip()
-        self.assertEqual(out, "running", "domain state should match")
+        assert_domain_domstate(controllerVM, "running")
         wait_for_ssh(controllerVM)
 
     def test_reboot_guestinduced(self):
@@ -1375,6 +1389,7 @@ def suite():
         LibvirtTests.test_network_hotplug_persistent_vm_restart,
         LibvirtTests.test_network_hotplug_transient_vm_restart,
         LibvirtTests.test_numa_topology,
+        LibvirtTests.test_pause_resume_during_boot,
         LibvirtTests.test_raw_image_is_properly_attached,
         LibvirtTests.test_reboot_externallytriggered,
         LibvirtTests.test_reboot_guestinduced,
