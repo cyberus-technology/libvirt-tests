@@ -8,15 +8,19 @@ import unittest
 try:
     from ..test_helper.test_helper import (  # type: ignore
         LibvirtTestsBase,
+        assert_nested_cirros_connectivity,
         initialComputeVMSetup,
         initialControllerVMSetup,
+        setup_nested_cirros,
         wait_for_ssh,
     )
 except Exception:
     from test_helper import (
         LibvirtTestsBase,
+        assert_nested_cirros_connectivity,
         initialComputeVMSetup,
         initialControllerVMSetup,
+        setup_nested_cirros,
         wait_for_ssh,
     )
 
@@ -82,11 +86,25 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             retries=350,
         )
 
+    def test_nested_chv_guest(self):
+        """
+        Test that we are able to boot a nested CHV VM using a Cirros image when
+        a CPU profile is in use.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-cpu-sapphire-rapids.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+        setup_nested_cirros(controllerVM)
+        assert_nested_cirros_connectivity(controllerVM)
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
     testcases = [
         LibvirtTests.test_cirros_with_cpu_profiles,
+        LibvirtTests.test_nested_chv_guest,
         LibvirtTests.test_ubuntu_with_cpu_profiles,
     ]
 
