@@ -984,3 +984,107 @@ def vcpu_affinity_checks(testcase: TestCase, machine: Machine, context: str = ""
     testcase.assertEqual(
         int(taskset_vcpu2_controller, 16), 0xC, "vCPU taskset should match"
     )
+
+
+NESTED_CH_API_SOCKET = "/run/nested-chv.sock"
+NESTED_CIRROS_DISK = "/root/nested-cirros.img"
+NESTED_CIRROS_IP = "192.168.30.42"
+NESTED_CIRROS_HOST_IP = "192.168.30.1"
+NESTED_CIRROS_NETMASK = "255.255.255.0"
+NESTED_CIRROS_TAP = "nestedtap0"
+NESTED_CIRROS_MAC = "52:54:00:e5:b9:01"
+NESTED_CIRROS_DNSMASQ_LEASEFILE = "/run/nested-cirros-dnsmasq.leases"
+
+
+def setup_nested_cirros(machine: Machine) -> None:
+    """
+    Setup a nested cirros VM inside of a already active guest VM running on the
+    given 'machine'.
+    Thus, we have following chain of virtual machines: machine -> guest ->
+    cirros, where guest is our nixos image in the default scenario.
+    We use Cirros as the image to boot because it is very small in size and we
+    do not need to provide any additional disk space.
+    """
+    ssh(machine, f"cp /etc/cirros.img {NESTED_CIRROS_DISK}")
+    ssh(machine, f"chmod +w {NESTED_CIRROS_DISK}")
+
+    ssh(machine, f"tunctl -t {NESTED_CIRROS_TAP}")
+    ssh(machine, f"ip link show dev {NESTED_CIRROS_TAP}")
+    ssh(machine, f"ip addr add {NESTED_CIRROS_HOST_IP}/24 dev {NESTED_CIRROS_TAP}")
+    ssh(machine, f"ip link set dev {NESTED_CIRROS_TAP} up")
+    ssh(machine, f"ip link show dev {NESTED_CIRROS_TAP}")
+    ssh(
+        machine,
+        "dnsmasq "
+        f"--interface={NESTED_CIRROS_TAP} "
+        "--bind-dynamic "
+        "--port=0 "
+        "--dhcp-authoritative "
+        f"--dhcp-host={NESTED_CIRROS_MAC},{NESTED_CIRROS_IP} "
+        f"--dhcp-range={NESTED_CIRROS_IP},{NESTED_CIRROS_IP},{NESTED_CIRROS_NETMASK},12h "
+        f"--listen-address={NESTED_CIRROS_HOST_IP} "
+        f"--dhcp-leasefile={NESTED_CIRROS_DNSMASQ_LEASEFILE} "
+        ">/tmp/nested-cirros-dnsmasq.log 2>&1 &",
+    )
+
+    ssh(
+        machine,
+        "screen -dmS nested-ch cloud-hypervisor "
+        f"--api-socket {NESTED_CH_API_SOCKET} "
+        "--log-file /tmp/nested-cirros.log "
+        "--memory size=256M "
+        "--cpus boot=1 "
+        "--kernel /etc/CLOUDHV.fd "
+        f"--disk path={NESTED_CIRROS_DISK} "
+        f"--net tap={NESTED_CIRROS_TAP},mac={NESTED_CIRROS_MAC} "
+        "--console off "
+        "--serial file=/tmp/nested-serial.log",
+    )
+
+    def nested_guest_available():
+        try:
+            ssh(machine, f"test -S {NESTED_CH_API_SOCKET}")
+            ssh(
+                machine,
+                f"ch-remote --api-socket {NESTED_CH_API_SOCKET} ping",
+            )
+            return True
+        except RuntimeError:
+            pass
+        return False
+
+    try:
+        wait_until_succeed(
+            nested_guest_available,
+            retries=100,
+        )
+    except RuntimeError as e:
+        ch_log = ssh(machine, "cat /tmp/nested-cirros.log || true")
+        dnsmasq_log = ssh(machine, "cat /tmp/nested-cirros-dnsmasq.log || true")
+        raise RuntimeError(
+            "nested cloud-hypervisor did not start successfully\n"
+            f"cloud-hypervisor log:\n{ch_log}\n"
+            f"dnsmasq log:\n{dnsmasq_log}\n"
+        ) from e
+
+
+def assert_nested_cirros_connectivity(machine: Machine) -> None:
+    """
+    Test if the nested guest is alive and reachable over its DHCP-backed
+    network. As the Cirros image takes very long to reach a state where SSH
+    login is possible, we only use a ping to check the liveliness of the VM.
+    """
+    ssh(
+        machine,
+        f"ch-remote --api-socket {NESTED_CH_API_SOCKET} info >/dev/null",
+    )
+
+    def login():
+        try:
+            ssh(machine, f"ping -c 1 -W 1 {NESTED_CIRROS_IP}")
+            return True
+        except RuntimeError:
+            pass
+        return False
+
+    wait_until_succeed(login)
