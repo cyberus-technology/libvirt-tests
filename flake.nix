@@ -48,6 +48,18 @@
             pkgs.OVMF-cloud-hypervisor.meta.platforms
           ];
       };
+      # Debug optimized build, suited for quicker rebuilds with
+      # reasonable good performance.
+      toDebugOptimizedChv =
+        drv:
+        drv.overrideAttrs (old: {
+          env = (old.env or { }) // {
+            CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS = "true";
+            CARGO_PROFILE_RELEASE_OPT_LEVEL = 2;
+            CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
+            CARGO_PROFILE_RELEASE_LTO = "thin";
+          };
+        });
       inherit (dnf)
         exportOutputs
         ;
@@ -68,26 +80,8 @@
         pkgs = nixpkgs.legacyPackages.appendOverlays [
           (_final: prev: {
             fcntl-tool = fcntl-tool.packages.default;
-            # Debug optimized build, suited for quicker rebuilds with
-            # reasonable good performance.
-            cloud-hypervisor = cloud-hypervisor.packages.default.overrideAttrs (old: {
-              env = (old.env or { }) // {
-                CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS = "true";
-                CARGO_PROFILE_RELEASE_OPT_LEVEL = 2;
-                CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
-                CARGO_PROFILE_RELEASE_LTO = "thin";
-              };
-            });
-            cloud-hypervisor-prev = cloud-hypervisor-prev.packages.default.overrideAttrs (old: {
-              env = (old.env or { }) // {
-                CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS = "true";
-                CARGO_PROFILE_RELEASE_OPT_LEVEL = 2;
-                CARGO_PROFILE_RELEASE_OVERFLOW_CHECKS = "true";
-                CARGO_PROFILE_RELEASE_LTO = "thin";
-              };
-              version = "prev";
-              __intentionallyOverridingVersion = true;
-            });
+            cloud-hypervisor = toDebugOptimizedChv cloud-hypervisor.packages.default;
+            cloud-hypervisor-prev = toDebugOptimizedChv cloud-hypervisor-prev.packages.default;
             python3Packages = prev.python3Packages.overrideScope (
               _: _: {
                 inherit test-helper;
