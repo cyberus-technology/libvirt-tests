@@ -794,6 +794,13 @@ in
             })}";
           };
         };
+        "/etc/domain-chv-cpu-sapphire-rapids.xml" = {
+          "C+" = {
+            argument = "${pkgs.writeText "cirros-sapphire-rapids.xml" (virsh_ch_xml {
+              cpuModel = "sapphire-rapids";
+            })}";
+          };
+        };
         "/etc/new_interface.xml" = {
           "C+" = {
             argument = "${pkgs.writeText "new_interface.xml" (new_interface { })}";
