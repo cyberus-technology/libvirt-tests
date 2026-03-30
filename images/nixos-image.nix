@@ -2,6 +2,7 @@
 
 {
   nixpkgs,
+  chv-ovmf,
 }:
 
 nixpkgs.lib.nixosSystem {
@@ -15,6 +16,12 @@ nixpkgs.lib.nixosSystem {
         lib,
         ...
       }:
+      let
+        cirros_qcow = pkgs.fetchurl {
+          url = "https://download.cirros-cloud.net/0.6.2/cirros-0.6.2-x86_64-disk.img";
+          hash = "sha256-B+RKc+VMlNmIAoUVQDwe12IFXgG4OnZ+3zwrOH94zgA=";
+        };
+      in
       {
         imports = [
           # The minimal ch installer module has given us the smallest size for
@@ -73,10 +80,16 @@ nixpkgs.lib.nixosSystem {
         };
         environment.stub-ld.enable = false;
         environment.systemPackages = with pkgs; [
+          cloud-hypervisor
+          dnsmasq
           dmidecode
+          expect
+          iproute2
           screen
+          sshpass
           stress
           msr
+          tunctl
         ];
 
         isoImage.makeUsbBootable = true;
@@ -179,6 +192,20 @@ nixpkgs.lib.nixosSystem {
         systemd.services.resolvconf.enable = false;
         # We use a dummy key for the test VM to shortcut the boot time.
         systemd.services.sshd-keygen.enable = false;
+        systemd.tmpfiles.settings = {
+          "10-chv" = {
+            "/etc/CLOUDHV.fd" = {
+              "C+" = {
+                argument = "${chv-ovmf.fd}/FV/CLOUDHV.fd";
+              };
+            };
+            "/etc/cirros.img" = {
+              "L+" = {
+                argument = "${cirros_qcow}";
+              };
+            };
+          };
+        };
 
         # pw: root
         users.mutableUsers = false;

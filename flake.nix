@@ -105,7 +105,8 @@
         });
 
         nixos-image' =
-          (pkgs.callPackage ./images/nixos-image.nix { inherit nixpkgs; }).config.system.build.isoImage;
+          (pkgs.callPackage ./images/nixos-image.nix { inherit nixpkgs chv-ovmf; })
+          .config.system.build.isoImage;
 
         nixos-image =
           pkgs.runCommand "nixos.iso"
