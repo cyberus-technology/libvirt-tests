@@ -37,6 +37,16 @@ It might happen that the integration test runs out of resources when the user's
 tmp directory space is too small. You can try to mitigate this by setting
 `XDG_RUNTIME_DIR=/tmp/libvirt` before invoking the test script.
 
+### Test Infrastructure Overview
+
+![Test infrastructure Overview](docs/test-architecture-overview.drawio.png)
+
+Overview of the host running the test script, the two QEMU VMs
+`controllerVM` and `computeVM` acting as VM hosts for Cloud Hypervisor, and the
+live migration of the Cloud Hyperivsor (CHV) VM between them. Not all test cases
+need `computeVM`.
+
+
 ### Available Tests
 
 The libvirt-tests are divided into multiple tests suites, each leveraging the

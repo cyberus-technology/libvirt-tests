@@ -1,0 +1,64 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" version="29.2.7">
+  <diagram id="libvirt-tests-architecture" name="Page-1">
+    <mxGraphModel dx="1091" dy="722" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1320" pageHeight="760" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="host" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=6;strokeColor=#1f2937;strokeWidth=3;fillColor=#f8fafc;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=22;fontStyle=1;align=left;verticalAlign=top;spacingTop=26;spacingLeft=38;" value="Libvirt-Tests Architecture Overview&lt;br&gt;Host running a test suite" vertex="1">
+          <mxGeometry height="700" width="1260" x="30" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="script" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeColor=#ea580c;strokeWidth=3;fillColor=#fff7ed;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;spacingLeft=38;" value="NixOS integration test framework / test script&#xa;Spawns two QEMU VM hosts and orchestrates the migration test flow" vertex="1">
+          <mxGeometry height="110" width="1140" x="70" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="controller" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=7;strokeColor=#2563eb;strokeWidth=3;fillColor=#eff6ff;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=20;fontStyle=1;align=left;verticalAlign=top;spacingTop=34;spacingLeft=34;" value="controllerVM (QEMU VM)&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;VM host for Cloud Hypervisor VMs&lt;/span&gt;" vertex="1">
+          <mxGeometry height="310" width="470" x="70" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="controller-testvm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeColor=#059669;strokeWidth=3;fillColor=#ecfdf5;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;spacingLeft=28;" value="testvm&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Cloud Hypervisor VM&lt;/span&gt;" vertex="1">
+          <mxGeometry height="120" width="360" x="125" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="compute" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=7;strokeColor=#2563eb;strokeWidth=3;fillColor=#eff6ff;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=20;fontStyle=1;align=left;verticalAlign=top;spacingTop=34;spacingLeft=34;" value="computeVM (QEMU VM)&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;VM host for Cloud Hypervisor VMs&lt;/span&gt;" vertex="1">
+          <mxGeometry height="310" width="470" x="780" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="compute-testvm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeColor=#059669;strokeWidth=3;dashed=1;dashPattern=12 10;fillColor=#f0fdf4;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;spacingLeft=28;" value="testvm&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;Cloud Hypervisor VM&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-weight: normal;&quot;&gt;(after migration)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="120" width="360" x="835" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="boot-controller" edge="1" parent="1" source="script" style="endArrow=classic;html=1;rounded=0;strokeColor=#1f2937;strokeWidth=4;edgeStyle=elbowEdgeStyle;" target="controller">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="boot-controller-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=18;" value="boot controllerVM" vertex="1">
+          <mxGeometry height="36" width="180" x="325" y="294" as="geometry" />
+        </mxCell>
+        <mxCell id="boot-compute" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;strokeColor=#1f2937;strokeWidth=4;edgeStyle=elbowEdgeStyle;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1010" y="282" as="sourcePoint" />
+            <mxPoint x="1010" y="342" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="boot-compute-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontColor=#111827;fontFamily=DejaVu Sans;fontSize=18;" value="boot computeVM" vertex="1">
+          <mxGeometry height="36" width="180" x="840" y="294" as="geometry" />
+        </mxCell>
+        <mxCell id="network" edge="1" parent="1" source="controller" style="endArrow=none;html=1;rounded=0;strokeColor=#64748b;strokeWidth=3;dashed=1;dashPattern=10 8;" target="compute">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="420" />
+              <mxPoint x="780" y="420" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="network-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontColor=#475569;fontFamily=DejaVu Sans;fontSize=18;" value="&lt;div&gt;virtual&lt;/div&gt;host-to-host network&lt;br&gt;used by the test setup" vertex="1">
+          <mxGeometry height="48" width="180" x="570" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="migration" edge="1" parent="1" source="controller-testvm" style="curved=1;endArrow=classic;html=1;rounded=0;strokeColor=#0f766e;strokeWidth=5;dashed=1;dashPattern=14 10;" target="compute-testvm">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="660" y="660" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="migration-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontColor=#0f766e;fontFamily=DejaVu Sans;fontSize=20;fontStyle=1;" value="live migration of testvm&#xa;from controllerVM to computeVM" vertex="1">
+          <mxGeometry height="54" width="360" x="480" y="664" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
