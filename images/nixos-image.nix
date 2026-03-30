@@ -80,16 +80,10 @@ nixpkgs.lib.nixosSystem {
         };
         environment.stub-ld.enable = false;
         environment.systemPackages = with pkgs; [
-          cloud-hypervisor
-          dnsmasq
           dmidecode
-          expect
-          iproute2
           screen
-          sshpass
           stress
           msr
-          tunctl
         ];
 
         isoImage.makeUsbBootable = true;
