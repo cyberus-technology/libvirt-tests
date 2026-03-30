@@ -9,8 +9,9 @@ import unittest
 # additional IDE configuration.
 try:
     from ..test_helper.test_helper import (  # type: ignore
-        assert_domain_domstate,
         LibvirtTestsBase,
+        assert_domain_domstate,
+        assert_nested_cirros_connectivity,
         hotplug,
         hotplug_fail,
         initialComputeVMSetup,
@@ -19,6 +20,7 @@ try:
         number_of_network_devices,
         parse_devices_from_dom_def,
         pci_devices_by_bdf,
+        setup_nested_cirros,
         ssh,
         vcpu_affinity_checks,
         vm_unresponsive,
@@ -28,8 +30,9 @@ try:
     )
 except Exception:
     from test_helper import (
-        assert_domain_domstate,
         LibvirtTestsBase,
+        assert_domain_domstate,
+        assert_nested_cirros_connectivity,
         hotplug,
         hotplug_fail,
         initialComputeVMSetup,
@@ -38,6 +41,7 @@ except Exception:
         number_of_network_devices,
         parse_devices_from_dom_def,
         pci_devices_by_bdf,
+        setup_nested_cirros,
         ssh,
         vcpu_affinity_checks,
         vm_unresponsive,
@@ -1360,6 +1364,18 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
         controllerVM.succeed(f"rm {image}")
 
+    def test_nested_chv_guest(self):
+        """
+        Test that we are able to boot a nested CHV VM using a Cirros image.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+        setup_nested_cirros(controllerVM)
+        assert_nested_cirros_connectivity(controllerVM)
+
 
 def suite():
     # Test cases sorted in alphabetical order.
@@ -1383,6 +1399,7 @@ def suite():
         LibvirtTests.test_list_smbios_oem_strings,
         LibvirtTests.test_list_smbios_sysinfo,
         LibvirtTests.test_managedsave,
+        LibvirtTests.test_nested_chv_guest,
         LibvirtTests.test_network_hotplug_attach_detach_persistent,
         LibvirtTests.test_network_hotplug_attach_detach_transient,
         LibvirtTests.test_network_hotplug_persistent_transient_detach_vm_restart,
