@@ -47,7 +47,7 @@ let
 
     live_migration = createTestSuite {
       inherit enablePortForwarding;
-      testScriptFile = ././testsuite_migration.py;
+      testScriptFile = ./testsuite_live_migration.py;
     };
 
     hugepage = createTestSuite {
