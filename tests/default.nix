@@ -52,7 +52,7 @@ let
 
     version_migration = createTestSuite {
       inherit enablePortForwarding;
-      testScriptFile = ./testsuite_migration.py;
+      testScriptFile = ./testsuite_live_migration.py;
       extraControllerConfig = [
         (
           { ... }:
