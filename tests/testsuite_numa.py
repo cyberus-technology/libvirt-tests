@@ -72,7 +72,7 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
         # Check that the VM is still running on the sender side and that there are no zombi VMs on the sender side
         controllerVM.succeed("virsh list | grep 'testvm' | grep 'running'")
-        computeVM.fail("virsh list | grep 'testvm'")
+        computeVM.wait_until_fails("virsh list | grep 'testvm'")
 
         # Mapping from thread names to expected tasksets
         expected_pinning_before_migration = {
