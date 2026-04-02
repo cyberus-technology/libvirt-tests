@@ -82,6 +82,7 @@
             fcntl-tool = fcntl-tool.packages.default;
             cloud-hypervisor = toDebugOptimizedChv cloud-hypervisor.packages.default;
             cloud-hypervisor-prev = toDebugOptimizedChv cloud-hypervisor-prev.packages.default;
+            libvirt = libvirt.packages.libvirt-debugoptimized;
             python3Packages = prev.python3Packages.overrideScope (
               _: _: {
                 inherit test-helper;
@@ -234,7 +235,7 @@
         # We export all artifacts that we also have in the tests.
         packages = {
           # Export of the overlay'ed package
-          inherit (pkgs) cloud-hypervisor cloud-hypervisor-prev;
+          inherit (pkgs) cloud-hypervisor cloud-hypervisor-prev libvirt;
           inherit nixos-image;
           chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
             cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
@@ -246,7 +247,6 @@
             nixos-image
             chv-ovmf
             ;
-          libvirt = libvirt.packages.libvirt-debugoptimized;
         };
       }
     );

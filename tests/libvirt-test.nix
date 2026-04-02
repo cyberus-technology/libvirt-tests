@@ -4,7 +4,6 @@
 
 {
   pkgs,
-  libvirt, # debug-optimized libvirt package
   nixos-image,
   chv-ovmf,
   testScriptFile,
@@ -13,7 +12,7 @@
   extraComputeConfig ? [ ],
 }:
 let
-  common = import ./common.nix { inherit libvirt nixos-image chv-ovmf; };
+  common = import ./common.nix { inherit nixos-image chv-ovmf; };
   tls =
     let
       c = pkgs.callPackage ./certificates.nix { };

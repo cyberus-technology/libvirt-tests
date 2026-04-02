@@ -1,6 +1,5 @@
 {
   pkgs,
-  libvirt,
   nixos-image,
   chv-ovmf,
   enablePortForwarding ? true,
@@ -20,7 +19,6 @@ let
     }:
     pkgs.callPackage ./libvirt-test.nix {
       inherit
-        libvirt
         nixos-image
         chv-ovmf
         testScriptFile

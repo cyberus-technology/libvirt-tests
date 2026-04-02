@@ -3,7 +3,6 @@
 # The module defines the common parts of the host VMs.
 
 {
-  libvirt,
   nixos-image,
   chv-ovmf,
 }:
@@ -381,57 +380,6 @@ let
       </ip>
     </network>
   '';
-
-  # libvirt with cloud hypervisor patches, debugoptimized build, sanitizer
-  # support, and reduced to what we need for quicker compile times.
-  libvirtCh = libvirt.overrideAttrs (old: {
-    # name for the build logs
-    name = "libvirt-chv-tests";
-    # Reduce files needed to compile. We cut the build-time in half.
-    mesonFlags = old.mesonFlags ++ [
-      # Disabling tests: 1500 -> 1200
-      "-Dtests=disabled"
-      "-Dexpensive_tests=disabled"
-      # Disabling docs: 1200 -> 800
-      "-Ddocs=disabled"
-      # Disabling unneeded backends: 800 -> 685
-      "-Ddriver_ch=enabled"
-      "-Ddriver_qemu=disabled"
-      "-Ddriver_bhyve=disabled"
-      "-Ddriver_esx=disabled"
-      "-Ddriver_hyperv=disabled"
-      "-Ddriver_libxl=disabled"
-      "-Ddriver_lxc=disabled"
-      "-Ddriver_openvz=disabled"
-      "-Ddriver_secrets=disabled"
-      "-Ddriver_vbox=disabled"
-      "-Ddriver_vmware=disabled"
-      "-Ddriver_vz=disabled"
-      "-Dstorage_dir=disabled"
-      "-Dstorage_disk=disabled"
-      "-Dstorage_fs=enabled" # for netfs
-      "-Dstorage_gluster=disabled"
-      "-Dstorage_iscsi=disabled"
-      "-Dstorage_iscsi_direct=disabled"
-      "-Dstorage_lvm=disabled"
-      "-Dstorage_mpath=disabled"
-      "-Dstorage_rbd=disabled"
-      "-Dstorage_scsi=disabled"
-      "-Dstorage_vstorage=disabled"
-      "-Dstorage_zfs=disabled"
-      "-Dapparmor=disabled"
-      "-Dwireshark_dissector=disabled"
-      "-Dselinux=disabled"
-      "-Dsecdriver_apparmor=disabled"
-      "-Dsecdriver_selinux=disabled"
-      "-Db_sanitize=leak,address,undefined"
-      # Enabling the sanitizers has led to warnings about inlining macro
-      # generated cleanup methods of the glib which spam the build log.
-      # Ignoring and suppressing the warnings seems like the only option.
-      # "warning: inlining failed in call to 'glib_autoptr_cleanup_virNetlinkMsg': call is unlikely and code size would grow [-Winline]"
-      "-Dc_args=-Wno-inline"
-    ];
-  });
 in
 {
   # Silence the monolithic libvirtd, which otherwise starts before the virtchd
@@ -454,10 +402,61 @@ in
   };
 
   nixpkgs.overlays = [
-    (_final: _prev: {
+    (_final: prev: {
+      # libvirt with cloud hypervisor patches, debugoptimized build, sanitizer
+      # support, and reduced to what we need for quicker compile times.
       # Ensure that every access to `pkgs.libvirt` falls back to our special
       # variant.
-      libvirt = libvirtCh;
+      # `prev.libvirt` refers to the `libvirt` set in the flake.nix, not the
+      # standard `libvirt` from nixpkgs.
+      libvirt = prev.libvirt.overrideAttrs (old: {
+        # name for the build logs
+        name = "libvirt-chv-tests";
+        # Reduce files needed to compile. We cut the build-time in half.
+        mesonFlags = old.mesonFlags ++ [
+          # Disabling tests: 1500 -> 1200
+          "-Dtests=disabled"
+          "-Dexpensive_tests=disabled"
+          # Disabling docs: 1200 -> 800
+          "-Ddocs=disabled"
+          # Disabling unneeded backends: 800 -> 685
+          "-Ddriver_ch=enabled"
+          "-Ddriver_qemu=disabled"
+          "-Ddriver_bhyve=disabled"
+          "-Ddriver_esx=disabled"
+          "-Ddriver_hyperv=disabled"
+          "-Ddriver_libxl=disabled"
+          "-Ddriver_lxc=disabled"
+          "-Ddriver_openvz=disabled"
+          "-Ddriver_secrets=disabled"
+          "-Ddriver_vbox=disabled"
+          "-Ddriver_vmware=disabled"
+          "-Ddriver_vz=disabled"
+          "-Dstorage_dir=disabled"
+          "-Dstorage_disk=disabled"
+          "-Dstorage_fs=enabled" # for netfs
+          "-Dstorage_gluster=disabled"
+          "-Dstorage_iscsi=disabled"
+          "-Dstorage_iscsi_direct=disabled"
+          "-Dstorage_lvm=disabled"
+          "-Dstorage_mpath=disabled"
+          "-Dstorage_rbd=disabled"
+          "-Dstorage_scsi=disabled"
+          "-Dstorage_vstorage=disabled"
+          "-Dstorage_zfs=disabled"
+          "-Dapparmor=disabled"
+          "-Dwireshark_dissector=disabled"
+          "-Dselinux=disabled"
+          "-Dsecdriver_apparmor=disabled"
+          "-Dsecdriver_selinux=disabled"
+          "-Db_sanitize=leak,address,undefined"
+          # Enabling the sanitizers has led to warnings about inlining macro
+          # generated cleanup methods of the glib which spam the build log.
+          # Ignoring and suppressing the warnings seems like the only option.
+          # "warning: inlining failed in call to 'glib_autoptr_cleanup_virNetlinkMsg': call is unlikely and code size would grow [-Winline]"
+          "-Dc_args=-Wno-inline"
+        ];
+      });
     })
   ];
 
@@ -466,7 +465,7 @@ in
   virtualisation.libvirtd = {
     enable = true;
     sshProxy = false;
-    package = libvirtCh;
+    package = pkgs.libvirt;
   };
 
   systemd.services.virtstoraged.path = [ pkgs.mount ];
