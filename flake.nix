@@ -23,6 +23,10 @@
     cloud-hypervisor-prev.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux-release-26-03-31";
     cloud-hypervisor-prev.inputs.nixpkgs.follows = "nixpkgs";
 
+    # Previous release of libvirt to match cloud-hypervisor's previous version.
+    libvirt-prev.url = "git+https://github.com/cyberus-technology/libvirt?ref=refs/tags/gardenlinux-release-26-03-31&submodules=1";
+    libvirt-prev.inputs.cloud-hypervisor.follows = "cloud-hypervisor-prev";
+
     edk2-src.url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
     edk2-src.flake = false;
 
@@ -73,6 +77,7 @@
         edk2-src,
         fcntl-tool,
         libvirt,
+        libvirt-prev,
         nixpkgs,
         ...
       }:
@@ -83,6 +88,7 @@
             cloud-hypervisor = toDebugOptimizedChv cloud-hypervisor.packages.default;
             cloud-hypervisor-prev = toDebugOptimizedChv cloud-hypervisor-prev.packages.default;
             libvirt = libvirt.packages.libvirt-debugoptimized;
+            libvirt-prev = libvirt-prev.packages.libvirt-debugoptimized;
             python3Packages = prev.python3Packages.overrideScope (
               _: _: {
                 inherit test-helper;
@@ -235,7 +241,12 @@
         # We export all artifacts that we also have in the tests.
         packages = {
           # Export of the overlay'ed package
-          inherit (pkgs) cloud-hypervisor cloud-hypervisor-prev libvirt;
+          inherit (pkgs)
+            cloud-hypervisor
+            cloud-hypervisor-prev
+            libvirt
+            libvirt-prev
+            ;
           inherit nixos-image;
           chv-ovmf = pkgs.runCommand "OVMF-CLOUHDHV.fd" { } ''
             cp ${chv-ovmf.fd}/FV/CLOUDHV.fd $out
