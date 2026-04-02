@@ -59,6 +59,8 @@ let
               (_final: _prev: {
                 # Overwrite the default cloud-hypervisor version.
                 cloud-hypervisor = pkgs.cloud-hypervisor-prev;
+                # Overwrite the default libvirt version.
+                libvirt = pkgs.libvirt-prev;
               })
             ];
           }
