@@ -7,6 +7,8 @@
 
     # A local path can be used for developing or testing local changes. Make
     # sure the submodules in a local libvirt checkout are populated.
+    # Using the shorthand notation of "github:user/repo..." may lead to build errors
+    # like "source-with-submodules> cp: cannot create regular file '[...]': Permission denied".
     # libvirt.url = "git+file:<path/to/libvirt>?submodules=1";
     # libvirt.url = "git+ssh://git@gitlab.cyberus-technology.de/cyberus/cloud/libvirt.git?ref=gardenlinux&submodules=1";
     libvirt.url = "git+https://github.com/cyberus-technology/libvirt?ref=gardenlinux&submodules=1";
