@@ -89,37 +89,35 @@ nixpkgs.lib.nixosSystem {
         # Please keep in sync with documentation in networks.md!
         networking.firewall.enable = false;
         networking.hostName = "nixos";
-        networking.interfaces.eth1337.ipv4.addresses = [
-          {
-            address = "192.168.1.2";
-            prefixLength = 24;
-          }
-        ];
-        networking.interfaces.eth1337.useDHCP = false;
-        networking.interfaces.eth1338.ipv4.addresses = [
-          {
-            address = "192.168.2.2";
-            prefixLength = 24;
-          }
-        ];
-        networking.interfaces.eth1338.useDHCP = false;
-        networking.interfaces.eth1339.ipv4.addresses = [
-          {
-            address = "192.168.3.2";
-            prefixLength = 24;
-          }
-        ];
-        networking.interfaces.eth1339.useDHCP = false;
-        networking.interfaces.eth1340.ipv4.addresses = [
-          {
-            address = "192.168.4.2";
-            prefixLength = 24;
-          }
-        ];
-        networking.interfaces.eth1340.useDHCP = false;
-
         networking.useDHCP = false;
+        networking.networkmanager.enable = lib.mkForce false;
         networking.useNetworkd = true;
+
+        systemd.network = {
+          enable = true;
+          networks = {
+            eth1337 = {
+              matchConfig.MACAddress = "52:54:00:e5:b8:01";
+              address = [ "192.168.1.2/24" ];
+              linkConfig.RequiredForOnline = "no";
+            };
+            eth1338 = {
+              matchConfig.MACAddress = "52:54:00:e5:b8:02";
+              address = [ "192.168.2.2/24" ];
+              linkConfig.RequiredForOnline = "no";
+            };
+            eth1339 = {
+              matchConfig.MACAddress = "52:54:00:e5:b8:03";
+              address = [ "192.168.3.2/24" ];
+              linkConfig.RequiredForOnline = "no";
+            };
+            eth1340 = {
+              matchConfig.MACAddress = "52:54:00:e5:b8:04";
+              address = [ "192.168.4.2/24" ];
+              linkConfig.RequiredForOnline = "no";
+            };
+          };
+        };
 
         nix.enable = false;
 
@@ -146,35 +144,11 @@ nixpkgs.lib.nixosSystem {
         services.logrotate.enable = false;
         services.resolved.enable = false;
         services.timesyncd.enable = false;
-        services.udev.extraRules = ''
-          # Stable NIC name for the default VM network.
-          ACTION=="add", SUBSYSTEM=="net", \
-            ATTR{address}=="52:54:00:e5:b8:01", \
-            NAME="eth1337"
-
-          # Stable NIC name for hotplugged network (type 'ethernet').
-          ACTION=="add", SUBSYSTEM=="net", \
-            ATTR{address}=="52:54:00:e5:b8:02", \
-            NAME="eth1338"
-
-          # Stable NIC name for hotplugged network #2 (type 'network').
-          ACTION=="add", SUBSYSTEM=="net", \
-            ATTR{address}=="52:54:00:e5:b8:03", \
-            NAME="eth1339"
-
-          # Stable NIC name for hotplugged network #2 (type 'network').
-          ACTION=="add", SUBSYSTEM=="net", \
-            ATTR{address}=="52:54:00:e5:b8:04", \
-            NAME="eth1340"
-        '';
         services.udisks2.enable = false;
 
         system.stateVersion = "25.05";
         system.switch.enable = false;
 
-        systemd.network.wait-online.ignoredInterfaces = [
-          "eth1337"
-        ];
         systemd.services.mount-pstore.enable = false;
         systemd.services.resolvconf.enable = false;
         # We use a dummy key for the test VM to shortcut the boot time.
