@@ -223,47 +223,89 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         )
 
         # We use tcpdump and tshark to check for the RARP packets.
-        ethertype_rarp = "0x8035"
-
         def start_capture(machine):
             machine.succeed(
-                f"systemd-run --unit tcpdump-mig -- bash -lc 'tcpdump -i any -w /tmp/rarp.pcap \"ether proto {ethertype_rarp}\" 2> /tmp/rarp.log'"
+                "systemd-run --unit tcpdump-mig-l2 -- bash -lc 'tcpdump -i any -w /tmp/l2.pcap \"(arp or rarp)\" 2> /tmp/l2.log'"
             )
-            machine.wait_until_succeeds("grep -q 'listening on any' /tmp/rarp.log")
+            machine.wait_until_succeeds("grep -q 'listening on any' /tmp/l2.log")
 
-        def stop_capture_and_count_packets(machine):
-            machine.succeed("systemctl stop tcpdump-mig")
-            rarps = (
-                machine.succeed(
-                    f'tshark -r /tmp/rarp.pcap -Y "sll.etype == {ethertype_rarp}" -T fields -e sll.src.eth'
+        def stop_capture_and_assert_migration_announcements(
+            machine, expect_announcements: bool
+        ):
+            machine.succeed("systemctl stop tcpdump-mig-l2")
+
+            ethertype_rarp = "0x8035"
+            rarps = len(
+                set(
+                    machine.succeed(
+                        f'tshark -r /tmp/l2.pcap -Y "sll.etype == {ethertype_rarp}" -T fields -e sll.src.eth'
+                    )
+                    .strip()
+                    .splitlines()
                 )
-                .strip()
-                .splitlines()
             )
+
+            # GARP has ethertype ARP
+            ethertype_arp = "0x0806"
+            garps = len(
+                set(
+                    machine.succeed(
+                        f'tshark -r /tmp/l2.pcap -Y "sll.etype == {ethertype_arp} && arp.src.proto_ipv4 == arp.dst.proto_ipv4" -T fields -e sll.src.eth'
+                    )
+                    .strip()
+                    .splitlines()
+                )
+            )
+
+            lines = machine.succeed("tshark -r /tmp/l2.pcap").strip().splitlines()
+            lines = "\n".join(lines)
 
             # We only check whether we got rarp packets for both NICs, by
             # looking at the source MAC addresses.
-            self.assertEqual(len(set(rarps)), 2, "number of rarp packets should match")
+            expected = 2 if expect_announcements else 0
+            if not (rarps == garps == expected):
+                print(
+                    f"Error: Unexpected amount of RARP ({rarps}/{expected}) or GARP ({garps}/{expected}) packets"
+                )
+                print(f"Packets:\n{lines}")
+
+                print(machine.succeed("journalctl -u systemd-networkd -b"))
+                self.fail()
+
+        # If there was no traffic on one of the interfaces, Linux may omit the GARP
+        # packets. Thus we ping the second interface.
+        wait_for_ssh(controllerVM, ip="192.168.2.2")
 
         for _ in range(2):
+            start_capture(controllerVM)
             start_capture(computeVM)
             # Explicitly use IP in desturi as this was already a problem in the past
             controllerVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://192.168.100.2/session --persistent --live --p2p"
             )
+
             wait_for_ssh(computeVM)
-            stop_capture_and_count_packets(computeVM)
+
+            stop_capture_and_assert_migration_announcements(controllerVM, False)
+            stop_capture_and_assert_migration_announcements(computeVM, True)
+
             # Test we cannot migrate a VM that is already migrated
             controllerVM.fail(
                 "virsh migrate --domain testvm --desturi ch+tcp://192.168.100.2/session --persistent --live --p2p"
             )
 
             start_capture(controllerVM)
+            start_capture(computeVM)
+
             computeVM.succeed(
                 "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
             )
+
             wait_for_ssh(controllerVM)
-            stop_capture_and_count_packets(controllerVM)
+
+            stop_capture_and_assert_migration_announcements(controllerVM, True)
+            stop_capture_and_assert_migration_announcements(computeVM, False)
+
             # Test we cannot migrate a VM that is already migrated
             computeVM.fail(
                 "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p"
