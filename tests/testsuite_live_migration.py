@@ -1497,6 +1497,17 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             sender.succeed(migration_command)
             wait_for_ssh(receiver)
 
+    def test_live_migration_print_versions(self):
+        """
+        The test prints the versions of cloud-hypervisor and libvirt.
+        With the version information, cross-version migration tests can be validated
+        to use different versions.
+        """
+        print(controllerVM.succeed("virsh version"))
+        print(computeVM.succeed("virsh version"))
+        print(controllerVM.succeed("cloud-hypervisor --version"))
+        print(computeVM.succeed("cloud-hypervisor --version"))
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
@@ -1514,6 +1525,7 @@ def suite():
         LibvirtTests.test_live_migration_network_lost,
         LibvirtTests.test_live_migration_non_peer2peer_is_not_supported,
         LibvirtTests.test_live_migration_parallel_connections,
+        LibvirtTests.test_live_migration_print_versions,
         LibvirtTests.test_live_migration_statistics,
         LibvirtTests.test_live_migration_tls,
         LibvirtTests.test_live_migration_tls_without_certificates,
