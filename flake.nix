@@ -20,7 +20,7 @@
     cloud-hypervisor.inputs.nixpkgs.follows = "nixpkgs";
 
     # Previous release of cloud-hypervisor for migration testing with different versions.
-    cloud-hypervisor-prev.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux-release-26-03-26";
+    cloud-hypervisor-prev.url = "github:cyberus-technology/cloud-hypervisor?ref=gardenlinux-release-26-03-31";
     cloud-hypervisor-prev.inputs.nixpkgs.follows = "nixpkgs";
 
     edk2-src.url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";

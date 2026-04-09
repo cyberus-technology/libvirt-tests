@@ -10,11 +10,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1774967998,
-        "narHash": "sha256-ynLX5mJeFvAsWln9+gXmvLGRm+LT5MGUHsfD7ThmLRM=",
+        "lastModified": 1775661659,
+        "narHash": "sha256-JghS18fIAlQujoMXN61rTvaMt7XH5M+Hpb1zavrMSls=",
         "owner": "cyberus-technology",
         "repo": "cloud-hypervisor",
-        "rev": "52b7a9b0b8cb731c6731d23ae7aa8de2a03b5e4c",
+        "rev": "3c77ad4de37af625dc5a18c8e405a773e76f5b1b",
         "type": "github"
       },
       "original": {
@@ -34,16 +34,16 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1774527115,
-        "narHash": "sha256-piHL2tT5220IFv+5JCvSo4qLODx/0Zvq70J8TCRguo8=",
+        "lastModified": 1774955977,
+        "narHash": "sha256-O41HNDYh/HkmS4OutJi0euw+0HnaXXnSo5d1NBxLTeU=",
         "owner": "cyberus-technology",
         "repo": "cloud-hypervisor",
-        "rev": "e562d21501e8550252ca09bb052e7dc0e0bc508d",
+        "rev": "48607f37f78f479b65780eba5801c943210fc38f",
         "type": "github"
       },
       "original": {
         "owner": "cyberus-technology",
-        "ref": "gardenlinux-release-26-03-26",
+        "ref": "gardenlinux-release-26-03-31",
         "repo": "cloud-hypervisor",
         "type": "github"
       }
