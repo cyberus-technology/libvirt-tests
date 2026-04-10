@@ -15,6 +15,7 @@ try:
         VIRTIO_BLOCK_DEVICE,
         VIRTIO_ENTROPY_SOURCE,
         VIRTIO_NETWORK_DEVICE,
+        assert_nested_cirros_connectivity,
         hotplug,
         hotplug_fail,
         initialComputeVMSetup,
@@ -23,6 +24,7 @@ try:
         number_of_network_devices,
         number_of_storage_devices,
         pci_devices_by_bdf,
+        setup_nested_cirros,
         ssh,
         vcpu_affinity_checks,
         wait_for_ping,
@@ -38,6 +40,7 @@ except Exception:
         VIRTIO_BLOCK_DEVICE,
         VIRTIO_ENTROPY_SOURCE,
         VIRTIO_NETWORK_DEVICE,
+        assert_nested_cirros_connectivity,
         hotplug,
         hotplug_fail,
         initialComputeVMSetup,
@@ -46,6 +49,7 @@ except Exception:
         number_of_network_devices,
         number_of_storage_devices,
         pci_devices_by_bdf,
+        setup_nested_cirros,
         ssh,
         vcpu_affinity_checks,
         wait_for_ping,
@@ -1508,6 +1512,20 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
         print(controllerVM.succeed("cloud-hypervisor --version"))
         print(computeVM.succeed("cloud-hypervisor --version"))
 
+    def test_live_migration_with_nesting(self):
+        """
+        Test live migration of a CH VM that hosts a nested CH-managed Cirros
+        guest and verify the nested guest stays reachable over the nested
+        network before and after the migration.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+        setup_nested_cirros(controllerVM)
+        assert_nested_cirros_connectivity(controllerVM)
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
@@ -1536,6 +1554,7 @@ def suite():
         LibvirtTests.test_live_migration_with_hotplug,
         LibvirtTests.test_live_migration_with_hotplug_and_virtchd_restart,
         LibvirtTests.test_live_migration_with_multiqueue_and_guest_reboot,
+        LibvirtTests.test_live_migration_with_nesting,
         LibvirtTests.test_live_migration_with_serial_tcp,
         LibvirtTests.test_live_migration_with_vcpu_pinning,
     ]

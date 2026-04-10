@@ -8,15 +8,19 @@ import unittest
 try:
     from ..test_helper.test_helper import (  # type: ignore
         LibvirtTestsBase,
+        assert_nested_cirros_connectivity,
         initialComputeVMSetup,
         initialControllerVMSetup,
+        setup_nested_cirros,
         wait_for_ssh,
     )
 except Exception:
     from test_helper import (
         LibvirtTestsBase,
+        assert_nested_cirros_connectivity,
         initialComputeVMSetup,
         initialControllerVMSetup,
+        setup_nested_cirros,
         wait_for_ssh,
     )
 
@@ -82,11 +86,33 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
             retries=350,
         )
 
+    def test_live_migration_with_nesting(self):
+        """
+        Test live migration of a CH VM that hosts a nested CH-managed Cirros
+        guest and verify the nested guest stays reachable over the nested
+        network before and after the migration.
+        """
+
+        controllerVM.succeed("virsh define /etc/domain-chv-cpu-sapphire-rapids.xml")
+        controllerVM.succeed("virsh start testvm")
+
+        wait_for_ssh(controllerVM)
+        setup_nested_cirros(controllerVM)
+        assert_nested_cirros_connectivity(controllerVM)
+
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        )
+
+        wait_for_ssh(computeVM)
+        assert_nested_cirros_connectivity(computeVM)
+
 
 def suite():
     # Test cases involving live migration sorted in alphabetical order.
     testcases = [
         LibvirtTests.test_cirros_with_cpu_profiles,
+        LibvirtTests.test_live_migration_with_nesting,
         LibvirtTests.test_ubuntu_with_cpu_profiles,
     ]
 
