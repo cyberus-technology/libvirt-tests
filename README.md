@@ -66,8 +66,20 @@ test attributes are available. Each attribute can be run via
 - `numa_hosts`
   - tests that check migrations between hosts with different NUMA configurations
 - `cpu_profiles`
-  - tests that run on hosts with different CPU profiles, including migration tests
+  - tests that run on hosts with different CPU profiles, including migration
+    tests
   - need to run an a CPU compatible with CPU profile used in the respective test
+- `windows`
+  - tests run with Windows Server 2025 as guest OS
+  - the OS image is quite large so you might want to have a look at
+    `XDG_RUNTIME_DIR` (see above)
+- `windows_cpu_profiles`
+  - tests run with Windows Server 2025 as guest OS on with additional CPU
+    profiles
+  - the OS image is quite large so you might want to have a look at
+    `XDG_RUNTIME_DIR` (see above)
+  - need to run an a CPU compatible with the CPU profile used in the respective
+    test
 
 ### Obtaining debug logs
 
@@ -110,3 +122,4 @@ To directly access the Cloud Hypervisor VM, you can run
 
 ## More Documentation
 - [VM networks overview](./docs/networks.md)
+- [Information on Windows Server 2025 image](./docs/windows_image.md)
