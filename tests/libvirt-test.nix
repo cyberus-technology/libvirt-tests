@@ -45,7 +45,7 @@ pkgs.testers.nixosTest {
         cores = 4;
         memorySize = 4096;
         interfaces.eth1.vlan = 1;
-        diskSize = 8192;
+        diskSize = 28672;
         forwardPorts =
           # Port forwarding prevents us from executing the nixos tests in
           # parallel in the CI, as they run in the same context and ports are
