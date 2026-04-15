@@ -15,6 +15,7 @@
     libvirt.inputs.cloud-hypervisor.follows = "cloud-hypervisor";
     # Break the chain of cyclic dependencies:
     libvirt.inputs.libvirt-tests.inputs.libvirt.follows = "libvirt";
+    libvirt.inputs.libvirt-tests.inputs.libvirt-prev.follows = "libvirt-prev";
     libvirt.inputs.nixpkgs.follows = "nixpkgs";
 
     # cloud-hypervisor.url = "git+file:<path/to/cloud-hypervisor>";
@@ -28,6 +29,11 @@
     # Previous release of libvirt to match cloud-hypervisor's previous version.
     libvirt-prev.url = "git+https://github.com/cyberus-technology/libvirt?ref=refs/tags/gardenlinux-release-26-03-31&submodules=1";
     libvirt-prev.inputs.cloud-hypervisor.follows = "cloud-hypervisor-prev";
+    # Break the chain of cyclic dependencies:
+    libvirt-prev.inputs.libvirt-tests.inputs.libvirt.follows = "libvirt-prev";
+    # TODO: The following line MUST be uncommented once the previous release contains a `flake.nix` with `libvirt-prev` input.
+    # libvirt-prev.inputs.libvirt-tests.inputs.libvirt-prev.follows = "libvirt-prev";
+    libvirt-prev.inputs.nixpkgs.follows = "nixpkgs";
 
     edk2-src.url = "git+https://github.com/cyberus-technology/edk2?ref=gardenlinux&submodules=1";
     edk2-src.flake = false;
