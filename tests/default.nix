@@ -9,6 +9,11 @@ let
     inherit nixos-image;
     inherit (pkgs) writeText;
   };
+
+  windowsLibvirtDomainCfg = import ./windows-domain-xml.nix {
+    inherit pkgs;
+  };
+
   createTestSuite =
     {
       testScriptFile,
@@ -156,6 +161,17 @@ let
     cpu_profiles_host = createTestSuite {
       inherit enablePortForwarding;
       testScriptFile = ./testsuite_cpu_profiles_host.py;
+    };
+
+    windows = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_windows_default.py;
+      extraControllerConfig = [
+        windowsLibvirtDomainCfg
+      ];
+      extraComputeConfig = [
+        windowsLibvirtDomainCfg
+      ];
     };
   };
 
