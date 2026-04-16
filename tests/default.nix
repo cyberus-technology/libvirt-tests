@@ -173,6 +173,41 @@ let
         windowsLibvirtDomainCfg
       ];
     };
+
+    # The test requires a host with a recent Intel processor. The test is not
+    # enabled in our generic CI because of these hardware restrictions.
+    windows_cpu_profiles = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_windows_cpu_profiles.py;
+      extraControllerConfig = [
+        windowsLibvirtDomainCfg
+        (
+          { ... }:
+          {
+            virtualisation.qemu.options =
+
+              [
+                "-cpu"
+                "host,+vmx"
+              ];
+          }
+        )
+      ];
+      extraComputeConfig = [
+        windowsLibvirtDomainCfg
+        (
+          { ... }:
+          {
+            virtualisation.qemu.options =
+
+              [
+                "-cpu"
+                "host,+vmx"
+              ];
+          }
+        )
+      ];
+    };
   };
 
   # Convenience attribute containing all nixos test driver attributes mainly
