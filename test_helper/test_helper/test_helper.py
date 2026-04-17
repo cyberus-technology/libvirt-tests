@@ -327,12 +327,10 @@ def teardownTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> 
         print(f"cmd: {cmd}")
         controllerVM.succeed(cmd)
 
-    # Reset the (possibly modified) system image. This helps avoid
-    # situations where the image has been modified by a test and thus
+    # Reset the (possibly modified) system images. This helps avoid
+    # situations where an image has been modified by a test and thus
     # doesn't boot in subsequent tests.
-    controllerVM.succeed(
-        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-    )
+    reset_system_images(controllerVM)
 
     test.assertNotEqual(
         statusController, 0, msg=f"Sanitizer detected an issue: {outController}"
@@ -689,17 +687,19 @@ def copy_system_image(machine: Machine) -> None:
         machine.succeed(f"chmod 0666 /nfs-root/{image}")
 
 
+def reset_system_images(machine: Machine) -> None:
     """
-    Replaces the (possibly modified) system image with its original
+    Replaces all (possibly modified) system images with their original
     image.
 
     This helps avoid situations where a VM hangs during boot after the
     underlying disk’s BDF was changed, since OVMF may store NVRAM
     entries that reference specific BDF values.
     """
-    machine.succeed(
-        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-    )
+    for image in SYSTEM_IMAGES:
+        machine.succeed(
+            f"rsync -aL --no-perms --inplace --checksum /etc/{image} /nfs-root/{image}"
+        )
 
 
 def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
