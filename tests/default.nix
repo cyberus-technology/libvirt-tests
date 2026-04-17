@@ -9,6 +9,11 @@ let
     inherit nixos-image;
     inherit (pkgs) writeText;
   };
+
+  windowsLibvirtDomainCfg = import ./windows-domain-xml.nix {
+    inherit pkgs;
+  };
+
   createTestSuite =
     {
       testScriptFile,
@@ -156,6 +161,52 @@ let
     cpu_profiles_host = createTestSuite {
       inherit enablePortForwarding;
       testScriptFile = ./testsuite_cpu_profiles_host.py;
+    };
+
+    windows = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_windows_default.py;
+      extraControllerConfig = [
+        windowsLibvirtDomainCfg
+      ];
+      extraComputeConfig = [
+        windowsLibvirtDomainCfg
+      ];
+    };
+
+    # The test requires a host with a recent Intel processor. The test is not
+    # enabled in our generic CI because of these hardware restrictions.
+    windows_cpu_profiles = createTestSuite {
+      inherit enablePortForwarding;
+      testScriptFile = ./testsuite_windows_cpu_profiles.py;
+      extraControllerConfig = [
+        windowsLibvirtDomainCfg
+        (
+          { ... }:
+          {
+            virtualisation.qemu.options =
+
+              [
+                "-cpu"
+                "host,+vmx"
+              ];
+          }
+        )
+      ];
+      extraComputeConfig = [
+        windowsLibvirtDomainCfg
+        (
+          { ... }:
+          {
+            virtualisation.qemu.options =
+
+              [
+                "-cpu"
+                "host,+vmx"
+              ];
+          }
+        )
+      ];
     };
   };
 

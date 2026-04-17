@@ -99,12 +99,17 @@ class LibvirtTestsBase(unittest.TestCase):
             self.save_machine_log(machine, "/tmp/vm_serial.log", dst_path)
 
 
-def initialControllerVMSetup(controllerVM: Machine) -> None:
+def initialControllerVMSetup(
+    controllerVM: Machine, target_os: Literal["linux", "windows"] = "linux"
+) -> None:
     """
-    This method configures the controllerVM initially, before the test suite
-    runs. It sets up e.g. the NFS share with the correct OS images.
+    This method configures the controllerVM initially, before the test
+    suite runs. It sets up e.g. the NFS share with the correct OS
+    images.
 
     :param controllerVM: machine object of the controllerVM
+    :param target_os: If "windows", prepare the NFS with the Windows
+        Server image. Otherwise places the Linux images in the NFS.
     :raises RuntimeError: If the machine object is not the controllerVM
     """
     if controllerVM.name != "controllerVM":
@@ -113,14 +118,18 @@ def initialControllerVMSetup(controllerVM: Machine) -> None:
         )
 
     controllerVM.wait_for_unit("multi-user.target")
-    controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
-    controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
-    controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
-    controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
-    controllerVM.succeed("cp /etc/ubuntu.raw /nfs-root/")
-    controllerVM.succeed("chmod 0666 /nfs-root/ubuntu.raw")
-    controllerVM.succeed("cp /etc/ubuntu-seed.iso /nfs-root/")
-    controllerVM.succeed("chmod 0666 /nfs-root/ubuntu-seed.iso")
+    if target_os == "windows":
+        controllerVM.succeed("cp /etc/windows-server.img /nfs-root/windows-server.img")
+        controllerVM.succeed("chmod 0666 /nfs-root/windows-server.img")
+    else:
+        controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
+        controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
+        controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
+        controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
+        controllerVM.succeed("cp /etc/ubuntu.raw /nfs-root/")
+        controllerVM.succeed("chmod 0666 /nfs-root/ubuntu.raw")
+        controllerVM.succeed("cp /etc/ubuntu-seed.iso /nfs-root/")
+        controllerVM.succeed("chmod 0666 /nfs-root/ubuntu-seed.iso")
 
     controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
 
@@ -335,6 +344,15 @@ def teardownTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> 
     test.assertNotEqual(
         statusController, 0, msg=f"Sanitizer detected an issue: {outController}"
     )
+
+    # Currently, we don't store any data about if we copied the windows image to
+    # the NFS. We therefore have to check if it's there before resetting it
+    # `test -e` returns 0 if a file exists and 1 otherwise.
+    test_return_code, _ = controllerVM.execute("test -e /nfs-root/windows-server.img")
+    if test_return_code == 0:
+        controllerVM.succeed(
+            "rsync -aL --no-perms --inplace --checksum /etc/windows-server.img /nfs-root/windows-server.img"
+        )
 
 
 def teardownTestComputeVM(computeVM: Machine, test: unittest.TestCase) -> None:
