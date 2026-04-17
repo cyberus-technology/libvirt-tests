@@ -22,6 +22,13 @@ COMMAND_TIMEOUT_EXIT_CODES = {124, 125}
 VIRTCHD_RESTART_TIMEOUT_SEC = 15
 CLOUD_HYPERVISOR_EXIT_RETRIES = 50
 
+# List of names of system images
+SYSTEM_IMAGES = [
+    "nixos.img",
+    "cirros.img",
+    "ubuntu.raw",
+]
+
 
 class LibvirtTestsBase(unittest.TestCase):
     """
@@ -113,12 +120,7 @@ def initialControllerVMSetup(controllerVM: Machine) -> None:
         )
 
     controllerVM.wait_for_unit("multi-user.target")
-    controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
-    controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
-    controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
-    controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
-    controllerVM.succeed("cp /etc/ubuntu.raw /nfs-root/")
-    controllerVM.succeed("chmod 0666 /nfs-root/ubuntu.raw")
+    copy_system_image(controllerVM)
     controllerVM.succeed("cp /etc/ubuntu-seed.iso /nfs-root/")
     controllerVM.succeed("chmod 0666 /nfs-root/ubuntu-seed.iso")
 
@@ -675,7 +677,18 @@ def hotplug_fail(machine: Machine, cmd: str) -> None:
     hotplug(machine, cmd, False)
 
 
-def reset_system_image(machine: Machine) -> None:
+def copy_system_image(machine: Machine) -> None:
+    """
+    Copies all system images to the `machines`'s NFS.
+
+    All system images that are copied are assumed to reside at /etc. A copy for
+    each system image is created in /nfs-root.
+    """
+    for image in SYSTEM_IMAGES:
+        machine.succeed(f"cp /etc/{image} /nfs-root/")
+        machine.succeed(f"chmod 0666 /nfs-root/{image}")
+
+
     """
     Replaces the (possibly modified) system image with its original
     image.
