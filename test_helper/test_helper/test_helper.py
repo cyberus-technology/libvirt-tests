@@ -695,20 +695,6 @@ def hotplug_fail(machine: Machine, cmd: str) -> None:
     hotplug(machine, cmd, False)
 
 
-def reset_system_image(machine: Machine) -> None:
-    """
-    Replaces the (possibly modified) system image with its original
-    image.
-
-    This helps avoid situations where a VM hangs during boot after the
-    underlying disk’s BDF was changed, since OVMF may store NVRAM
-    entries that reference specific BDF values.
-    """
-    machine.succeed(
-        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-    )
-
-
 def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
     """
     Creates a dict of all PCI devices addressable by their BDF in the VM.
