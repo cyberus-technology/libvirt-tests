@@ -342,21 +342,10 @@ def teardownTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> 
         print(f"cmd: {cmd}")
         controllerVM.succeed(cmd)
 
-    # Reset the (possibly modified) system image. This helps avoid
-    # situations where the image has been modified by a test and thus
+    # Reset the (possibly modified) system images. This helps avoid
+    # situations where an image has been modified by a test and thus
     # doesn't boot in subsequent tests.
-    controllerVM.succeed(
-        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-    )
-
-    # Currently, we don't store any data about if we copied the windows image to
-    # the NFS. We therefore have to check if it's there before resetting it
-    # `test -e` returns 0 if a file exists and 1 otherwise.
-    test_return_code, _ = controllerVM.execute("test -e /nfs-root/windows-server.img")
-    if test_return_code == 0:
-        controllerVM.succeed(
-            "rsync -aL --no-perms --inplace --checksum /etc/windows-server.img /nfs-root/windows-server.img"
-        )
+    reset_system_images(controllerVM)
 
     # Check the sanitizer last, as the assertion can fail. Otherwise, we might
     # skip some clean up.
@@ -713,6 +702,21 @@ def copy_system_images(machine: Machine) -> None:
     for image in SYSTEM_IMAGES[TARGET_OS]:
         machine.succeed(f"cp /etc/{image} /nfs-root/")
         machine.succeed(f"chmod 0666 /nfs-root/{image}")
+
+
+def reset_system_images(machine: Machine) -> None:
+    """
+    Replaces all (possibly modified) system images with their original
+    image.
+
+    This helps avoid situations where a VM hangs during boot after the
+    underlying disk’s BDF was changed, since OVMF may store NVRAM
+    entries that reference specific BDF values.
+    """
+    for image in SYSTEM_IMAGES[TARGET_OS]:
+        machine.succeed(
+            f"rsync -aL --no-perms --inplace --checksum /etc/{image} /nfs-root/{image}"
+        )
 
 
 def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
