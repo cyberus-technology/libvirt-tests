@@ -22,6 +22,22 @@ COMMAND_TIMEOUT_EXIT_CODES = {124, 125}
 VIRTCHD_RESTART_TIMEOUT_SEC = 15
 CLOUD_HYPERVISOR_EXIT_RETRIES = 50
 
+# List of system images per VM guest type
+SYSTEM_IMAGES = {
+    "linux": [
+        "nixos.img",
+        "cirros.img",
+        "ubuntu.raw",
+    ],
+    "windows": [
+        "windows-server.img",
+    ],
+}
+
+# Store VM guest type globally as we don't have a chance to do so in our
+# class.
+TARGET_OS: Literal["linux", "windows"]
+
 
 class LibvirtTestsBase(unittest.TestCase):
     """
@@ -118,18 +134,10 @@ def initialControllerVMSetup(
         )
 
     controllerVM.wait_for_unit("multi-user.target")
-    if target_os == "windows":
-        controllerVM.succeed("cp /etc/windows-server.img /nfs-root/windows-server.img")
-        controllerVM.succeed("chmod 0666 /nfs-root/windows-server.img")
-    else:
-        controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
-        controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
-        controllerVM.succeed("cp /etc/ubuntu.raw /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/ubuntu.raw")
-        controllerVM.succeed("cp /etc/ubuntu-seed.iso /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/ubuntu-seed.iso")
+
+    global TARGET_OS
+    TARGET_OS = target_os
+    copy_system_images(controllerVM)
 
     controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
 
@@ -693,6 +701,18 @@ def hotplug_fail(machine: Machine, cmd: str) -> None:
     :return:
     """
     hotplug(machine, cmd, False)
+
+
+def copy_system_images(machine: Machine) -> None:
+    """
+    Copies all system images to the `machines`'s NFS.
+
+    All system images that are copied are assumed to reside at /etc. A copy for
+    each system image is created in /nfs-root.
+    """
+    for image in SYSTEM_IMAGES[TARGET_OS]:
+        machine.succeed(f"cp /etc/{image} /nfs-root/")
+        machine.succeed(f"chmod 0666 /nfs-root/{image}")
 
 
 def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
