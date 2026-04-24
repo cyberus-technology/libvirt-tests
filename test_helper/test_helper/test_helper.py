@@ -22,6 +22,22 @@ COMMAND_TIMEOUT_EXIT_CODES = {124, 125}
 VIRTCHD_RESTART_TIMEOUT_SEC = 15
 CLOUD_HYPERVISOR_EXIT_RETRIES = 50
 
+# List of system images per VM guest type
+SYSTEM_IMAGES = {
+    "linux": [
+        "nixos.img",
+        "cirros.img",
+        "ubuntu.raw",
+    ],
+    "windows": [
+        "windows-server.img",
+    ],
+}
+
+# Store VM guest type globally as we don't have a chance to do so in our
+# class.
+TARGET_OS: Literal["linux", "windows"]
+
 
 class LibvirtTestsBase(unittest.TestCase):
     """
@@ -118,18 +134,10 @@ def initialControllerVMSetup(
         )
 
     controllerVM.wait_for_unit("multi-user.target")
-    if target_os == "windows":
-        controllerVM.succeed("cp /etc/windows-server.img /nfs-root/windows-server.img")
-        controllerVM.succeed("chmod 0666 /nfs-root/windows-server.img")
-    else:
-        controllerVM.succeed("cp /etc/nixos.img /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/nixos.img")
-        controllerVM.succeed("cp /etc/cirros.img /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/cirros.img")
-        controllerVM.succeed("cp /etc/ubuntu.raw /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/ubuntu.raw")
-        controllerVM.succeed("cp /etc/ubuntu-seed.iso /nfs-root/")
-        controllerVM.succeed("chmod 0666 /nfs-root/ubuntu-seed.iso")
+
+    global TARGET_OS
+    TARGET_OS = target_os
+    copy_system_images(controllerVM)
 
     controllerVM.succeed("mkdir -p /var/lib/libvirt/storage-pools/nfs-share")
 
@@ -334,21 +342,10 @@ def teardownTestControllerVM(controllerVM: Machine, test: unittest.TestCase) -> 
         print(f"cmd: {cmd}")
         controllerVM.succeed(cmd)
 
-    # Reset the (possibly modified) system image. This helps avoid
-    # situations where the image has been modified by a test and thus
+    # Reset the (possibly modified) system images. This helps avoid
+    # situations where an image has been modified by a test and thus
     # doesn't boot in subsequent tests.
-    controllerVM.succeed(
-        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-    )
-
-    # Currently, we don't store any data about if we copied the windows image to
-    # the NFS. We therefore have to check if it's there before resetting it
-    # `test -e` returns 0 if a file exists and 1 otherwise.
-    test_return_code, _ = controllerVM.execute("test -e /nfs-root/windows-server.img")
-    if test_return_code == 0:
-        controllerVM.succeed(
-            "rsync -aL --no-perms --inplace --checksum /etc/windows-server.img /nfs-root/windows-server.img"
-        )
+    reset_system_images(controllerVM)
 
     # Check the sanitizer last, as the assertion can fail. Otherwise, we might
     # skip some clean up.
@@ -695,18 +692,31 @@ def hotplug_fail(machine: Machine, cmd: str) -> None:
     hotplug(machine, cmd, False)
 
 
-def reset_system_image(machine: Machine) -> None:
+def copy_system_images(machine: Machine) -> None:
     """
-    Replaces the (possibly modified) system image with its original
+    Copies all system images to the `machines`'s NFS.
+
+    All system images that are copied are assumed to reside at /etc. A copy for
+    each system image is created in /nfs-root.
+    """
+    for image in SYSTEM_IMAGES[TARGET_OS]:
+        machine.succeed(f"cp /etc/{image} /nfs-root/")
+        machine.succeed(f"chmod 0666 /nfs-root/{image}")
+
+
+def reset_system_images(machine: Machine) -> None:
+    """
+    Replaces all (possibly modified) system images with their original
     image.
 
     This helps avoid situations where a VM hangs during boot after the
     underlying disk’s BDF was changed, since OVMF may store NVRAM
     entries that reference specific BDF values.
     """
-    machine.succeed(
-        "rsync -aL --no-perms --inplace --checksum /etc/nixos.img /nfs-root/nixos.img"
-    )
+    for image in SYSTEM_IMAGES[TARGET_OS]:
+        machine.succeed(
+            f"rsync -aL --no-perms --inplace --checksum /etc/{image} /nfs-root/{image}"
+        )
 
 
 def pci_devices_by_bdf(machine: Machine) -> dict[str, str]:
