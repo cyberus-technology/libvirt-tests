@@ -104,11 +104,24 @@
             );
           })
         ];
+        ovmf-debug = pkgs.OVMF.override { debug = true; };
 
-        chv-ovmf = pkgs.OVMF-cloud-hypervisor.overrideAttrs (_old: {
+        chv-ovmf-release = pkgs.OVMF-cloud-hypervisor.overrideAttrs (_old: {
           version = "cbs";
           src = edk2-src;
         });
+
+        chv-ovmf-debug =
+          (pkgs.OVMF-cloud-hypervisor.override {
+            OVMF = ovmf-debug;
+          }).overrideAttrs
+            (_old: {
+              version = "cbs-debug";
+              src = edk2-src;
+              patches = [ ]; # add custom EDK2 patches here
+            });
+
+        chv-ovmf = chv-ovmf-release;
 
         nixos-image' =
           (pkgs.callPackage ./images/nixos-image.nix { inherit nixpkgs chv-ovmf; })
