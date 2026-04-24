@@ -46,11 +46,20 @@ class LibvirtTests(LibvirtTestsBase):  # type: ignore
 
     def test_windows_boot(self):
         """
-        Test that we do not introduce a regression with respect to booting windows.
+        Test that we do not introduce a regression with respect to
+        booting and migrating windows.
         """
 
         controllerVM.succeed("virsh define /etc/domain-windows-server.xml")
         controllerVM.succeed("virsh start testvm")
+        wait_for_ssh(controllerVM, user="administrator", password="FOO99bar!!")
+        controllerVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://computeVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        )
+        wait_for_ssh(computeVM, user="administrator", password="FOO99bar!!")
+        computeVM.succeed(
+            "virsh migrate --domain testvm --desturi ch+tcp://controllerVM/session --persistent --live --p2p --parallel --parallel-connections 4"
+        )
         wait_for_ssh(controllerVM, user="administrator", password="FOO99bar!!")
 
 
